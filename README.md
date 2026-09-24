@@ -29,7 +29,7 @@ Rebuild: `pip install bpy matplotlib pillow`, then
 
 | Topic | Change |
 |---|---|
-| Stairs | **Inside: a simple half-turn stair from the hall to the upper floor only.** It has 2 flights of 11 × 188 mm, 260 mm going, 1.20 m wide, and runs between clay walls. Beside and under it are stores for mats, cushions and blankets, and upstairs a linen / laundry room and a small tea & water niche. **The roof terrace is reached only by the external stair.** Going up there means going outside anyway, and the roof is cleaner without the stair house. The spiral stair, its glass drum and the stair house are gone |
+| Stairs | **Inside: one straight, wide flight (1.50 m) along the north-west wall, from the hall to the upper floor only.** It is open to the hall with a slim timber balustrade, so the climb looks out over the hall, the net and the light circle. The lowest steps widen into **seating steps**, with a store for mats under the high end. At the top you arrive right at the door to the external stair. 22 × 188 mm, going 270 mm. **The roof terrace is reached only by the external stair.** There is no stair house on the roof. (v0.8 briefly had a half-turn stair between clay walls; it felt narrow and enclosed, so it was replaced.) |
 | Bathroom as a place for showering together (foreplay, aftercare, pairs or groups) | Redesigned as a **bathing room**. **Both WCs have their own doors** from the walkway, so nobody has to use a toilet in the middle of other people's intimacy. The walkway front is a clay wall with a frosted-glass sliding door. Inside: 3 wide **rain showers from the ceiling, right under the skylight**; a **heated tadelakt bench** under the window to sit on together; and an **aftercare nook** behind a low curved wall, with a heated daybed, towels, a blanket and candles |
 | Brighter + greener | Lighter materials to carry daylight deeper into the hall: pale sand clay plaster, light oiled oak floors, light spruce ceilings. Greenery inside: 7 large potted trees at the hall windows, plants in the walkway alcoves by the posts, and 16 planters on the dome ring with trailing greens hanging down over the walkway (you see them from the walkway, from the net and from below through the net) |
 | Heating | **Connected to ZEGG's wood-chip district heating** (from the ZEGG site pages) instead of a heat pump of its own. Underfloor heating stays |
@@ -98,7 +98,7 @@ Rebuild: `pip install bpy matplotlib pillow`, then
 | Rooms | 6 × ≈ 23 m² (+ shared bathroom in the 7th): 4.6 m wide at the door, 7.9 m at the outer wall, 3.8 m deep, 2.60 m high |
 | Dome | Ø 11.60, rise 2.90 m, on a 45 cm upstand (base +7.73, top +10.63), 20 glulam ribs, crown ring with vent |
 | Roof terrace | Deck +7.28; railing 1.20 m, or 1.80 m privacy screen on the south faces |
-| Stairs | Inside: half-turn, hall → upper floor, 22 × 188 mm, going 260 mm, 1.20 m wide. Outside (NW face): ground → upper floor → roof terrace |
+| Stairs | Inside: one straight flight along the NW wall, open to the hall, 1.50 m wide, 22 × 188 mm, going 270 mm. Outside (NW face): ground → upper floor → roof terrace |
 | External stair | On the NW face: ground → upper floor → terrace, 1.20 m wide flights, 188 / 185 × 270 mm |
 | Bathroom | North segment of the upper floor, ≈ 24 m²: 2 WCs, walk-in group shower, 2 basins, all gender |
 | Annex | North face, 5 m deep: foyer + coats, WC, tech; entrance door with canopy |
@@ -141,7 +141,7 @@ Some points are exceptions (Abweichungen) that need compensating measures.
 1. The **external stair on the NW face** (ground → upper floor → roof terrace) is the necessary stair. It is the escape
    route from the upper floor and the only one from the roof terrace. The wall behind it has no room windows, only
    the doors; it may need to be fire-rated.
-2. The **inside half-turn stair** (hall → upper floor, 188 mm risers, 260 mm going, which meets DIN 18065) is open to
+2. The **inside straight stair** (hall → upper floor, 188 mm risers, 270 mm going, which meets DIN 18065) is open to
    the hall. That is fine as a second route while the house has **≤ 12 beds** (6 rooms × 2), with the room windows as
    rescue openings.
    - With **more than 12 beds** (a Beherbergungsstätte), both routes must be built. The inside stair would then need
@@ -222,7 +222,7 @@ The model has a switch for this (`CARVINGS` in `build_model.py`), which maps hei
 | `06b_exterior_eye_level` | Eye level from the south-east: garden doors and big windows |
 | `06c_exterior_stair_side` | The north-west side: external stair and the small annex |
 | `09_roof_terrace` | The sun deck: daybeds, sails, privacy screen, dome |
-| `10_stair` | The stair to the upper floor, seen from the hall |
+| `10_stair` | The open stair along the NW wall, seen from the hall |
 | `13_bathroom` | The bathing room: rain showers under the skylight, warm bench, aftercare nook |
 | `14_hall_evening` | The hall in the evening: paper pendants, indirect light ledge, clay wall shells |
 | `07_walkway_evening` | The walkway in the evening, lanterns glowing through the doors |

@@ -190,63 +190,54 @@ def octagon_wall(ax, zcut, faces=range(P.N_SLOTS)):
 
 
 # ---------------------------------------------------------------------------
-# half-turn stair (hall -> upper floor) in the stair segment
+# straight stair along the NW wall (hall -> upper floor), open to the hall
 # ---------------------------------------------------------------------------
-G_U = P.STAIR_GOING_U
-W_U = P.STAIR_FLIGHT_W
-GAP_U = 0.14
-N_T = P.STAIR_RISERS // 2 - 1
-U0 = P.APOTHEM_FRONT + P.FRONT_T + 0.03
-UL = U0 + N_T * G_U
-UE = P.R_IN - 0.02
-V1 = GAP_U / 2 + W_U
-
-
-def S(u, v):
-    return to_world(SA, u, v)
+KS = P.STAIR_SLOT
+G_T = P.STAIR_GOING_T
+NS0 = P.R_IN - P.STAIR_FLIGHT_W_T
+NS1 = P.R_IN - 0.02
+T0S = P.STAIR_T0
+NT_S = P.STAIR_RISERS - 1
+T_TOPS = T0S + NT_S * G_T
+T_VOID = T0S + 7 * G_T
 
 
 def stair_plan(ax, level):
-    f1, f2 = (-V1, -GAP_U / 2), (GAP_U / 2, V1)
-    solid = dict(fc='#F4EADC', lw=0.5, z=3)
-    for (v0, v1) in (f1, f2):
-        poly(ax, [S(U0, v0), S(UL, v0), S(UL, v1), S(U0, v1)], **solid)
-    poly(ax, [S(UL, -V1), S(UE, -V1), S(UE, V1), S(UL, V1)], **solid)
-    cut = 6 if level == 'GF' else None
-    for i in range(1, N_T + 1):
-        for (v0, v1), fl in ((f1, 1), (f2, 2)):
-            u = U0 + i * G_U
-            above = (level == 'GF' and (fl == 2 or i > cut))
-            ax.plot(*zip(S(u, v0), S(u, v1)), color='#9C8E80' if above else INK, lw=0.35 if above else 0.45,
-                    ls=(0, (2, 2)) if above else '-', zorder=5)
-    seg_wall(ax, S(U0, 0), S(UL, 0), GAP_U, z=5)
-    for s_ in (-1, 1):
-        seg_wall(ax, S(U0, s_ * (V1 + 0.07)), S(UE, s_ * (V1 + 0.07)), 0.14, fc=POCHE if level == 'GF' or s_ < 0 else '#CDBFAF')
+    cut = 7 if level == 'GF' else None
+    for i in range(1, NT_S + 1):
+        ta, tb = T0S + (i - 1) * G_T, T0S + i * G_T
+        nin = NS0 - (0.75 * (1 - (i - 1) / 3) + 0.2 if i <= 3 else 0.0)
+        above = level == 'GF' and i > cut
+        below = level == 'UF' and i < 8
+        if below:
+            continue
+        rect_face(ax, KS, nin, NS1, ta, tb, fc='none' if above else '#F4EADC',
+                  ec='#9C8E80' if (above or below) else INK, lw=0.4, z=3,
+                  ls=(0, (2, 2)) if above else '-')
     if level == 'GF':
-        uc = U0 + cut * G_U
-        ax.plot(*zip(S(uc, -V1), S(uc + 0.25, -V1 / 2), S(uc - 0.1, -GAP_U / 2)), color=INK, lw=0.8, zorder=6)
-        ax.annotate('', xy=S(U0 + 1.6, -V1 / 2), xytext=S(U0 + 0.1, -V1 / 2),
+        tc = T0S + cut * G_T
+        ax.plot(*zip(FP(KS, NS0, tc), FP(KS, (NS0 + NS1) / 2, tc + 0.2), FP(KS, NS1, tc - 0.1)), color=INK,
+                lw=0.8, zorder=6)
+        ax.annotate('', xy=FP(KS, (NS0 + NS1) / 2, T0S + 4 * G_T), xytext=FP(KS, (NS0 + NS1) / 2, T0S + 0.1),
                     arrowprops=dict(arrowstyle='-|>', lw=0.8, color=INK), zorder=6)
-        p = S(U0 + 0.5, -V1 / 2 - 0.35)
+        p = FP(KS, NS0 - 0.55, T0S + 0.4)
+        label(ax, p[0], p[1], 'seating\nsteps', 5.5)
+        p = FP(KS, NS0 + 0.7, T0S + 1.2)
         label(ax, p[0], p[1], 'UP', 6.5, weight='bold')
-        hf = P.APOTHEM_FRONT * math.tan(rad(P.SLOT_DEG / 2)) - 0.08
-        for k_ in (P.STAIR_SLOT, P.STAIR_SLOT + 1):
-            a_ = P.partition_angle(k_)
-            seg_wall(ax, pol(RC, a_), pol(P.octo_r(a_, P.R_IN), a_), P.PART_T)
-        for s_ in (-1, 1):
-            dv = (s_ * (V1 + 0.14) + s_ * hf) / 2
-            va, vb = sorted((s_ * (V1 + 0.14), s_ * hf))
-            seg_wall(ax, S(U0 - 0.06, va), S(U0 - 0.06, dv - 0.45), 0.12)
-            seg_wall(ax, S(U0 - 0.06, dv + 0.45), S(U0 - 0.06, vb), 0.12)
-            p = S(7.6, s_ * (V1 + 0.9))
-            label(ax, p[0], p[1], 'mats,\ncushions', 5.5)
-        seg_wall(ax, S(U0 - 0.06, GAP_U / 2), S(U0 - 0.06, V1), 0.12)
+        rect_face(ax, KS, NS0, NS1, T0S + 12 * G_T, T_TOPS, fc='none', ec=INK, lw=0.4, z=4, ls=(0, (1, 1)))
     else:
-        ax.annotate('', xy=S(U0 + 0.05, V1 / 2), xytext=S(U0 + 1.6, V1 / 2),
+        ax.annotate('', xy=FP(KS, (NS0 + NS1) / 2, T_VOID + 0.2), xytext=FP(KS, (NS0 + NS1) / 2, T_TOPS - 0.1),
                     arrowprops=dict(arrowstyle='-|>', lw=0.8, color=INK), zorder=6)
-        p = S(U0 + 0.6, V1 / 2 + 0.35)
+        p = FP(KS, (NS0 + NS1) / 2, T_TOPS - 1.0)
         label(ax, p[0], p[1], 'DN', 6.5, weight='bold')
-        seg_wall(ax, S(U0 - 0.07, -V1), S(U0 - 0.07, -GAP_U / 2), 0.14, fc='#CDBFAF')
+        rect_face(ax, KS, NS0 - 0.12, NS0, T_VOID, T_TOPS, fc='#CDBFAF', lw=0.4, z=4)
+        fr = P.APOTHEM_FRONT + P.FRONT_T
+        rect_face(ax, KS, fr, NS0, -1.3, -1.18, fc=POCHE, lw=0.5, z=4)
+        rect_face(ax, KS, NS0 - 0.12, NS0, T_VOID, -1.18, fc=POCHE, lw=0.5, z=4)
+        rect_face(ax, KS, NS0 - 0.12, NS1, T_VOID - 0.12, T_VOID, fc=POCHE, lw=0.5, z=4)
+        rect_face(ax, KS, fr - 0.12, fr, -P.face_half(fr) + 0.1, -2.35, fc=POCHE, lw=0.5, z=4)
+        rect_face(ax, KS, fr - 0.12, fr, -1.45, -1.18, fc=POCHE, lw=0.5, z=4)
+        rect_face(ax, KS, 6.2, 7.6, 1.55, 2.05, fc='#E6D6BF', lw=0.4, z=4)
 
 
 # ---------------------------------------------------------------------------
@@ -339,8 +330,10 @@ def ground_floor():
         ax.add_patch(Circle(pol(2.45, 360 * i / 14 + 8), 0.25, fc='#E9DCC6', ec='#9C8A70', lw=0.4, zorder=3))
     stair_plan(ax, 'GF')
     ext_stair(ax, 'GF')
-    p = to_world(SA, 4.7, -2.3)
-    label(ax, p[0], p[1], 'stair to the\nupper floor', 6)
+    p = FP(KS, NS0 - 1.3, -0.5)
+    label(ax, p[0], p[1], 'open stair to the\nupper floor (1.50 m)', 6)
+    p = FP(KS, NS0 + 0.75, T0S + 15 * G_T)
+    label(ax, p[0], p[1], 'store', 5.5)
     # small annex on the north face: foyer + coats, WC, tech
     KE = P.ENTRY_SLOT
     AO = P.R_OUT + P.ANNEX_D
@@ -553,11 +546,11 @@ def upper_floor():
     label(ax, p[0], p[1], 'walkway', 6.5, rotation=-8)
     stair_plan(ax, 'UF')
     ext_stair(ax, 'UF')
-    p = to_world(SA, 8.0, -2.3)
+    p = FP(KS, 7.0, -2.2)
     label(ax, p[0], p[1], 'linen /\nlaundry', 5.5)
-    p = to_world(SA, 7.6, 2.2)
-    label(ax, p[0], p[1], 'to external\nstair + roof', 5.5)
-    p = to_world(SA, 9.2, 1.9)
+    p = FP(KS, 8.8, 2.9)
+    label(ax, p[0], p[1], 'landing ->\nroof stair', 5.5)
+    p = FP(KS, 6.9, 1.2)
     label(ax, p[0], p[1], 'tea', 5.5)
     dim(ax, (0, 0), pol(P.R_NET, 322), 'Ø 7.80 usable', size=6.5)
     ax.annotate('', xy=(-P.R_OUT, -11.8), xytext=(P.R_OUT, -11.8),
@@ -574,8 +567,8 @@ def upper_floor():
              '• Skylight 1.40 × 1.10 m over the nest: walk-on frosted\n   glass in the terrace (light, no view in)\n'
              '• Acoustic partitions 160 mm, clay plaster\n\n'
              'Stairs\n'
-             '• Inside: half-turn stair hall -> upper floor, 2 flights\n   of 11 × 188 mm, going 260 mm, 1.20 m wide,\n'
-             '   between clay walls; mats / cushion stores beside it\n'
+             '• Inside: one straight flight along the NW wall, open\n   to the hall, 22 × 188 mm, going 270 mm, 1.50 m wide;\n'
+             '   seating steps at the bottom, store under the top\n'
              '• Outside (NW face): ground -> upper floor -> roof\n   terrace; 2nd escape route and the only way up\n'
              '   to the terrace',
              fontsize=10, color=INK, va='top', linespacing=1.4)

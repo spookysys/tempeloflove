@@ -1866,121 +1866,112 @@ for k in range(P.N_SLOTS):
     room(k, bath=(k == P.BATH_SLOT))
 
 # ---------------------------------------------------------------------------
-# 7. half-turn stair: hall -> upper floor. The roof terrace is reached by the external stair.
-#    Storage for mats and cushions beside and under the stair; on the upper floor a linen /
-#    laundry room on one side and an open tea & water niche by the passage to the external stair.
+# 7. stair hall -> upper floor: one straight, wide flight along the NW wall (circumferential),
+#    open to the hall with a slim timber balustrade; the lowest steps widen into seating steps.
+#    It arrives right at the door to the external stair (roof terrace). Stores under the high end.
 # ---------------------------------------------------------------------------
-SA_ = P.slot_center(P.STAIR_SLOT)
-
-
-def SW(u, v, z=0.0):
-    a = rad(SA_)
-    return Vector((u * math.cos(a) - v * math.sin(a), u * math.sin(a) + v * math.cos(a), z))
-
-
-def box_uv(bm, u0, u1, v0, v1, z0, z1):
-    cube(bm, SW((u0 + u1) / 2, (v0 + v1) / 2, (z0 + z1) / 2), (u1 - u0, v1 - v0, z1 - z0), rz=SA_)
-
-
+KS = P.STAIR_SLOT
+RZS = P.slot_center(KS) + 90          # cube x-axis along the face (t)
 R_ = P.STAIR_RISE
-G_ = P.STAIR_GOING_U
-W_ = P.STAIR_FLIGHT_W
-GAP = 0.14
-N_T = P.STAIR_RISERS // 2 - 1                       # 10 treads per flight
-U0 = P.APOTHEM_FRONT + P.FRONT_T + 0.03             # foot of flight 1 / head of flight 2
-UL = U0 + N_T * G_                                  # landing starts
-UE = P.R_IN - 0.02
-V1 = GAP / 2 + W_                                   # outer edge of the flights
-ZL = (N_T + 1) * R_                                 # landing level
+G_ = P.STAIR_GOING_T
+N0 = P.R_IN - P.STAIR_FLIGHT_W_T      # inner (hall-side) edge of the flight
+N1 = P.R_IN - 0.02
+T0 = P.STAIR_T0                       # first riser
+NT = P.STAIR_RISERS - 1               # treads
+T_TOP = T0 + NT * G_                  # last riser -> upper floor
+FH = P.face_half(P.R_IN) - 0.03
+
+
+def box_nt(bm, n0, n1, t0, t1, z0, z1):
+    cube(bm, FP(KS, (n0 + n1) / 2, (t0 + t1) / 2, (z0 + z1) / 2), (t1 - t0, n1 - n0, z1 - z0), rz=RZS)
+
+
 bm = bmesh.new()
 bmt = bmesh.new()
-for i in range(N_T):                                # flight 1: from the hall outwards (v < 0)
-    zt = (i + 1) * R_
-    box_uv(bm, U0 + i * G_, U0 + (i + 1) * G_ + 0.02, -V1, -GAP / 2, 0.0, zt - 0.04)
-    box_uv(bmt, U0 + i * G_ - 0.02, U0 + (i + 1) * G_, -V1, -GAP / 2, zt - 0.04, zt)
-box_uv(bm, UL, UE, -V1, V1, 0.0, ZL - 0.04)        # landing on a solid clay block (store inside)
-box_uv(bmt, UL - 0.02, UE, -V1, V1, ZL - 0.04, ZL)
-for j in range(N_T):                                # flight 2: back to the front (v > 0)
-    zt = ZL + (j + 1) * R_
-    u1 = UL - j * G_
-    u0 = UL - (j + 1) * G_
-    box_uv(bm, u0, u1 + 0.02, GAP / 2, V1, zt - 0.30, zt - 0.04)
-    box_uv(bmt, u0 - 0.02, u1, GAP / 2, V1, zt - 0.04, zt)
-box_uv(bm, U0, UL + 0.02, -GAP / 2, GAP / 2, 0.0, P.FFL_UF + 1.0)     # clay spine between the flights
+for i in range(1, NT + 1):
+    zt = i * R_
+    ta, tb = T0 + (i - 1) * G_, T0 + i * G_
+    nin = N0 - (0.75 if i <= 3 else 0.0) * (1 - (i - 1) / 3) - (0.2 if i <= 3 else 0.0)   # seating steps
+    box_nt(bm, nin, N1, ta, tb + 0.02, max(0.0, zt - 0.34), zt - 0.04)
+    box_nt(bmt, nin - 0.02, N1, ta - 0.02, tb, zt - 0.04, zt)
 mk_obj('stair_body', bm, M_CLAY_HALL, 'structure')
 mk_obj('stair_treads', bmt, M_WOOD, 'structure')
-
-# walls: along both flights on the ground floor; on the upper floor a full wall on the flight-1
-# side (linen room) and a rounded clay parapet on the flight-2 side (open passage beyond)
+# sloped clay stringer on the hall side + store under the high end
 bm = bmesh.new()
-for s_ in (-1, 1):
-    box_uv(bm, U0, UE, s_ * V1 + (0 if s_ > 0 else -0.14), s_ * V1 + (0.14 if s_ > 0 else 0), 0.0, P.FFL_UF)
-box_uv(bm, U0, UE, -V1 - 0.14, -V1, P.FFL_UF, P.CEIL_UF)
-box_uv(bm, U0 + 0.6, UE, V1, V1 + 0.14, P.FFL_UF, P.FFL_UF + 1.05)
-box_uv(bm, U0 - 0.14, U0, -V1, -GAP / 2, P.FFL_UF, P.FFL_UF + 1.05)   # guard over flight 1 at the front
-box_uv(bm, U0 - 0.12, U0, GAP / 2, V1, 0.0, P.CEIL_GF)                # ground floor: store under flight 2
-mk_obj('stair_walls', bm, M_CLAY_ROOM, 'structure')
+a = FP(KS, N0 + 0.04, T0 + 3 * G_, 3 * R_ - 0.3)
+b = FP(KS, N0 + 0.04, T_TOP, P.FFL_UF - 0.3)
+d = b - a
+M = Matrix.Translation((a + b) / 2) @ Vector((1, 0, 0)).rotation_difference(d.normalized()).to_matrix().to_4x4() @ \
+    Matrix.Diagonal((d.length, 0.08, 0.36, 1))
+bmesh.ops.create_cube(bm, size=1.0, matrix=M)
+t_st = T0 + 12 * G_                                            # under-stair store from here (headroom > 2 m)
+box_nt(bm, N0, N0 + 0.08, t_st, T_TOP, 0.0, (12 * R_) - 0.3)
+mk_obj('stair_stringer', bm, M_CLAY_HALL, 'structure')
+# closed, sloped clay soffit under the flight (clean underside instead of a sawtooth)
 bm = bmesh.new()
-box_uv(bm, U0 + 0.6, UE, V1 - 0.02, V1 + 0.16, P.FFL_UF + 1.05, P.FFL_UF + 1.10)
-box_uv(bm, U0 - 0.16, U0 + 0.02, -V1, -GAP / 2, P.FFL_UF + 1.05, P.FFL_UF + 1.10)
-box_uv(bm, U0 - 0.13, U0 - 0.10, GAP / 2 + 0.25, V1 - 0.25, 0.05, 2.05)  # store door under flight 2
-mk_obj('stair_caps', bm, M_WOOD, 'structure')
+a2 = FP(KS, (N0 + N1) / 2, T0 + 3 * G_, 3 * R_ - 0.42)
+b2 = FP(KS, (N0 + N1) / 2, T_TOP, P.FFL_UF - 0.42)
+d2 = b2 - a2
+M2 = Matrix.Translation((a2 + b2) / 2) @ Vector((1, 0, 0)).rotation_difference(d2.normalized()).to_matrix().to_4x4() @ \
+    Matrix.Diagonal((d2.length, N1 - N0, 0.22, 1))
+bmesh.ops.create_cube(bm, size=1.0, matrix=M2)
+mk_obj('stair_soffit', bm, M_CLAY_HALL, 'structure')
+bm = bmesh.new()
+box_nt(bm, N0 - 0.02, N0, t_st + 0.4, t_st + 1.2, 0.02, 2.0)
+box_nt(bm, N0 - 0.02, N0, t_st + 1.35, T_TOP - 0.1, 0.02, 2.0)
+mk_obj('stair_store_doors', bm, M_WOOD, 'structure')
+# slim timber balustrade: vertical slats + handrail (hall side), handrail on the wall
+bm = bmesh.new()
+nb = int((T_TOP - (T0 + 3 * G_)) / 0.11)
+for i in range(nb):
+    t = T0 + 3 * G_ + (i + 0.5) * (T_TOP - T0 - 3 * G_) / nb
+    zs = (t - T0) / G_ * R_
+    box_nt(bm, N0 + 0.02, N0 + 0.05, t - 0.015, t + 0.015, zs, zs + 1.0)
+mk_obj('stair_balustrade', bm, M_WOOD, 'structure')
 cu = bpy.data.curves.new('stair_handrails', 'CURVE')
 cu.dimensions = '3D'
-cu.bevel_depth = 0.022
-for (v, z0, z1, ua, ub) in ((-V1 + 0.07, 0.9, ZL + 0.9, U0 - 0.1, UL), (V1 - 0.07, ZL + 0.9, P.FFL_UF + 0.9, UL, U0)):
+cu.bevel_depth = 0.025
+for nn in (N0 + 0.035, N1 - 0.06):
     sp = cu.splines.new('POLY')
     sp.points.add(1)
-    for n_, (uu, zz) in enumerate(((ua, z0), (ub, z1))):
-        p_ = SW(uu, v, zz)
+    for n_, t in enumerate((T0 + 3 * G_ - 0.1, T_TOP + 0.3)):
+        zz = (t - T0) / G_ * R_ + 1.0
+        p_ = FP(KS, nn, t, min(zz, P.FFL_UF + 1.0))
         sp.points[n_].co = (p_.x, p_.y, p_.z, 1)
 cu.materials.append(M_WOOD)
 coll('structure').objects.link(bpy.data.objects.new('stair_handrails', cu))
 
-# ground floor: radial walls on the segment edges + fronts of the two mat / cushion stores
+# upper floor: guard along the void, linen / laundry room, open landing with tea niche
+T_VOID = T0 + 7 * G_                     # void over the flight starts here (headroom)
 bm = bmesh.new()
-for k_ in (P.STAIR_SLOT, P.STAIR_SLOT + 1):
-    a_ = P.partition_angle(k_)
-    seg_box(bm, pol(RC, a_), pol(P.octo_r(a_, P.R_IN) + 0.05, a_), P.PART_T, 0.0, P.CEIL_GF)
-hf = P.APOTHEM_FRONT * math.tan(rad(P.SLOT_DEG / 2)) - 0.08
-for s_ in (-1, 1):
-    va, vb = sorted((s_ * (V1 + 0.14), s_ * hf))
-    dv = (va + vb) / 2
-    box_uv(bm, U0 - 0.12, U0, va, dv - 0.45, 0.0, P.CEIL_GF)
-    box_uv(bm, U0 - 0.12, U0, dv + 0.45, vb, 0.0, P.CEIL_GF)
-    box_uv(bm, U0 - 0.12, U0, dv - 0.45, dv + 0.45, 2.1, P.CEIL_GF)
-mk_obj('stair_gf_stores', bm, M_CLAY_HALL, 'structure')
+box_nt(bm, N0 - 0.12, N0, T_VOID, T_TOP, P.FFL_UF, P.FFL_UF + 1.05)                # parapet along the void
+box_nt(bm, N0 - 0.12, N1, T_VOID - 0.12, T_VOID, P.FFL_UF, P.CEIL_UF)              # linen room side wall
+fr = P.APOTHEM_FRONT + P.FRONT_T
+box_nt(bm, fr, N0, -1.3, -1.18, P.FFL_UF, P.CEIL_UF)                              # linen room inner wall
+box_nt(bm, N0 - 0.12, N0, T_VOID, -1.18, P.FFL_UF, P.CEIL_UF)
+box_nt(bm, fr - 0.12, fr, -P.face_half(fr) + 0.1, -2.35, P.FFL_UF, P.CEIL_UF)     # linen room front + door
+box_nt(bm, fr - 0.12, fr, -1.45, -1.18, P.FFL_UF, P.CEIL_UF)
+box_nt(bm, fr - 0.12, fr, -2.35, -1.45, P.FFL_UF + 2.1, P.CEIL_UF)
+mk_obj('stair_uf_walls', bm, M_CLAY_ROOM, 'structure')
 bm = bmesh.new()
-for s_ in (-1, 1):
-    dv = (s_ * (V1 + 0.14) + s_ * hf) / 2
-    box_uv(bm, U0 - 0.09, U0 - 0.05, dv - 0.43, dv + 0.43, 0.02, 2.08)
-mk_obj('stair_gf_store_doors', bm, M_WOOD, 'structure')
-
-# upper floor: linen / laundry room (flight-1 side) with its door on the walkway; tea niche
+box_nt(bm, N0 - 0.14, N0 + 0.02, T_VOID, T_TOP, P.FFL_UF + 1.05, P.FFL_UF + 1.10)
+mk_obj('stair_uf_guard_cap', bm, M_WOOD, 'structure')
 bm = bmesh.new()
-dv = (-hf - V1 - 0.14) / 2
-box_uv(bm, U0 - 0.12, U0, -hf, dv - 0.45, P.FFL_UF, P.CEIL_UF)
-box_uv(bm, U0 - 0.12, U0, dv + 0.45, -V1 - 0.14, P.FFL_UF, P.CEIL_UF)
-box_uv(bm, U0 - 0.12, U0, dv - 0.45, dv + 0.45, P.FFL_UF + 2.1, P.CEIL_UF)
-mk_obj('linen_room_front', bm, M_CLAY_ROOM, 'structure')
-bm = bmesh.new()
-box_uv(bm, 9.0, 9.53, 1.5, 2.25, P.FFL_UF, P.FFL_UF + 0.9)
+box_nt(bm, 6.2, 7.6, 1.55, 2.05, P.FFL_UF, P.FFL_UF + 0.9)
 mk_obj('tea_niche_counter', bm, M_CLAY_ROOM, 'furnishing')
 bm = bmesh.new()
-box_uv(bm, 8.96, 9.53, 1.48, 2.27, P.FFL_UF + 0.9, P.FFL_UF + 0.95)
-box_uv(bm, 9.25, 9.53, 1.48, 2.27, P.FFL_UF + 1.55, P.FFL_UF + 1.58)
+box_nt(bm, 6.18, 7.62, 1.53, 2.07, P.FFL_UF + 0.9, P.FFL_UF + 0.95)
 mk_obj('tea_niche_top', bm, M_WOOD, 'furnishing')
 bm = bmesh.new()
 for i in range(4):
-    cyl(bm, SW(9.39, 1.6 + i * 0.18, P.FFL_UF + 1.66), 0.045, 0.16, segs=12)
-bmesh.ops.create_uvsphere(bm, u_segments=20, v_segments=12, radius=0.1,
-                          matrix=Matrix.Translation(SW(9.25, 1.9, P.FFL_UF + 1.03)))
+    cyl(bm, FP(KS, 6.4 + i * 0.3, 1.8, P.FFL_UF + 1.03), 0.045, 0.16, segs=12)
 mk_obj('tea_niche_pots', bm, M_TERRACOTTA, 'furnishing', smooth=True)
 
-# void in the upper slab and floor finish over the stair
+# void in the upper slab + floor finish over the flight
+c_ = FP(KS, (N0 + N1) / 2, (T_VOID + T_TOP) / 2, (P.CEIL_GF + P.FFL_UF) / 2)
 for ob_ in (slab, plat):
-    cut_box(ob_, SW((U0 + UE) / 2, 0.0, (P.CEIL_GF + P.FFL_UF) / 2), (UE - U0 + 0.1, 2 * V1 + 0.02, 1.4), SA_)
-lantern('stair_pendant', tuple(SW(7.4, 0.0, P.CEIL_UF - 0.9)), 0.3, 0.45, cord=P.CEIL_UF)
+    cut_box(ob_, c_, (T_TOP - T_VOID, N1 - N0 + 0.04, 1.4), RZS)
+lantern('stair_pendant', tuple(FP(KS, 8.2, 0.0, P.CEIL_UF - 0.9)), 0.3, 0.45, cord=P.CEIL_UF)
 
 # ---------------------------------------------------------------------------
 # 8. roof, dome

@@ -102,6 +102,10 @@ STAIR_RISE = FFL_UF / STAIR_RISERS    # 0.188
 STAIR_GOING_U = 0.26
 STAIR_GOING = STAIR_GOING_U
 STAIR_FLIGHT_W = 1.20
+# v0.9: one straight flight along the NW wall (circumferential), open to the hall
+STAIR_GOING_T = 0.27                  # 2R+G = 646 mm
+STAIR_FLIGHT_W_T = 1.50
+STAIR_T0 = -3.72                      # first riser, face-local t on the stair face
 TERRACE_Z = 7.28                      # finished deck of the roof terrace
 TERRACE_RISERS = 17
 TERRACE_RISE = (TERRACE_Z - FFL_UF) / TERRACE_RISERS  # 0.185 (external stair)
