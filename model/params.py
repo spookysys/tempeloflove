@@ -80,25 +80,34 @@ def front_corner_radius():
     return APOTHEM_FRONT / math.cos(math.radians(SLOT_DEG / 2))
 
 
-# --- stair (half-turn / U) -----------------------------------------------
-STAIR_RISERS = 22
-STAIR_RISE = FFL_UF / STAIR_RISERS   # 0.180
-STAIR_GOING = 0.265
-STAIR_FLIGHT_W = 1.10
-STAIR_GAP = 0.10
-STAIR_U0 = 5.62                       # start of flight 1 / top of flight 2 (radial)
-STAIR_TREADS_PER_FLIGHT = 10          # 11 risers per flight
-STAIR_LANDING_U = STAIR_U0 + STAIR_TREADS_PER_FLIGHT * STAIR_GOING  # 8.27
+# --- stair: helical, around a central wooden trunk, hall -> upper floor -> roof terrace
+# One full turn per storey below, so you step on/off at the front of the slot on
+# the hall floor and on the upper floor; the last 3/4 turn reaches the roof terrace.
+STAIR_RISERS = 22                     # hall -> upper floor
+STAIR_RISE = FFL_UF / STAIR_RISERS    # 0.180
+HELIX_U = 7.75                        # centre, radial distance along the slot axis
+HELIX_CORE_R = 0.20                   # central trunk
+HELIX_R = 1.45                        # outer edge of treads (tread width 1.25 m)
+HELIX_CAGE_R = 1.55                   # slatted larch screen around the stair
+HELIX_STEP_DEG = 360.0 / STAIR_RISERS # 16.36 deg per step
+HELIX_WALKLINE_R = 0.85
+STAIR_GOING = math.radians(HELIX_STEP_DEG) * HELIX_WALKLINE_R   # 0.243 on the walking line
+TERRACE_Z = 7.10                      # finished deck of the roof terrace
+TERRACE_RISERS = 17
+TERRACE_RISE = (TERRACE_Z - FFL_UF) / TERRACE_RISERS  # 0.185
+STAIR_HOUSE_TOP = TERRACE_Z + 2.55    # roof of the little round stair house
 
 # --- dome and roof ------------------------------------------------------
 R_DOME = 5.60          # dome springs here: 11.2 m, covers net + walkway
-DOME_BASE_Z = 7.15
+DOME_BASE_Z = 7.55     # dome sits on a 45 cm upstand above the terrace (bench height)
 DOME_RISE = 2.60
 DOME_OCULUS_R = 0.60
 N_DOME_RIBS = 20
-ROOF_OVERHANG = 0.80
-ROOF_Z_IN = 7.15
-ROOF_Z_OUT = 6.90
+ROOF_OVERHANG = 0.0    # no eave: the facade battens rise to form the terrace railing
+ROOF_Z_IN = 7.00       # flat roof structure (falls in the build-up)
+ROOF_Z_OUT = 7.00
+R_TERRACE_OUT = R_OUT - 0.05
+RAIL_H = 1.20          # guard height above the deck
 
 
 def dome_sphere():

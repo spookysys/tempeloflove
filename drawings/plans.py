@@ -135,40 +135,66 @@ def to_world(k_angle, u, v):
     return (u * math.cos(a) - v * math.sin(a), u * math.sin(a) + v * math.cos(a))
 
 
+def HWp(theta, r):
+    return to_world(SA, P.HELIX_U + r * math.cos(rad(theta)), r * math.sin(rad(theta)))
+
+
+S_ = P.HELIX_STEP_DEG
+TH0 = 180.0 - (P.STAIR_RISERS - 1) * S_
+TH_UF0 = 180.0
+TH_UF1 = TH_UF0 + 2 * S_
+TH_TOP = TH_UF1 + (P.TERRACE_RISERS - 1) * S_
+
+
+def harc(r, a0, a1, n=60):
+    return [HWp(a0 + (a1 - a0) * i / (n - 1), r) for i in range(n)]
+
+
 def stair_plan(ax, level):
-    """Half-turn stair in local (u radial, v tangential)."""
-    R_, G_, W_, gap = P.STAIR_RISE, P.STAIR_GOING, P.STAIR_FLIGHT_W, P.STAIR_GAP
-    u0, uL = P.STAIR_U0, P.STAIR_LANDING_U
-    uE = math.sqrt(P.R_IN ** 2 - (gap / 2 + W_) ** 2)
-    T = lambda u, v: to_world(SA, u, v)  # noqa: E731
-    f1 = (-(gap / 2 + W_), -gap / 2)
-    f2 = (gap / 2, gap / 2 + W_)
-    lw = 0.5
-    # flights
-    for (v0, v1) in (f1, f2):
-        poly(ax, [T(u0, v0), T(uL, v0), T(uL, v1), T(u0, v1)], fc='#EFE3D3', lw=lw, z=3)
-    poly(ax, [T(uL, f1[0]), T(uE, f1[0]), T(uE, f2[1]), T(uL, f2[1])], fc='#EFE3D3', lw=lw, z=3)
-    for i in range(1, P.STAIR_TREADS_PER_FLIGHT + 1):
-        for (v0, v1) in (f1, f2):
-            u = u0 + i * G_
-            ax.plot(*zip(T(u, v0), T(u, v1)), color=INK, lw=0.4, zorder=4)
-    seg_wall(ax, T(u0 - 0.02, 0), T(uL + 0.02, 0), gap, z=4)
-    # walking line + arrows
-    vm1, vm2 = sum(f1) / 2, sum(f2) / 2
+    """Helical stair around a trunk. level: GF, UF or RF (roof)."""
+    R0, R1, RC_ = P.HELIX_CORE_R, P.HELIX_R, P.HELIX_CAGE_R
+    ax.add_patch(Polygon(harc(R1, 0, 360, 90), closed=True, fc='#F4EADC', ec=INK, lw=0.5, zorder=3))
     if level == 'GF':
-        pts = [T(u0 + 0.1, vm1), T(u0 + 1.9 * G_ * 3, vm1)]
-        ax.annotate('', xy=pts[1], xytext=pts[0], arrowprops=dict(arrowstyle='-|>', lw=0.8, color=INK), zorder=6)
-        # cut line of flight 1 at plan-cut height
-        uc = u0 + 6 * G_
-        ax.plot(*zip(T(uc, f1[0]), T(uc + 0.25, (f1[0] + f1[1]) / 2), T(uc - 0.1, f1[1])), color=INK, lw=0.8, zorder=6)
-        p = T(u0 + 1.0, vm1)
-        label(ax, p[0], p[1], 'UP', 7, rotation=0, weight='bold')
+        visible = [(TH0 + (k - 1) * S_, TH0 + k * S_) for k in range(1, 8)]
+        above = [(TH0 + (k - 1) * S_, TH0 + k * S_) for k in range(8, P.STAIR_RISERS)]
+        gaps = [(165, 232)]
+        arrow = (TH0 + 0.3 * S_, TH0 + 6 * S_, 'UP')
+    elif level == 'UF':
+        ax.add_patch(Polygon([HWp(TH_UF0, R0)] + harc(R1, TH_UF0, TH_UF1, 12) + [HWp(TH_UF1, R0)],
+                             closed=True, fc='#E7D6BE', ec=INK, lw=0.5, zorder=4))
+        visible = [(TH_UF1 + (j - 1) * S_, TH_UF1 + j * S_) for j in range(1, 7)]
+        above = [(TH_UF1 + (j - 1) * S_, TH_UF1 + j * S_) for j in range(7, P.TERRACE_RISERS)]
+        gaps = [(150, 214)]
+        arrow = (TH_UF1 + 0.3 * S_, TH_UF1 + 5 * S_, 'UP')
     else:
-        pts = [T(u0 + 0.1, vm2), T(uL + 0.5, vm2), T(uL + 0.5, vm1), T(u0 + 0.4, vm1)]
-        ax.plot(*zip(*pts[:3]), color=INK, lw=0.8, zorder=6)
-        ax.annotate('', xy=pts[3], xytext=pts[2], arrowprops=dict(arrowstyle='-|>', lw=0.8, color=INK), zorder=6)
-        p = T(u0 + 0.9, vm2)
-        label(ax, p[0], p[1], 'DN', 7, weight='bold')
+        visible = [(TH_UF1 + (j - 1) * S_, TH_UF1 + j * S_) for j in range(8, P.TERRACE_RISERS)]
+        above = []
+        gaps = []
+        arrow = (TH_TOP - 0.3 * S_, TH_TOP - 5 * S_, 'DN')
+        ax.add_patch(Polygon([HWp(TH_TOP, R0)] + harc(R1 + 0.08, TH_TOP, TH_TOP + 150, 30) +
+                             [HWp(TH_TOP + 150, R0)], closed=True, fc='#E7D6BE', ec=INK, lw=0.5, zorder=4))
+    for a0, a1 in visible:
+        ax.plot(*zip(HWp(a0, R0), HWp(a0, R1)), color=INK, lw=0.45, zorder=5)
+    for a0, a1 in above:
+        ax.plot(*zip(HWp(a0, R0), HWp(a0, R1)), color='#9C8E80', lw=0.35, ls=(0, (2, 2)), zorder=5)
+    # cut line
+    if visible and above:
+        a = visible[-1][1] - 4
+        ax.plot(*zip(HWp(a, R0), HWp(a + 5, (R0 + R1) / 2), HWp(a - 2, R1)), color=INK, lw=0.8, zorder=6)
+    ax.add_patch(Circle(HWp(0, 0), R0, fc=WOOD, ec=INK, lw=0.6, zorder=6))
+    # slatted screen with openings
+    cuts = sorted({0.0, 360.0} | {g for gp in gaps for g in gp})
+    for a0, a1 in zip(cuts[:-1], cuts[1:]):
+        if any(g0 < (a0 + a1) / 2 < g1 for g0, g1 in gaps):
+            continue
+        ax.plot(*zip(*harc(RC_, a0, a1, 40)), color='#8C6E50', lw=1.6, ls=(0, (0.8, 0.8)), zorder=5)
+    # walking line + arrow
+    a0, a1, t = arrow
+    pts = harc(P.HELIX_WALKLINE_R, a0, a1, 20)
+    ax.plot(*zip(*pts[:-1]), color=INK, lw=0.7, zorder=7)
+    ax.annotate('', xy=pts[-1], xytext=pts[-3], arrowprops=dict(arrowstyle='-|>', lw=0.7, color=INK), zorder=7)
+    p = HWp((a0 + a1) / 2, P.HELIX_WALKLINE_R + 0.45)
+    label(ax, p[0], p[1], t, 6.5, weight='bold')
 
 
 # ---------------------------------------------------------------------------
@@ -237,14 +263,9 @@ def ground_floor():
     for k in (P.STAIR_SLOT, P.STAIR_SLOT + 1):
         a = P.partition_angle(k)
         seg_wall(ax, pol(RC, a), pol(P.R_IN, a), P.PART_T)
-    tan18 = math.tan(rad(18))
-    W_, gap = P.STAIR_FLIGHT_W, P.STAIR_GAP
-    xa = P.APOTHEM_FRONT + 0.1
-    seg_wall(ax, to_world(SA, xa, gap / 2), to_world(SA, xa, P.APOTHEM_FRONT * tan18 + 0.05), 0.14)
-    seg_wall(ax, to_world(SA, xa, -(gap / 2 + W_)), to_world(SA, xa, -P.APOTHEM_FRONT * tan18 - 0.05), 0.14)
     stair_plan(ax, 'GF')
-    p = to_world(SA, 7.2, 0.62)
-    label(ax, p[0], p[1], 'store\nunder\nstair', 5.5)
+    p = to_world(SA, 5.05, 0.55)
+    label(ax, p[0], p[1], 'spiral stair\nto upper floor\n+ roof terrace', 6)
     # labels
     label(ax, 0, -1.2, 'HALL', 13, weight='bold')
     label(ax, 0, -2.0, 'open floor under the net · wooden boards', 7)
@@ -332,7 +353,7 @@ def upper_floor():
                         '• Ring walkway 1.10 m (up to 1.38 m at the posts)\n'
                         '• 9 rooms, each ≈ 17 m², 3.4 m wide at the door,\n'
                         '   5.9 m at the outer wall, 4.1 m deep\n'
-                        '• Half-turn stair in the 10th slot\n'
+                        '• Spiral stair in the 10th slot, on up to the roof\n'
                         'Clear height in rooms 2.60 m')
     # dome above (dash-dot)
     circle(ax, P.R_DOME, ec='#5B7B8C', lw=0.7, ls='-.', zorder=7)
@@ -414,10 +435,8 @@ def upper_floor():
     for k in (P.STAIR_SLOT,):
         pass
     stair_plan(ax, 'UF')
-    xa = P.APOTHEM_FRONT + 0.06
-    seg_wall(ax, to_world(SA, xa, -(P.STAIR_GAP / 2)), to_world(SA, xa, -P.APOTHEM_FRONT * tan18 - 0.05), 0.12)
-    label(ax, *to_world(SA, 9.05, 0.0), 'landing', 6)
-    label(ax, *to_world(SA, 7.0, -1.9), 'void', 6, color='#6B5E55')
+    label(ax, *to_world(SA, 5.85, 0.0), 'stair landing', 5.5)
+    label(ax, *to_world(SA, 8.2, 2.0), 'linen\nstore', 5.5, color='#6B5E55')
     # dims
     dim_radial(ax, 322, 0, P.R_NET, 'Ø 7.80 usable', size=6.5)
     dim_radial(ax, 338, P.R_PAD_OUT, P.APOTHEM_FRONT, '1.10', size=6)
@@ -433,12 +452,12 @@ def upper_floor():
              '   behind outside larch battens: light and air, no\n   view in; inside shutter or curtain\n'
              '• Acoustic partitions 160 mm, clay plaster\n'
              '• Floor mattress, cushions, lanterns, shelf niche\n\n'
-             'Stair check (floor to floor 3.96 m)\n'
-             '• 22 risers × 180 mm, going 265 mm (2R+G = 625)\n'
-             '• 2 flights × 11 risers, 1.10 m wide, U-turn\n'
-             '• Landing 1.15 m deep at the outer wall\n'
-             '• Needs 3.85 m radial depth – fits the 4.1 m slot.\n'
-             '   A straight flight (5.6 m going) would not fit.')
+             'Stair (hall -> upper floor -> roof terrace)\n'
+             '• Helical stair around a wooden trunk, Ø 2.9 m,\n   treads 1.25 m wide, in a slatted larch screen\n'
+             '• Exactly one turn per storey: 22 risers × 180 mm,\n   so you get on and off at the front of the slot\n'
+             '• Going 243 mm on the walking line (r = 0.85 m)\n'
+             '• Upper floor -> terrace: 17 risers × 185 mm\n'
+             '• A straight flight (≈5.3 m) does not fit the 4.1 m\n   slot; a stacked U-stair leaves no room for\n   the roof exit next to the dome.')
     fig.text(tx + 0.02, 0.60, notes, fontsize=10, color=INK, va='top', linespacing=1.45)
     return fig
 
@@ -467,7 +486,9 @@ def section():
         ax.plot([x0 + 0.2, x0 + 0.2], [uw0, uw1], color=INK, lw=0.4)
         # battens
         xb = s * (P.R_OUT + 0.06)
-        ax.plot([xb, xb], [P.FFL_UF - 0.25, P.CEIL_UF + 0.3], color='#8C6E50', lw=1.2, ls=(0, (1, 0.5)))
+        ax.plot([xb, xb], [P.FFL_UF - 0.25, P.TERRACE_Z + P.RAIL_H], color='#8C6E50', lw=1.2, ls=(0, (1, 0.5)))
+        R(min(xb - 0.07 * s, xb + 0.07 * s), P.TERRACE_Z + P.RAIL_H, max(xb - 0.07 * s, xb + 0.07 * s),
+          P.TERRACE_Z + P.RAIL_H + 0.06, fc=WOOD, lw=0.4)
     # slabs (upper floor) both sides
     for s in (-1, 1):
         x0, x1 = sorted((s * P.RING_BEAM_OUT, s * P.R_IN))
@@ -496,7 +517,12 @@ def section():
         xa_, xb_ = s * (P.APOTHEM_FRONT + 0.05), s * (P.R_OUT + P.ROOF_OVERHANG)
         ax.add_patch(Polygon([(xa_, P.CEIL_UF), (xb_, P.CEIL_UF), (xb_, P.ROOF_Z_OUT), (xa_, P.ROOF_Z_IN)],
                              fc='#B79B7E', ec=INK, lw=0.6, zorder=3))
-        ax.plot([xa_, xb_], [P.ROOF_Z_IN + 0.04, P.ROOF_Z_OUT + 0.04], color='#6B7A3A', lw=2.2, zorder=3)
+        x0, x1 = sorted((s * (P.R_DOME + 0.25), s * P.R_TERRACE_OUT))
+        R(x0, P.ROOF_Z_IN, x1, P.TERRACE_Z, fc='#D8C09C', lw=0.5)
+        x0, x1 = sorted((s * (P.R_DOME + 0.25), s * (P.R_DOME + 0.72)))
+        R(x0, P.TERRACE_Z + 0.36, x1, P.TERRACE_Z + 0.44, fc=WOOD, lw=0.5)
+        x0, x1 = sorted((s * (P.R_TERRACE_OUT - 0.55), s * (P.R_TERRACE_OUT - 0.05)))
+        R(x0, P.TERRACE_Z, x1, P.TERRACE_Z + 0.5, fc='#7E5A3B', lw=0.5)
         # room furniture silhouettes
         xm = s * 8.45
         R(xm - 0.82, P.FFL_UF, xm + 0.82, P.FFL_UF + 0.32, fc='#F4EDE2', lw=0.4)
@@ -522,6 +548,7 @@ def section():
     R(P.DOME_OCULUS_R - 0.1, zcr - 0.2, P.DOME_OCULUS_R + 0.05, zcr + 0.4, fc='#4B4036')
     ax.plot([-P.DOME_OCULUS_R - 0.1, P.DOME_OCULUS_R + 0.1], [zcr + 0.44] * 2, color='#3F5D6C', lw=1.4)
     label(ax, 1.6, zcr + 0.55, 'crown ring + vent', 6.5, ha='left')
+    label(ax, -6.9, P.TERRACE_Z + 0.75, 'bench on the\ndome upstand', 6, ha='right')
     # pillars beyond (elevation, light)
     for k in range(P.N_PILLARS):
         a = P.partition_angle(k)
@@ -552,6 +579,8 @@ def section():
         ax.add_patch(matplotlib.patches.FancyBboxPatch((x - 0.85, P.net_z(abs(x)) - 0.02), 1.7, 0.24,
                      boxstyle='round,pad=0,rounding_size=0.1', fc='#D9C2A8', ec=INK, lw=0.4, zorder=7))
     person(-7.6, P.FFL_UF, 1.8)
+    person(7.6, P.TERRACE_Z, 1.8)
+    label(ax, 8.6, P.TERRACE_Z + 1.6, 'roof terrace', 7.5, ha='left')
     # sun rays
     for x0 in (-3.3, -1.0, 1.3):
         el = rad(57)
@@ -582,12 +611,13 @@ def section():
     # levels
     levels = [(0.0, '±0.00 hall'), (P.CEIL_GF, '+3.56 ceiling hall'), (P.FFL_UF, '+3.96 upper floor'),
               (P.Z_NET_EDGE, '+3.84 net at edge'), (P.CEIL_UF, '+6.56 ceiling rooms'),
-              (P.DOME_BASE_Z, '+7.15 dome base'), (P.DOME_BASE_Z + P.DOME_RISE, '+9.75 dome top')]
+              (P.TERRACE_Z, '+7.10 roof terrace'), (P.DOME_BASE_Z, '+7.55 dome base'),
+              (P.TERRACE_Z + P.RAIL_H, '+8.30 railing'), (P.DOME_BASE_Z + P.DOME_RISE, '+10.15 dome top')]
     for i, (z, t) in enumerate(levels):
         x = -12.3
         ax.plot([x, x + 0.6], [z, z], color=INK, lw=0.5)
         ax.add_patch(Polygon([(x + 0.3, z), (x + 0.15, z + 0.18), (x + 0.45, z + 0.18)], fc=INK, ec=INK, lw=0.3))
-        dz = {'+3.84': -0.22, '+3.56': -0.2, '+3.96': 0.18}.get(t[:5], 0.1)
+        dz = {'+3.84': -0.22, '+3.56': -0.2, '+3.96': 0.18, '+7.10': -0.15, '+7.55': 0.12}.get(t[:5], 0.1)
         label(ax, x + 0.7, z + dz, t, 6.5, ha='left')
     scale_bar(ax, 12.0, -1.2)
     notes = ('Net and structure (concept, to be verified)\n'
@@ -602,9 +632,81 @@ def section():
     return fig
 
 
+def roof_plan():
+    fig, ax, tx = sheet(-12.5, 12.5, -12.5, 12.5, 'Roof terrace',
+                        'Flat roof over the room ring as a round terrace\n'
+                        'around the dome, deck at +7.10\n'
+                        '• Deck 4.1 m wide (bench ring to railing)\n'
+                        '• Railing 1.20 m: the facade battens continue\n'
+                        '   up and get a timber handrail\n'
+                        '• Dome on a 45 cm upstand = bench height,\n'
+                        '   keeps feet off the glass\n'
+                        '• Round stair house with a door on each side:\n'
+                        '   you walk through it to go all the way round')
+    ax.add_patch(Circle((0, 0), P.R_OUT + 0.1, fc='#EFE5D6', ec=INK, lw=0.6, zorder=1))
+    circle(ax, P.R_OUT + 0.07, ec='#8C6E50', lw=2.2, ls=(0, (0.6, 0.6)), zorder=3)
+    circle(ax, P.R_TERRACE_OUT, ec=INK, lw=0.5, zorder=3)
+    # deck boards (rings)
+    for rr in [P.R_DOME + 0.25 + 0.36 * i for i in range(12)]:
+        if rr < P.R_TERRACE_OUT:
+            circle(ax, rr, ec='#CDB89A', lw=0.3, zorder=2)
+    # bench ring + upstand
+    a0, a1 = SA + 19, SA + 341
+    poly(ax, sector_poly(P.R_DOME + 0.25, P.R_DOME + 0.72, a0, a1), fc=WOOD, lw=0.5, z=4)
+    ax.add_patch(Circle((0, 0), P.R_DOME + 0.25, fc='#C9A57A', ec=INK, lw=0.6, zorder=4))
+    # dome glass + ribs
+    ax.add_patch(Circle((0, 0), P.R_DOME, fc='#DCE8EC', ec='#3F5D6C', lw=0.8, zorder=5))
+    for j in range(P.N_DOME_RIBS):
+        a = 360 * j / P.N_DOME_RIBS
+        p0, p1 = pol(P.DOME_OCULUS_R, a), pol(P.R_DOME, a)
+        ax.plot([p0[0], p1[0]], [p0[1], p1[1]], color=WOOD, lw=1.0, zorder=6)
+    for rr in (2.4, 4.1):
+        circle(ax, rr, ec=WOOD, lw=0.6, zorder=6)
+    ax.add_patch(Circle((0, 0), P.DOME_OCULUS_R + 0.05, fc='#4B4036', ec=INK, lw=0.5, zorder=7))
+    label(ax, 0, 1.2, 'GLASS DOME', 11, weight='bold', color='#3F5D6C')
+    label(ax, 0, 0.35 - 1.3, 'Ø 11.20, on a 45 cm upstand\nvent at the crown', 7, color='#3F5D6C')
+    # planters
+    for k in range(P.N_SLOTS):
+        if k == P.STAIR_SLOT:
+            continue
+        a = P.slot_center(k)
+        poly(ax, sector_poly(P.R_TERRACE_OUT - 0.55, P.R_TERRACE_OUT - 0.05, a - 7, a + 7), fc='#9DAA7A', lw=0.4, z=4)
+    # stair house
+    stair_plan(ax, 'RF')
+    DOORS = [(119, 143), (226, 250)]
+    cuts = sorted({0.0, 360.0} | {a for d in DOORS for a in d})
+    for a0, a1 in zip(cuts[:-1], cuts[1:]):
+        if any(d0 < (a0 + a1) / 2 < d1 for d0, d1 in DOORS):
+            continue
+        ax.add_patch(Polygon(harc(P.HELIX_CAGE_R + 0.16, a0, a1, 30) + harc(P.HELIX_CAGE_R + 0.02, a1, a0, 30),
+                             closed=True, fc=POCHE, ec=INK, lw=0.5, zorder=8))
+    for d0, d1 in DOORS:
+        ax.plot(*zip(*harc(P.HELIX_CAGE_R + 0.09, d0, d1, 12)), color=INK, lw=1.2, zorder=8)
+        p = HWp((d0 + d1) / 2, P.HELIX_CAGE_R + 0.7)
+        label(ax, p[0], p[1], 'door', 6.5)
+    p = HWp(0, 2.35)
+    label(ax, p[0], p[1], 'stair house\n(roof +9.65)', 6.5)
+    label(ax, *pol(7.9, 250), 'TERRACE', 11, weight='bold', rotation=-20)
+    label(ax, *pol(7.9, 30), 'timber deck', 7, rotation=-60)
+    label(ax, *pol(6.35, 300), 'bench', 6.5, rotation=30)
+    label(ax, *pol(9.35, 342), 'planters,\ngrasses', 6, rotation=-18)
+    label(ax, *pol(11.0, 300), 'railing 1.20 m (larch battens)', 6.5, rotation=30)
+    ax.set_ylim(-12.5, 12.5)
+    dim_radial(ax, 322, P.R_DOME + 0.72, P.R_TERRACE_OUT, 'deck ≈ 3.2', size=6)
+    north_arrow(ax, 11.3, 10.2)
+    scale_bar(ax, -12.3, -12.2)
+    notes = ('Notes\n'
+             '• Roof built as a walkable flat roof: loads for people\n   (≈ 4 kN/m²), falls to internal outlets, deck on pedestals\n'
+             '• Railing is see-through at an angle only; raise to\n   ≈ 1.8 m (or add screens) if people want to sunbathe\n   undressed without being seen from further away\n'
+             '• Stair house doubles as rain shelter; lantern inside\n'
+             '• Annex keeps its green (sedum) roof, not walkable')
+    fig.text(tx + 0.02, 0.60, notes, fontsize=10, color=INK, va='top', linespacing=1.45)
+    return fig
+
+
 if __name__ == '__main__':
     for name, fn in (('01_ground_floor_plan', ground_floor), ('02_upper_floor_plan', upper_floor),
-                     ('03_section_AA', section)):
+                     ('03_roof_terrace_plan', roof_plan), ('04_section_AA', section)):
         f = fn()
         f.savefig(os.path.join(HERE, name + '.pdf'))
         f.savefig(os.path.join(HERE, name + '.png'), dpi=110)
