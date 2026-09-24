@@ -103,14 +103,16 @@ print('static BVH ready')
 # ---------------------------------------------------------------------------
 # wardrobe, skins, hair
 # ---------------------------------------------------------------------------
-FLOW_F = [('elvs_goddess_dress1',), ('elvs_goddess_dress2',), ('elvs_goddess_dress3',), ('elvs_goddess_dress5',),
+FLOW_F = [('mindfront_kimono',), ('mindfront_kimono', 'elvs_retro_girly_shorts1'), ('mindfront_kimono', 'toigo_harem_pants'),
+          ('elvs_goddess_dress1',), ('elvs_goddess_dress2',), ('elvs_goddess_dress3',), ('elvs_goddess_dress5',),
           ('elvs_goddess_dress7',), ('elvs_fringe_hippy_dress',), ('elvs_halter_dress_long',),
           ('toigo_long_full_skirt', 'toigo_camisole_top'), ('toigo_harem_pants', 'toigo_keyhole_tank_top'),
           ('elvs_sarong_cover_up', 'punkduck_tube_top'), ('toigo_dress_with_tiered_skirt',),
           ('elvs_double_handkerchief_halter_dress',), ('elvs_gored_midi_skirt', 'elvs_ladies_tank1'),
           ('toigo_tiered_skirt', 'punkduck_off-shoulder_long-sleeve_top'), ('mindfront_f_dress_03',),
           ('toigo_halter_dress_midi',), ('punkduck_retro_polka_dot_skirt', 'punkduck_spaghetti_strap_tank_top')]
-FLOW_M = [('toigo_harem_pants', 'elvs_male_boho_top1'), ('toigo_harem_pants', 'elvs_male_tankshirt1'),
+FLOW_M = [('mindfront_kimono', 'toigo_harem_pants'), ('mindfront_kimono',), ('mindfront_kimono', 'elvs_gored_elephant_pants'),
+          ('toigo_harem_pants', 'elvs_male_boho_top1'), ('toigo_harem_pants', 'elvs_male_tankshirt1'),
           ('elvs_gored_elephant_pants', 'elvs_male_athletic_tank1'), ('toigo_harem_pants',),
           ('elvs_gored_elephant_pants',), ('mindfront_male_trousers_1', 'elvs_male_muscle_shirt1'),
           ('wdg_mycenaean_tunic',), ('drednicolson_asymmetric_tunic_and_sash',),
@@ -133,11 +135,11 @@ JEWEL_M = ['culturalibre_leather_bracelet', 'elvs_braided_anklet1', 'culturalibr
            'punkduck_necklace_native_american_fashion_']
 KIMONO = ('mindfront_kimono',)
 # most of the clothes already off: bare chests, loose pants and wraps, camisoles, slips
-UNDIES_F = [('toigo_camisole_top', 'elvs_retro_girly_shorts1'), ('elvs_crochet_baby_doll',),
+UNDIES_F = [('mindfront_kimono', 'elvs_retro_girly_shorts1'), ('toigo_camisole_top', 'elvs_retro_girly_shorts1'), ('elvs_crochet_baby_doll',),
             ('punkduck_tube_top', 'elvs_sarong_cover_up'), ('mindfront_cardigan_long_open_front', 'elvs_retro_girly_shorts1'),
             ('punkduck_spaghetti_strap_tank_top', 'elvs_retro_girly_shorts1'), ('punkduck_tube_dress',),
             ('toigo_camisole_top', 'toigo_harem_pants')]
-UNDIES_M = [('toigo_harem_pants',), ('elvs_gored_elephant_pants',), ('elvs_sarong_cover_up',),
+UNDIES_M = [('mindfront_kimono', 'toigo_harem_pants'), ('toigo_harem_pants',), ('elvs_gored_elephant_pants',), ('elvs_sarong_cover_up',),
             ('mindfront_male_trousers_1',), ('toigo_wool_pants',)]
 UNDRESS = [0.0]      # share of people in the current zone who have taken most of their clothes off
 
@@ -402,11 +404,10 @@ b1 = lying('sohh_posing4', -2.2, 1.5, 110, 'back', MF_Z)                        
 b2 = lying('elvs_yoga_cobra_pose_1', -1.6, 1.95, 300, 'front', MF_Z)
 reach_to(b2, 'L', bone_w(b1, 'spine02', (0, -0.12, 0)))
 standing('callharvey3d_sittingfloorstretch2', 2.6, -0.4, 170, z0=MF_Z)              # leaning back, looking up
-# eye gazing, hands on each other's hearts
-g1 = standing('callharvey3d_lotus', -0.75, -2.55, 20, z0=MF_Z)
-g2 = standing('callharvey3d_lotus', 0.05, -2.3, 200, z0=MF_Z)
-reach_to(g1, 'R', bone_w(g2, 'spine02', (0.06, -0.12, 0)))
-reach_to(g2, 'R', bone_w(g1, 'spine02', (0.06, -0.12, 0)))
+# lounging: one leaning back against the other, who holds them loosely
+g1 = standing('callharvey3d_sittingfloorstretch2', -0.45, -2.45, 20, z0=MF_Z)
+g2 = standing('callharvey3d_lotus', *(Vector((-0.45, -2.45, 0)) - Rz(20) @ Vector((0.42, 0, 0))).xy, 20, z0=MF_Z)
+reach_to(g2, 'L', bone_w(g1, 'spine03', (0.12, -0.08, 0)))
 print('field done', N[0])
 
 # ---------------------------------------------------------------------------
@@ -481,14 +482,12 @@ jump = standing('callharvey3d_archer_leap', *pol(6.6, 20).xy, 110, kind='crazy')
 jump.location.z += 0.22
 standing('elvs_yoga_triangle_pose_1', *pol(8.0, 160).xy, 30, kind='undies')
 standing('sohh_posing4', *pol(6.9, 45).xy, 250, kind='naked')
-# a small sitting circle holding hands (tantric practice)
-cc_ = pol(6.6, 3)
-circ = []
-for i in range(5):
-    p = cc_ + Rz(72 * i) @ Vector((0.72, 0, 0))
-    circ.append(standing('callharvey3d_lotus', p.x, p.y, 72 * i + 180))
-for i in range(5):
-    reach_to(circ[i], 'R', bone_w(circ[(i + 1) % 5], 'wrist.L'))
+# a loose group hanging out on the floor, chatting
+cc_ = pol(6.7, 3)
+h1 = standing('callharvey3d_sittinglegscrossed', *(cc_ + Vector((0.5, 0.3, 0))).xy, 200)
+h2 = standing('xhado84_sitting_floor_3', *(cc_ + Vector((-0.4, 0.55, 0))).xy, 280)
+h3 = standing('wolgade_sit_on_ground_01', *(cc_ + Vector((-0.2, -0.6, 0))).xy, 60)
+head_on('standing02', h1, 'upperleg02.R', 330, 'back', 0.0)
 print('dance done', N[0])
 
 # ---------------------------------------------------------------------------
