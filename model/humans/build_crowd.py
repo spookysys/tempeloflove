@@ -233,6 +233,53 @@ def fabric(name, style, rnd):
         L(vo.outputs['Distance'], bump.inputs['Height'])
         L(bump.outputs[0], bs.inputs['Normal'])
         return m
+    if style in ('leopard', 'zebra', 'tiger'):
+        bs.inputs['Roughness'].default_value = 0.55
+        bs.inputs['Sheen Weight'].default_value = 0.6
+        mp = nt.nodes.new('ShaderNodeMapping')
+        L(uv, mp.inputs['Vector'])
+        base = _hex(rnd.choice({'leopard': ['#C8964E', '#D9B47A', '#B5793A', '#E7D3B0'],
+                                'zebra': ['#F2EEE6', '#E9E1D0'], 'tiger': ['#D9772A', '#E08A2E']}[style]))
+        dark = _hex(rnd.choice(['#1A1410', '#2B1B12', '#3A2416']))
+        if style == 'leopard':                            # rosettes: voronoi rings with a lighter centre
+            mp.inputs['Scale'].default_value = (22, 22, 1)
+            vo = nt.nodes.new('ShaderNodeTexVoronoi')
+            vo.inputs['Randomness'].default_value = 0.9
+            L(mp.outputs[0], vo.inputs['Vector'])
+            nz = nt.nodes.new('ShaderNodeTexNoise')
+            nz.inputs['Scale'].default_value = 60
+            L(mp.outputs[0], nz.inputs['Vector'])
+            mix_ = nt.nodes.new('ShaderNodeMath')
+            mix_.operation = 'ADD'
+            L(vo.outputs['Distance'], mix_.inputs[0])
+            mm = nt.nodes.new('ShaderNodeMath')
+            mm.operation = 'MULTIPLY'
+            mm.inputs[1].default_value = 0.15
+            L(nz.outputs['Fac'], mm.inputs[0])
+            L(mm.outputs[0], mix_.inputs[1])
+            r_ = nt.nodes.new('ShaderNodeValToRGB')
+            cr = r_.color_ramp
+            cr.elements[0].position, cr.elements[0].color = 0.22, tuple(x * 0.8 for x in base[:3]) + (1,)
+            cr.elements[1].position, cr.elements[1].color = 0.3, dark
+            e_ = cr.elements.new(0.42)
+            e_.color = base
+            L(mix_.outputs[0], r_.inputs['Fac'])
+        else:                                             # stripes: distorted wave bands
+            mp.inputs['Scale'].default_value = (1, 1, 1)
+            w_ = nt.nodes.new('ShaderNodeTexWave')
+            w_.wave_type = 'BANDS'
+            w_.inputs['Scale'].default_value = 9 if style == 'zebra' else 6
+            w_.inputs['Distortion'].default_value = 9 if style == 'zebra' else 14
+            w_.inputs['Detail'].default_value = 3
+            L(mp.outputs[0], w_.inputs['Vector'])
+            r_ = nt.nodes.new('ShaderNodeValToRGB')
+            cr = r_.color_ramp
+            cr.interpolation = 'EASE'
+            cr.elements[0].position, cr.elements[0].color = 0.45 if style == 'zebra' else 0.62, dark
+            cr.elements[1].position, cr.elements[1].color = 0.52 if style == 'zebra' else 0.7, base
+            L(w_.outputs['Fac'], r_.inputs['Fac'])
+        L(r_.outputs[0], bs.inputs['Base Color'])
+        return m
     a, b, c = [_hex(h) for h in rnd.choice(LUNGI_PAL)]
     bs.inputs['Roughness'].default_value = 0.65
     bs.inputs['Sheen Weight'].default_value = 0.5
@@ -332,7 +379,7 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
     build = rnd.choice(['slim', 'average', 'full'])     # body diversity: slim / average / curvy, heavy, soft bellies
     if kind == 'flow':                       # everyone dresses how they feel: a balanced, individual mix
         w = {'flow': 0.27, 'mix': 0.22, 'everyday': 0.15, 'lungi': 0.12 if sex < 0.5 else 0.07, 'crazy': 0.08,
-             'undress': 0.10 + 0.35 * UNDRESS[0]}
+             'undress': 0.14 + 0.4 * UNDRESS[0]}
         u = rnd.random() * sum(w.values())
         for k_, v_ in w.items():
             if u < v_:
@@ -340,7 +387,7 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
                 break
             u -= v_
         if kind == 'undress':
-            kind = 'lingerie' if (sex < 0.5 and rnd.random() < 0.5) else 'undies'
+            kind = 'lingerie' if (sex < 0.5 and rnd.random() < 0.7) else 'undies'
             if sex < 0.5 and UNDRESS[0] <= 0.2 and rnd.random() < 0.6:
                 kind = 'topless'                 # dancing topless (dance areas)
     if outfit is None:
@@ -403,6 +450,14 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
             fab[piece] = fabric('lungi_%s_%s' % (name, piece[:12]), rnd.choice(['check', 'check', 'batik', 'ikat']), rnd)
         elif piece in SPARKLE_PIECES and rnd.random() < (0.7 if kind == 'crazy' else 0.18):
             fab[piece] = fabric('sequin_%s_%s' % (name, piece[:12]), 'sequin', rnd)
+    for piece in outfit:
+        if piece in fab or kind == 'organiser' or any(k in piece for k in (
+                'shoe', 'boot', 'sandal', 'flat', 'ring', 'anklet', 'bracelet', 'bangle', 'necklace', 'choker',
+                'collar', 'mask', 'crown', 'circlet', 'jewel', 'hoop', 'earring')):
+            continue
+        if rnd.random() < 0.13:
+            fab[piece] = fabric('animal_%s_%s' % (name, piece[:12]), rnd.choice(['leopard', 'leopard', 'zebra', 'tiger']),
+                                rnd)
     dress_up(rig, fab)
     if kind in ('flow', 'mix') and rnd.random() < 0.45:  # colourful: shift the colours of the rest
         for ob in rig.children:
