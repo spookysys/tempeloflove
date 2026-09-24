@@ -123,11 +123,12 @@ CRAZY = [('elvs_disco_pants_double_ruffles', 'elvs_disco_top_1_butterfly'), ('pu
          ('elvs_frilled_party_dress',)]
 KIMONO = ('mindfront_kimono',)
 # most of the clothes already off: underwear / swimwear
-UNDIES_F = [('punkduck_sleeveless_crop_top', 'elvs_retro_girly_shorts1'), ('punkduck_tube_top', 'elvs_retro_girly_shorts1'),
-            ('punkduck_spaghetti_strap_tank_top', 'elvs_retro_girly_shorts1'), ('mindfront_tank_top_01',),
-            ('punkduck_tube_top', 'cortu_jeans_shorts'), ('elvs_sarong_cover_up',)]
-UNDIES_M = [('mindfront_male_swimming_trunks_01',), ('mindfront_male_swimming_trunks_02',), ('elvs_male_swim_shorts1',),
-            ('mindfront_male_swimming_trunks_03',), ('toigo_harem_pants',), ('elvs_sarong_cover_up',)]
+UNDIES_F = [('toigo_camisole_top', 'elvs_retro_girly_shorts1'), ('elvs_crochet_baby_doll',),
+            ('punkduck_tube_top', 'elvs_sarong_cover_up'), ('mindfront_cardigan_long_open_front', 'elvs_retro_girly_shorts1'),
+            ('punkduck_spaghetti_strap_tank_top', 'elvs_retro_girly_shorts1'), ('punkduck_tube_dress',),
+            ('toigo_camisole_top', 'toigo_harem_pants')]
+UNDIES_M = [('toigo_harem_pants',), ('elvs_gored_elephant_pants',), ('elvs_sarong_cover_up',),
+            ('mindfront_male_trousers_1',), ('toigo_wool_pants',)]
 UNDRESS = [0.0]      # share of people in the current zone who have taken most of their clothes off
 
 HAIR_F = ['elvs_lady_hippy_hair', 'long01', 'braid01', 'elvs_braid_bun', 'elvs_wavy_bob', 'punkduck_alpha7_curly',
