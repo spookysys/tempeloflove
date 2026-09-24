@@ -239,6 +239,10 @@ def render(name, v, res, samples, quick):
     set_night({'night': 1.0, 'dusk': 0.6}.get(v['mode'], 0.0))
     set_variant(v.get('variant', False))
     set_event(v.get('event', False))
+    ev = v.get('event', False)            # ~80 people: keep memory in check
+    sc.render.use_simplify = ev
+    sc.render.simplify_subdivision_render = 0 if ev else 6
+    sc.cycles.texture_limit_render = ('1024' if quick else '2048') if ev else 'OFF'
     camera(v)
     path = os.path.join(OUT, ('quick_' if quick else '') + name + '.png')
     sc.render.filepath = path

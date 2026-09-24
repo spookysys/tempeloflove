@@ -270,6 +270,7 @@ def body_of(rig):
 
 
 def pose(rig, name):
+    rig['pose'] = name
     H.apply_pose(rig, name)
     bpy.context.view_layer.update()
 
@@ -644,9 +645,9 @@ pad = P.RING_BEAM_TOP + P.PAD_T
 for i, a in enumerate((255, 330)):
     p = pol(4.12, a)
     standing('callharvey3d_sittingdefault', p.x, p.y, a + 180, z0=pad - 0.45)          # on the pad, feet on the net
-c = pol(4.75, 300)
-u1 = standing('callharvey3d_standingnatural', *(c + Rz(300) @ Vector((0, 0.3, 0))).xy, 120, z0=UF, kind='crazy')
-u2 = standing('standing04', *(c - Rz(300) @ Vector((0, 0.3, 0))).xy, 120, z0=UF)
+c = pol(4.75, 20)
+u1 = standing('callharvey3d_standingnatural', *(c + Rz(20) @ Vector((0, 0.3, 0))).xy, 200, z0=UF, kind='crazy')
+u2 = standing('standing04', *(c - Rz(20) @ Vector((0, 0.3, 0))).xy, 200, z0=UF)
 reach_to(u1, 'R', on_back(u2, 'spine03', 0.12, 0.12))
 standing('standing05', *pol(5.0, 210).xy, 300, z0=UF)
 
