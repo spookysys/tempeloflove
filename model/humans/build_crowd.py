@@ -114,7 +114,7 @@ FLOW_F = [('mindfront_kimono',), ('mindfront_kimono', 'elvs_retro_girly_shorts1'
 FLOW_M = [('mindfront_kimono', 'toigo_harem_pants'), ('mindfront_kimono',), ('mindfront_kimono', 'elvs_gored_elephant_pants'),
           ('toigo_harem_pants', 'elvs_male_boho_top1'), ('toigo_harem_pants', 'elvs_male_tankshirt1'),
           ('elvs_gored_elephant_pants', 'elvs_male_athletic_tank1'), ('toigo_harem_pants',),
-          ('elvs_gored_elephant_pants',), ('mindfront_male_trousers_1', 'elvs_male_muscle_shirt1'),
+          ('elvs_gored_elephant_pants', 'mindfront_kimono'), ('mindfront_male_trousers_1', 'elvs_male_muscle_shirt1'),
           ('wdg_mycenaean_tunic',), ('drednicolson_asymmetric_tunic_and_sash',),
           ('elvs_male_trouser_short_1', 'elvs_male_boho_top1'), ('toigo_wool_pants', 'elvs_crude_t-shirt_male'),
           ('elvs_sarong_cover_up', 'elvs_male_tankshirt1')]
@@ -134,8 +134,8 @@ BOTTOMS = ['toigo_harem_pants', 'elvs_gored_elephant_pants', 'toigo_long_full_sk
 TOPS_F = ['toigo_camisole_top', 'punkduck_tube_top', 'punkduck_off-shoulder_long-sleeve_top', 'elvs_ladies_tank1',
           'punkduck_sleeveless_crop_top', 'elvs_ruffle_sleeve_peasant_blouse_1', 'toigo_keyhole_tank_top',
           'punkduck_lace_up_blouse', 'mindfront_knitted_sweater_01', None]
-TOPS_M = ['elvs_male_boho_top1', 'elvs_male_tankshirt1', 'elvs_male_athletic_tank1', 'mindfront_tank_top_01', None,
-          None, None]
+TOPS_M = ['elvs_male_boho_top1', 'elvs_male_tankshirt1', 'elvs_male_athletic_tank1', 'mindfront_tank_top_01',
+          'mindfront_kimono', None]
 # small adornments on bare skin (tantric / festival)
 JEWEL_F = ['elvs_heart_belly_jewel', 'elvs_stars_belly_circlet', 'elvs_braided_anklet1', 'elvs_pearl_anklet_1',
            'elvs_multi_bangle_bracelet1', 'elvs_twisty_hoops1', 'punkduck_brass_circlet_crown', 'elvs_bangle_bracelet1']
@@ -147,8 +147,11 @@ UNDIES_F = [('mindfront_kimono', 'elvs_retro_girly_shorts1'), ('toigo_camisole_t
             ('punkduck_tube_top', 'elvs_sarong_cover_up'), ('mindfront_cardigan_long_open_front', 'elvs_retro_girly_shorts1'),
             ('punkduck_spaghetti_strap_tank_top', 'elvs_retro_girly_shorts1'), ('punkduck_tube_dress',),
             ('toigo_camisole_top', 'toigo_harem_pants')]
-UNDIES_M = [('mindfront_kimono', 'toigo_harem_pants'), ('toigo_harem_pants',), ('elvs_gored_elephant_pants',), ('elvs_sarong_cover_up',),
-            ('mindfront_male_trousers_1',), ('toigo_wool_pants',)]
+UNDIES_M = [('mindfront_kimono', 'toigo_harem_pants'), ('toigo_harem_pants', 'elvs_male_tankshirt1'),
+            ('elvs_gored_elephant_pants', 'mindfront_tank_top_01'), ('elvs_sarong_cover_up',),
+            ('mindfront_male_trousers_1', 'elvs_male_boho_top1'), ('toigo_harem_pants',)]
+TOPLESS_F = [('toigo_harem_pants',), ('elvs_gored_elephant_pants',), ('toigo_long_full_skirt',),
+             ('elvs_gored_midi_skirt',), ('toigo_tiered_skirt',)]
 LINGERIE_F = [('elvs_crochet_baby_doll',), ('toigo_bodice-style_top', 'elvs_retro_girly_shorts1', 'punkduck_lace-choker'),
               ('punkduck_tube_top', 'elvs_retro_girly_shorts1'), ('toigo_camisole_top', 'elvs_retro_girly_shorts1')]
 LINGERIE_TONES = [(0.0, 0.2, 0.25), (0.98, 1.4, 0.45), (0.85, 1.2, 0.5), (0.08, 0.6, 1.1), (0.0, 0.0, 0.2)]
@@ -304,8 +307,9 @@ LUNGI_F = [('elvs_sarong_cover_up',), ('elvs_sarong_cover_up',),                
            ('elvs_goddess_dress2',), ('elvs_goddess_dress5',),                        # one shoulder / toga tie
            ('punkduck_tube_dress',), ('elvs_halter_dress_knee_length',),              # strapless / knee length
            ('toigo_long_full_skirt', 'toigo_camisole_top'), ('elvs_gored_midi_skirt', 'punkduck_tube_top')]
-LUNGI_M = [('toigo_long_full_skirt',), ('elvs_gored_midi_skirt',), ('toigo_long_full_skirt', 'elvs_male_tankshirt1'),
-           ('elvs_gored_midi_skirt', 'elvs_male_boho_top1')]
+LUNGI_M = [('toigo_long_full_skirt', 'elvs_male_boho_top1'), ('elvs_gored_midi_skirt', 'elvs_male_tankshirt1'),
+           ('toigo_long_full_skirt', 'elvs_male_tankshirt1'), ('elvs_gored_midi_skirt', 'elvs_male_boho_top1'),
+           ('toigo_long_full_skirt', 'mindfront_kimono'), ('elvs_gored_midi_skirt',)]
 LUNGI_PIECES = ('toigo_long_full_skirt', 'elvs_gored_midi_skirt', 'elvs_sarong_cover_up', 'elvs_halter_dress_long',
                 'toigo_halter_dress_midi', 'elvs_double_handkerchief_halter_dress', 'elvs_goddess_dress2',
                 'elvs_goddess_dress5', 'punkduck_tube_dress', 'elvs_halter_dress_knee_length')
@@ -336,6 +340,8 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
             u -= v_
         if kind == 'undress':
             kind = 'lingerie' if (sex < 0.5 and rnd.random() < 0.5) else 'undies'
+            if sex < 0.5 and UNDRESS[0] <= 0.2 and rnd.random() < 0.6:
+                kind = 'topless'                 # dancing topless (dance areas)
     if outfit is None:
         if kind == 'mix':                    # own combination of a bottom, maybe a top, maybe a kimono over it
             bottom = rnd.choice(BOTTOMS)
@@ -346,7 +352,8 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
             outfit = tuple(x for x in rnd.choice(LUNGI_F if sex < 0.5 else LUNGI_M) if x)
     if outfit is None:
         pool = {'crazy': CRAZY, 'organiser': [KIMONO], 'naked': [()],
-                'undies': UNDIES_F if sex < 0.5 else UNDIES_M, 'lingerie': LINGERIE_F}.get(kind)
+                'undies': UNDIES_F if sex < 0.5 else UNDIES_M, 'lingerie': LINGERIE_F,
+                'topless': TOPLESS_F}.get(kind)
         if pool is None:
             pool = FLOW_F if (sex < 0.5 or rnd.random() < 0.08) else FLOW_M
         outfit = rnd.choice(pool)
