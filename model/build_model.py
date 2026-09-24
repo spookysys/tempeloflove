@@ -98,6 +98,27 @@ def cut_cylinder(ob, center_xy, r, z0, z1):
     bpy.data.objects.remove(cutter)
 
 
+def cut_box(ob, center, size, rz):
+    bmc = bmesh.new()
+    cube(bmc, center, size, rz=rz)
+    me = bpy.data.meshes.new('cutter')
+    bmc.to_mesh(me)
+    bmc.free()
+    cutter = bpy.data.objects.new('cutter', me)
+    SCENE.collection.objects.link(cutter)
+    mod = ob.modifiers.new('cut', 'BOOLEAN')
+    mod.operation = 'DIFFERENCE'
+    mod.object = cutter
+    mod.solver = 'EXACT'
+    mod.use_self = True
+    mod.use_hole_tolerant = True
+    dg = bpy.context.evaluated_depsgraph_get()
+    new = bpy.data.meshes.new_from_object(ob.evaluated_get(dg))
+    ob.modifiers.remove(mod)
+    ob.data = new
+    bpy.data.objects.remove(cutter)
+
+
 # ---------------------------------------------------------------------------
 # geometry helpers
 # ---------------------------------------------------------------------------
@@ -1082,11 +1103,9 @@ mk_obj('radial_beams', bm, M_WOOD, 'structure')
 
 s_a0 = P.partition_angle(P.STAIR_SLOT)
 s_a1 = P.partition_angle(P.STAIR_SLOT + 1)
-HELIX_C = pol(P.HELIX_U, P.slot_center(P.STAIR_SLOT))
 bm = bmesh.new()
 ring_prism(bm, P.RING_BEAM_OUT, OCT(P.R_IN + 0.02), P.CEIL_GF, P.FFL_UF - 0.01, step=0.5)
 slab = mk_obj('upper_slab', bm, [M_CEIL, M_WOOD], 'structure')
-cut_cylinder(slab, HELIX_C, P.HELIX_CAGE_R + 0.06, P.CEIL_GF - 0.5, P.FFL_UF + 0.5)
 set_face_mats(slab, lambda c, n: 0 if n.z < -0.5 else 1)
 bm = bmesh.new()
 sector(bm, P.R_PAD_OUT - 0.02, P.RING_BEAM_OUT, 0, 360, P.RING_BEAM_TOP, P.FFL_UF - 0.01, step=1.5)
@@ -1095,7 +1114,6 @@ mk_obj('upper_slab_edge', bm, M_WOOD, 'structure')
 bm = bmesh.new()
 ring_prism(bm, P.APOTHEM_FRONT - 0.05, OCT(P.R_IN), P.FFL_UF - 0.012, P.FFL_UF, a0=s_a0, a1=s_a1, step=0.5)
 plat = mk_obj('stair_platform_floor', bm, M_FLOOR_ROOM, 'structure')
-cut_cylinder(plat, HELIX_C, P.HELIX_CAGE_R + 0.06, P.FFL_UF - 0.5, P.FFL_UF + 0.5)
 
 # walkway floor finish (circle inside, octagon of room fronts outside)
 bm = bmesh.new()
@@ -1565,69 +1583,105 @@ def clay_sconce(name, loc, facing_deg, parent=None, power=8.0, coll_name='furnis
 
 
 
+def bath_front(k):
+    """Front of the bath segment: clay wall with two WC doors and a frosted-glass sliding door."""
+    parent = bpy.data.objects.new('bath_front_%d' % k, None)
+    coll('rooms').objects.link(parent)
+    parent.matrix_world = Matrix.Rotation(rad(P.slot_center(k)), 4, 'Z')
+    half = P.APOTHEM_FRONT * math.tan(rad(P.SLOT_DEG / 2)) - P.POST / 2 - 0.01
+    x = P.APOTHEM_FRONT + P.FRONT_T / 2
+    zf = P.FFL_UF
+    holes = [(-2.0, -1.2, 2.1), (-0.75, 0.75, 2.2), (1.2, 2.0, 2.1)]
+    bm = bmesh.new()
+    edges = [-half] + [h for (a_, b_, _) in holes for h in (a_, b_)] + [half]
+    for i in range(0, len(edges), 2):
+        y0, y1 = edges[i], edges[i + 1]
+        cube(bm, (x, (y0 + y1) / 2, (zf + P.CEIL_UF) / 2), (P.FRONT_T, y1 - y0, P.CEIL_UF - zf))
+    for (a_, b_, h_) in holes:
+        cube(bm, (x, (a_ + b_) / 2, (zf + h_ + P.CEIL_UF) / 2), (P.FRONT_T, b_ - a_, P.CEIL_UF - zf - h_))
+    ob = mk_obj('bath_front_wall_%d' % k, bm, M_CLAY_ROOM, 'rooms')
+    ob.parent = parent
+    bm = bmesh.new()
+    for (a_, b_) in ((-2.0, -1.2), (1.2, 2.0)):
+        cube(bm, (x + 0.02, (a_ + b_) / 2, zf + 1.04), (0.04, b_ - a_ - 0.02, 2.06))
+    for (a_, b_, h_) in holes:
+        cube(bm, (x - 0.07, (a_ + b_) / 2, zf + h_ + 0.03), (0.03, b_ - a_ + 0.1, 0.06))
+    cube(bm, (x - 0.09, -0.36, zf + 1.1), (0.04, 0.84, 2.2))          # sliding door frame (half open)
+    ob = mk_obj('bath_doors_%d' % k, bm, M_WOOD, 'rooms')
+    ob.parent = parent
+    bm = bmesh.new()
+    cube(bm, (x - 0.12, -0.36, zf + 1.1), (0.01, 0.72, 2.05))
+    ob = mk_obj('bath_door_glass_%d' % k, bm, M_FROSTED, 'rooms')
+    ob.parent = parent
+    return parent
+
+
 def bathroom_fixtures(k, parent, yw, x0, xb, z):
-    """Shared bathroom (all gender): 2 WC cubicles, a walk-in group shower, 2 basins, bench."""
+    """Bathing room for showering together (foreplay / aftercare), pairs or groups.
+    Two WCs with their own doors at the front corners; rain showers under the skylight;
+    a warm tadelakt bench to sit together; an aftercare nook with a heated daybed."""
     def put(name, bm, mat, smooth=False):
         ob = mk_obj(name, bm, mat, 'furnishing', smooth=smooth)
         ob.parent = parent
         return ob
-    # WC cubicles along the left side (y < 0)
+    XW = 7.35                                          # back walls of the two WC rooms
+    YW = 1.05
     bm = bmesh.new()
-    yf = -1.55                                   # cubicle fronts
-    for xa, xb_ in ((6.15, 7.3), (7.3, 8.45)):
-        cube(bm, (xb_, (yf - yw(xb_)) / 2, z + 1.1), (0.08, abs(-yw(xb_) - yf), 2.2))    # side walls
-    cube(bm, (6.15, (yf - yw(6.15)) / 2, z + 1.1), (0.08, abs(-yw(6.15) - yf), 2.2))
-    cube(bm, (6.35, yf, z + 1.1), (0.4, 0.08, 2.2))                                   # front piers
-    cube(bm, (7.3, yf, z + 1.1), (0.34, 0.08, 2.2))
-    cube(bm, (8.25, yf, z + 1.1), (0.4, 0.08, 2.2))
-    cube(bm, (7.3, yf, z + 2.15), (2.3, 0.08, 0.1))
+    for s_ in (-1, 1):
+        cube(bm, ((x0 + XW) / 2, s_ * YW, z + 1.3), (XW - x0, 0.1, 2.6))
+        y_out = yw(XW)
+        cube(bm, (XW, s_ * (YW + y_out) / 2, z + 1.3), (0.1, y_out - YW, 2.6))
     put('bath_wc_walls_%d' % k, bm, M_TADELAKT)
     bm = bmesh.new()
-    cube(bm, (6.95, yf - 0.35, z + 1.05), (0.72, 0.04, 2.0), rz=-60)                 # doors, one ajar
-    cube(bm, (7.87, yf, z + 1.05), (0.72, 0.04, 2.0))
-    put('bath_wc_doors_%d' % k, bm, M_WOOD)
-    bm = bmesh.new()
-    for xc in (6.72, 7.87):
-        cube(bm, (xc, -yw(xc) + 0.45, z + 0.2), (0.38, 0.55, 0.4))
-        cube(bm, (xc, -yw(xc) + 0.14, z + 0.55), (0.4, 0.16, 0.5))
+    for s_ in (-1, 1):
+        cube(bm, (XW - 0.28, s_ * 1.6, z + 0.2), (0.55, 0.38, 0.4))
+        cube(bm, (XW - 0.1, s_ * 1.6, z + 0.55), (0.16, 0.4, 0.5))
+        cube(bm, (6.05, s_ * (YW + 0.3), z + 0.85), (0.35, 0.45, 0.1))
     rounded(put('bath_wc_%d' % k, bm, M_CERAMIC), 0.05, 3, 1)
-    # walk-in group shower under the window: low curved tadelakt screen, bench, 3 heads
-    screen = superellipse(7.85, 1.55, 0.95, 0.12, n=2.0, rot=90)
-    extrude_outline('bath_shower_screen_%d' % k, screen, z, z + 1.35, M_TADELAKT, parent, bevel=0.05)
-    bench = superellipse(9.3, 0.9, 0.2, 1.2, n=3.0)
-    extrude_outline('bath_shower_bench_%d' % k, bench, z, z + 0.45, M_TADELAKT, parent, bevel=0.05)
+    # entry / changing zone: bench, hooks, basin counter
     bm = bmesh.new()
-    for yy in (-0.4, 0.5, 1.4):
-        cyl(bm, (P.R_IN - 0.06, yy, z + 1.55), 0.015, 0.8, segs=8)
-        cube(bm, (P.R_IN - 0.18, yy, z + 1.98), (0.26, 0.03, 0.03))
-        cyl(bm, (P.R_IN - 0.3, yy, z + 1.94), 0.09, 0.02, segs=24)
-    put('bath_shower_heads_%d' % k, bm, M_STEEL)
+    cube(bm, (6.5, -YW + 0.3, z + 0.22), (1.3, 0.42, 0.44))
+    put('bath_entry_bench_%d' % k, bm, M_WOOD)
     bm = bmesh.new()
-    cyl(bm, (8.6, 0.5, z + 0.005), 0.06, 0.01, segs=16)
-    put('bath_drain_%d' % k, bm, M_STEEL)
-    # washbasins along the right side near the door
-    top = [(xx, yw(xx) - 0.05 - dy) for xx, dy in ((5.9, 0.0), (7.5, 0.0), (7.5, 0.55), (5.9, 0.55))]
-    extrude_outline('bath_counter_%d' % k, top, z + 0.82, z + 0.88, M_WOOD, parent, bevel=0.01, seg=2)
+    for i in range(6):
+        cyl(bm, (5.95 + i * 0.25, -YW + 0.1, z + 1.7), 0.015, 0.12, segs=8,
+            rot=Matrix.Rotation(rad(90), 4, 'X'))
+    put('bath_hooks_%d' % k, bm, M_WOOD_DARK)
+    top = [(5.95, YW - 0.05), (7.2, YW - 0.05), (7.2, YW - 0.55), (5.95, YW - 0.55)]
+    extrude_outline('bath_counter_%d' % k, top, z + 0.84, z + 0.9, M_WOOD, parent, bevel=0.01, seg=2)
     bm = bmesh.new()
-    for xc in (6.3, 7.1):
-        res = bmesh.ops.create_uvsphere(bm, u_segments=24, v_segments=12, radius=0.2,
-                                        matrix=Matrix.Translation((xc, yw(xc) - 0.33, z + 0.95)) @
-                                        Matrix.Diagonal((1, 1, 0.45, 1)))
+    for xc in (6.3, 6.9):
+        bmesh.ops.create_uvsphere(bm, u_segments=24, v_segments=12, radius=0.19,
+                                  matrix=Matrix.Translation((xc, YW - 0.3, z + 0.97)) @
+                                  Matrix.Diagonal((1, 1, 0.45, 1)))
     put('bath_basins_%d' % k, bm, M_CERAMIC, smooth=True)
+    # shower zone under the skylight: three wide rain heads from the ceiling
     bm = bmesh.new()
-    for xc in (6.3, 7.1):
-        c_ = Vector((xc, yw(xc) - 0.03, z + 1.55))
-        rot = Matrix.Rotation(rad(90), 4, 'X') @ Matrix.Rotation(rad(-P.SLOT_DEG / 2), 4, 'Y')
-        cyl(bm, c_, 0.3, 0.02, segs=40, rot=Matrix.Rotation(rad(P.SLOT_DEG / 2), 4, 'Z') @ Matrix.Rotation(rad(90), 4, 'X'))
-    put('bath_mirrors_%d' % k, bm, M_GLASS)
-    for i, xx in enumerate((6.4, 7.4)):
-        cushion('bath_towels_%d_%d' % (k, i), parent, (xx, 0.2 + 0.1 * i, z + 0.46), (0.5, 0.35, 0.12),
-                M_WOOL['cream'])
+    for yy in (-1.9, -0.75, 0.4):
+        cube(bm, (8.55, yy, P.CEIL_UF - 0.05), (0.34, 0.34, 0.03))
+        cyl(bm, (8.55, yy, P.CEIL_UF - 0.02), 0.012, 0.04, segs=8)
+    cube(bm, (7.95, -0.75, z + 0.004), (0.05, 3.2, 0.008))           # linear drain
+    put('bath_rain_heads_%d' % k, bm, M_STEEL)
+    bench = [(xx, yy) for xx, yy in superellipse(9.3, -0.85, 0.24, 1.75, n=3.5)]
+    extrude_outline('bath_warm_bench_%d' % k, bench, z, z + 0.45, M_TADELAKT, parent, bevel=0.06, seg=4)
+    # aftercare nook: low curved wall, heated daybed with towels + blanket, candle niche, plant
+    wall = superellipse(8.45, 1.1, 0.8, 0.09, n=2.0)
+    extrude_outline('bath_nook_wall_%d' % k, wall, z, z + 1.2, M_TADELAKT, parent, bevel=0.04)
+    bed = superellipse(8.95, 2.3, 0.55, 0.95, n=3.0)
+    extrude_outline('bath_nook_daybed_%d' % k, bed, z, z + 0.42, M_TADELAKT, parent, bevel=0.06, seg=4)
+    mat_ = superellipse(8.95, 2.3, 0.48, 0.86, n=3.0)
+    extrude_outline('bath_nook_mat_%d' % k, mat_, z + 0.42, z + 0.52, M_WOOL['cream'], parent, bevel=0.04, seg=3)
+    cushion('bath_nook_blanket_%d' % k, parent, (8.8, 2.6, z + 0.6), (0.7, 0.5, 0.12), M_WOOL['terracotta'])
+    for i in range(3):
+        cushion('bath_towel_%d_%d' % (k, i), parent, (9.35, 1.65 + i * 0.02, z + 0.6 + i * 0.1),
+                (0.45, 0.35, 0.09), M_WOOL['sand'])
     bm = bmesh.new()
-    cube(bm, (6.9, 0.25, z + 0.2), (1.4, 0.45, 0.4))
-    rounded(put('bath_bench_%d' % k, bm, M_WOOD), 0.02, 2, 0)
-    potted_plant('bath_plant_%d' % k, parent, 9.1, -3.1, z, h=1.1, seed=5)
-    lantern('bath_pendant_%d' % k, (7.2, 0.3, P.CEIL_UF - 0.7), 0.26, 0.4, parent=parent, cord=P.CEIL_UF)
+    for yy in (2.0, 2.3, 2.6):
+        cyl(bm, (9.45, yy, z + 1.3), 0.03, 0.08, segs=12)
+    put('bath_candles_%d' % k, bm, M_CANDLE, smooth=True)
+    potted_plant('bath_plant_%d' % k, parent, 7.75, -2.6, z, h=1.1, seed=5)
+    lantern('bath_pendant_%d' % k, (8.9, 2.3, P.CEIL_UF - 0.75), 0.24, 0.38, parent=parent, cord=P.CEIL_UF)
+    clay_sconce('bath_sconce_%d' % k, (8.2, -yw(8.2) + 0.03, z + 1.8), 67.5, parent=parent, power=6.0)
 
 
 def room(k, bath=False):
@@ -1754,203 +1808,132 @@ def room(k, bath=False):
 for k in range(P.N_SLOTS):
     if k == P.STAIR_SLOT:
         continue
-    room_front(k, DOOR_STATES[k])
+    if k == P.BATH_SLOT:
+        bath_front(k)
+    else:
+        room_front(k, DOOR_STATES[k])
     room(k, bath=(k == P.BATH_SLOT))
 
 # ---------------------------------------------------------------------------
-# 7. helical stair around a wooden trunk: hall -> upper floor -> roof terrace
+# 7. half-turn stair: hall -> upper floor. The roof terrace is reached by the external stair.
+#    Storage for mats and cushions beside and under the stair; on the upper floor a linen /
+#    laundry room on one side and an open tea & water niche by the passage to the external stair.
 # ---------------------------------------------------------------------------
-sa = P.slot_center(P.STAIR_SLOT)
-s_ca, s_sn = math.cos(rad(sa)), math.sin(rad(sa))
+SA_ = P.slot_center(P.STAIR_SLOT)
 
 
-def HW(theta, r, z):
-    """helix-local polar (theta deg, 0 = outwards along the slot axis) -> world"""
-    u = P.HELIX_U + r * math.cos(rad(theta))
-    v = r * math.sin(rad(theta))
-    return Vector((u * s_ca - v * s_sn, u * s_sn + v * s_ca, z))
+def SW(u, v, z=0.0):
+    a = rad(SA_)
+    return Vector((u * math.cos(a) - v * math.sin(a), u * math.sin(a) + v * math.cos(a), z))
 
 
-def hsector(bm, r0, r1, a0, a1, z0, z1, step=4.0):
-    n = max(1, int(math.ceil(abs(a1 - a0) / step)))
-    profs = []
-    for i in range(n + 1):
-        a = a0 + (a1 - a0) * i / n
-        profs.append([bm.verts.new(HW(a, r0, z0)), bm.verts.new(HW(a, r1, z0)),
-                      bm.verts.new(HW(a, r1, z1)), bm.verts.new(HW(a, r0, z1))])
-    for i in range(n):
-        A, B = profs[i], profs[i + 1]
-        for j in range(4):
-            bm.faces.new((A[j], A[(j + 1) % 4], B[(j + 1) % 4], B[j]))
-    bm.faces.new(profs[0])
-    bm.faces.new(profs[-1][::-1])
+def box_uv(bm, u0, u1, v0, v1, z0, z1):
+    cube(bm, SW((u0 + u1) / 2, (v0 + v1) / 2, (z0 + z1) / 2), (u1 - u0, v1 - v0, z1 - z0), rz=SA_)
 
 
-S_ = P.HELIX_STEP_DEG
-TH0 = 180.0 - (P.STAIR_RISERS - 1) * S_          # first riser (hall)
-TH_UF0 = TH0 + (P.STAIR_RISERS - 1) * S_          # = 180: arrival on the upper floor
-TH_UF1 = TH_UF0 + 2 * S_                          # end of the upper-floor landing
-TH_TOP = TH_UF1 + (P.TERRACE_RISERS - 1) * S_     # arrival at terrace level
-R0 = P.HELIX_CORE_R
-R1 = P.HELIX_R
-
-
-def z_line(th):
-    if th <= TH_UF0:
-        return max(0.0, (th - TH0) / S_ * P.STAIR_RISE)
-    if th <= TH_UF1:
-        return P.FFL_UF
-    if th <= TH_TOP:
-        return P.FFL_UF + (th - TH_UF1) / S_ * P.TERRACE_RISE
-    return P.TERRACE_Z
-
-
+R_ = P.STAIR_RISE
+G_ = P.STAIR_GOING_U
+W_ = P.STAIR_FLIGHT_W
+GAP = 0.14
+N_T = P.STAIR_RISERS // 2 - 1                       # 10 treads per flight
+U0 = P.APOTHEM_FRONT + P.FRONT_T + 0.03             # foot of flight 1 / head of flight 2
+UL = U0 + N_T * G_                                  # landing starts
+UE = P.R_IN - 0.02
+V1 = GAP / 2 + W_                                   # outer edge of the flights
+ZL = (N_T + 1) * R_                                 # landing level
 bm = bmesh.new()
-for k in range(1, P.STAIR_RISERS):
-    hsector(bm, R0, R1, TH0 + (k - 1) * S_, TH0 + k * S_ + 0.6, k * P.STAIR_RISE - 0.07, k * P.STAIR_RISE)
-hsector(bm, R0, R1 + 0.08, TH_UF0, TH_UF1, P.FFL_UF - 0.14, P.FFL_UF)
-for j in range(1, P.TERRACE_RISERS):
-    z = P.FFL_UF + j * P.TERRACE_RISE
-    hsector(bm, R0, R1, TH_UF1 + (j - 1) * S_, TH_UF1 + j * S_ + 0.6, z - 0.07, z)
-hsector(bm, R0, R1 + 0.08, TH_TOP, TH_TOP + 150, P.TERRACE_Z - 0.16, P.TERRACE_Z)
-mk_obj('stair_treads', bm, M_WOOD, 'structure')
+bmt = bmesh.new()
+for i in range(N_T):                                # flight 1: from the hall outwards (v < 0)
+    zt = (i + 1) * R_
+    box_uv(bm, U0 + i * G_, U0 + (i + 1) * G_ + 0.02, -V1, -GAP / 2, 0.0, zt - 0.04)
+    box_uv(bmt, U0 + i * G_ - 0.02, U0 + (i + 1) * G_, -V1, -GAP / 2, zt - 0.04, zt)
+box_uv(bm, UL, UE, -V1, V1, 0.0, ZL - 0.04)        # landing on a solid clay block (store inside)
+box_uv(bmt, UL - 0.02, UE, -V1, V1, ZL - 0.04, ZL)
+for j in range(N_T):                                # flight 2: back to the front (v > 0)
+    zt = ZL + (j + 1) * R_
+    u1 = UL - j * G_
+    u0 = UL - (j + 1) * G_
+    box_uv(bm, u0, u1 + 0.02, GAP / 2, V1, zt - 0.30, zt - 0.04)
+    box_uv(bmt, u0 - 0.02, u1, GAP / 2, V1, zt - 0.04, zt)
+box_uv(bm, U0, UL + 0.02, -GAP / 2, GAP / 2, 0.0, P.FFL_UF + 1.0)     # clay spine between the flights
+mk_obj('stair_body', bm, M_CLAY_HALL, 'structure')
+mk_obj('stair_treads', bmt, M_WOOD, 'structure')
 
-# outer helical stringer + handrail on the screen side
+# walls: along both flights on the ground floor; on the upper floor a full wall on the flight-1
+# side (linen room) and a rounded clay parapet on the flight-2 side (open passage beyond)
 bm = bmesh.new()
-pts, ups = [], []
-th = TH0
-while th <= TH_TOP + 0.01:
-    pts.append(HW(th, R1 + 0.035, z_line(th) - 0.14))
-    ups.append(Vector((0, 0, 1)))
-    th += 2.0
-sweep_rect(bm, pts, ups, 0.06, 0.26)
-pts = [HW(th_, R1 - 0.02, z_line(th_) + 0.9) for th_ in [TH0 + S_ + i * 2.0 for i in
-                                                          range(int((TH_TOP - TH0 - S_) / 2.0) + 1)]]
-sweep_rect(bm, pts, [Vector((0, 0, 1))] * len(pts), 0.05, 0.05)
-mk_obj('stair_stringer_handrail', bm, M_WOOD, 'structure')
+for s_ in (-1, 1):
+    box_uv(bm, U0, UE, s_ * V1 + (0 if s_ > 0 else -0.14), s_ * V1 + (0.14 if s_ > 0 else 0), 0.0, P.FFL_UF)
+box_uv(bm, U0, UE, -V1 - 0.14, -V1, P.FFL_UF, P.CEIL_UF)
+box_uv(bm, U0 + 0.6, UE, V1, V1 + 0.14, P.FFL_UF, P.FFL_UF + 1.05)
+box_uv(bm, U0 - 0.14, U0, -V1, -GAP / 2, P.FFL_UF, P.FFL_UF + 1.05)   # guard over flight 1 at the front
+box_uv(bm, U0 - 0.12, U0, GAP / 2, V1, 0.0, P.CEIL_GF)                # ground floor: store under flight 2
+mk_obj('stair_walls', bm, M_CLAY_ROOM, 'structure')
+bm = bmesh.new()
+box_uv(bm, U0 + 0.6, UE, V1 - 0.02, V1 + 0.16, P.FFL_UF + 1.05, P.FFL_UF + 1.10)
+box_uv(bm, U0 - 0.16, U0 + 0.02, -V1, -GAP / 2, P.FFL_UF + 1.05, P.FFL_UF + 1.10)
+box_uv(bm, U0 - 0.13, U0 - 0.10, GAP / 2 + 0.25, V1 - 0.25, 0.05, 2.05)  # store door under flight 2
+mk_obj('stair_caps', bm, M_WOOD, 'structure')
+cu = bpy.data.curves.new('stair_handrails', 'CURVE')
+cu.dimensions = '3D'
+cu.bevel_depth = 0.022
+for (v, z0, z1, ua, ub) in ((-V1 + 0.07, 0.9, ZL + 0.9, U0 - 0.1, UL), (V1 - 0.07, ZL + 0.9, P.FFL_UF + 0.9, UL, U0)):
+    sp = cu.splines.new('POLY')
+    sp.points.add(1)
+    for n_, (uu, zz) in enumerate(((ua, z0), (ub, z1))):
+        p_ = SW(uu, v, zz)
+        sp.points[n_].co = (p_.x, p_.y, p_.z, 1)
+cu.materials.append(M_WOOD)
+coll('structure').objects.link(bpy.data.objects.new('stair_handrails', cu))
 
-# central trunk
+# ground floor: radial walls on the segment edges + fronts of the two mat / cushion stores
 bm = bmesh.new()
-cyl(bm, HW(0, 0, P.STAIR_HOUSE_TOP / 2), R0 + 0.02, P.STAIR_HOUSE_TOP, segs=32, r2=R0 - 0.03)
-trunk = mk_obj('stair_trunk', bm, M_WOOD, 'structure', smooth=True)
+for k_ in (P.STAIR_SLOT, P.STAIR_SLOT + 1):
+    a_ = P.partition_angle(k_)
+    seg_box(bm, pol(RC, a_), pol(P.octo_r(a_, P.R_IN) + 0.05, a_), P.PART_T, 0.0, P.CEIL_GF)
+hf = P.APOTHEM_FRONT * math.tan(rad(P.SLOT_DEG / 2)) - 0.08
+for s_ in (-1, 1):
+    va, vb = sorted((s_ * (V1 + 0.14), s_ * hf))
+    dv = (va + vb) / 2
+    box_uv(bm, U0 - 0.12, U0, va, dv - 0.45, 0.0, P.CEIL_GF)
+    box_uv(bm, U0 - 0.12, U0, dv + 0.45, vb, 0.0, P.CEIL_GF)
+    box_uv(bm, U0 - 0.12, U0, dv - 0.45, dv + 0.45, 2.1, P.CEIL_GF)
+mk_obj('stair_gf_stores', bm, M_CLAY_HALL, 'structure')
+bm = bmesh.new()
+for s_ in (-1, 1):
+    dv = (s_ * (V1 + 0.14) + s_ * hf) / 2
+    box_uv(bm, U0 - 0.09, U0 - 0.05, dv - 0.43, dv + 0.43, 0.02, 2.08)
+mk_obj('stair_gf_store_doors', bm, M_WOOD, 'structure')
 
-# slatted larch screen around the stair (hall to roof), open at the access points
-SCREEN_OPEN = [((165, 232), (0.0, 2.35)),                     # from the hall
-               ((-16, 16), (0.0, 2.15)),                      # exit straight outside (escape route)
-               ((150, 214), (P.FFL_UF, P.FFL_UF + 2.25))]     # to the walkway / upper floor
+# upper floor: linen / laundry room (flight-1 side) with its door on the walkway; tea niche
 bm = bmesh.new()
-nbat = 88
-for i in range(nbat):
-    th = 360.0 * i / nbat
-    zs = [(0.0, P.ROOF_Z_IN)]
-    for (a0, a1), (z0, z1) in SCREEN_OPEN:
-        if a0 <= th <= a1:
-            new = []
-            for (za, zb) in zs:
-                if z1 <= za or z0 >= zb:
-                    new.append((za, zb))
-                else:
-                    if z0 > za:
-                        new.append((za, z0))
-                    if z1 < zb:
-                        new.append((z1, zb))
-            zs = new
-    p = HW(th, P.HELIX_CAGE_R, 0)
-    for za, zb in zs:
-        if zb - za > 0.05:
-            cube(bm, (p.x, p.y, (za + zb) / 2), (0.035, 0.05, zb - za), rz=sa + th)
-for (a0, a1), (z0, z1) in SCREEN_OPEN:    # lintel rings over the openings
-    hsector(bm, P.HELIX_CAGE_R - 0.03, P.HELIX_CAGE_R + 0.03, a0, a1, z1, z1 + 0.08)
-mk_obj('stair_screen', bm, M_BATTEN, 'structure')
-# fire-rated glass drum just inside the slats: the stair is its own enclosure (Treppenraum)
+dv = (-hf - V1 - 0.14) / 2
+box_uv(bm, U0 - 0.12, U0, -hf, dv - 0.45, P.FFL_UF, P.CEIL_UF)
+box_uv(bm, U0 - 0.12, U0, dv + 0.45, -V1 - 0.14, P.FFL_UF, P.CEIL_UF)
+box_uv(bm, U0 - 0.12, U0, dv - 0.45, dv + 0.45, P.FFL_UF + 2.1, P.CEIL_UF)
+mk_obj('linen_room_front', bm, M_CLAY_ROOM, 'structure')
 bm = bmesh.new()
-cuts = sorted({-180.0, 180.0} | {a for (a0, a1), _ in SCREEN_OPEN for a in ((a0 + 180) % 360 - 180, (a1 + 180) % 360 - 180)})
-for a0, a1 in zip(cuts[:-1], cuts[1:]):
-    am = (a0 + a1) / 2
-    zs = [(0.0, P.ROOF_Z_IN)]
-    for (o0, o1), (z0, z1) in SCREEN_OPEN:
-        if (am - o0) % 360 < (o1 - o0) % 360:
-            new = []
-            for (za, zb) in zs:
-                if z1 <= za or z0 >= zb:
-                    new.append((za, zb))
-                else:
-                    if z0 > za:
-                        new.append((za, z0))
-                    if z1 < zb:
-                        new.append((z1, zb))
-            zs = new
-    for za, zb in zs:
-        if zb - za > 0.05:
-            hsector(bm, P.HELIX_CAGE_R - 0.045, P.HELIX_CAGE_R - 0.035, a0, a1, za, zb, step=3.0)
-mk_obj('stair_glass_drum', bm, M_GLASS, 'structure')
+box_uv(bm, 9.0, 9.53, 1.5, 2.25, P.FFL_UF, P.FFL_UF + 0.9)
+mk_obj('tea_niche_counter', bm, M_CLAY_ROOM, 'furnishing')
+bm = bmesh.new()
+box_uv(bm, 8.96, 9.53, 1.48, 2.27, P.FFL_UF + 0.9, P.FFL_UF + 0.95)
+box_uv(bm, 9.25, 9.53, 1.48, 2.27, P.FFL_UF + 1.55, P.FFL_UF + 1.58)
+mk_obj('tea_niche_top', bm, M_WOOD, 'furnishing')
+bm = bmesh.new()
+for i in range(4):
+    cyl(bm, SW(9.39, 1.6 + i * 0.18, P.FFL_UF + 1.66), 0.045, 0.16, segs=12)
+bmesh.ops.create_uvsphere(bm, u_segments=20, v_segments=12, radius=0.1,
+                          matrix=Matrix.Translation(SW(9.25, 1.9, P.FFL_UF + 1.03)))
+mk_obj('tea_niche_pots', bm, M_TERRACOTTA, 'furnishing', smooth=True)
 
-# round stair house on the roof, doors on both sides onto the terrace
-DOORS = [(119, 143), (226, 250)]
-zd0, zd1 = P.TERRACE_Z, P.TERRACE_Z + 2.15
-zw0, zw1 = P.TERRACE_Z + 1.85, P.STAIR_HOUSE_TOP - 0.25      # glazed band above
-bm = bmesh.new()
-cuts = sorted({0.0, 360.0} | {a for d in DOORS for a in d})
-for a0, a1 in zip(cuts[:-1], cuts[1:]):
-    am = (a0 + a1) / 2
-    door = any(d0 < am < d1 for d0, d1 in DOORS)
-    zs = [(zw1, P.STAIR_HOUSE_TOP)] if door else [(P.ROOF_Z_IN, zw0), (zw1, P.STAIR_HOUSE_TOP)]
-    for za, zb in zs:
-        hsector(bm, P.HELIX_CAGE_R + 0.02, P.HELIX_CAGE_R + 0.16, a0, a1, za, zb, step=3.0)
-hs = mk_obj('stair_house_wall', bm, M_BATTEN, 'roof')
-bm = bmesh.new()
-for a0, a1 in zip(cuts[:-1], cuts[1:]):
-    am = (a0 + a1) / 2
-    if any(d0 < am < d1 for d0, d1 in DOORS):
-        continue
-    hsector(bm, P.HELIX_CAGE_R + 0.08, P.HELIX_CAGE_R + 0.09, a0, a1, zw0, zw1, step=3.0)
-for d0, d1 in DOORS:
-    hsector(bm, P.HELIX_CAGE_R + 0.08, P.HELIX_CAGE_R + 0.09, d0 + 1.5, d1 - 1.5, zd0 + 0.05, zw1, step=3.0)
-mk_obj('stair_house_glass', bm, M_GLASS, 'roof')
-bm = bmesh.new()
-for d0, d1 in DOORS:
-    for a in (d0 + 0.8, (d0 + d1) / 2, d1 - 0.8):
-        p = HW(a, P.HELIX_CAGE_R + 0.09, 0)
-        cube(bm, (p.x, p.y, (zd0 + zw1) / 2), (0.07, 0.06, zw1 - zd0), rz=sa + a)
-    hsector(bm, P.HELIX_CAGE_R + 0.05, P.HELIX_CAGE_R + 0.13, d0, d1, zd1 - 0.03, zd1 + 0.04)
-    hsector(bm, P.HELIX_CAGE_R + 0.05, P.HELIX_CAGE_R + 0.13, d0, d1, zd0, zd0 + 0.05)
-mk_obj('stair_house_door_frames', bm, M_WOOD_DARK, 'roof')
-bm = bmesh.new()
-cyl(bm, HW(0, 0, P.STAIR_HOUSE_TOP + 0.08), P.HELIX_CAGE_R + 0.45, 0.16, segs=64)
-mk_obj('stair_house_roof', bm, M_WOOD, 'roof')
-bm = bmesh.new()
-cyl(bm, HW(0, 0, P.STAIR_HOUSE_TOP + 0.19), P.HELIX_CAGE_R + 0.30, 0.06, segs=64)
-mk_obj('stair_house_roof_sedum', bm, M_SEDUM, 'roof')
-bm = bmesh.new()
-cyl(bm, HW(0, 0, P.STAIR_HOUSE_TOP + 0.24), 0.55, 0.06, segs=40)
-mk_obj('stair_house_smoke_vent', bm, M_GLASS, 'roof')
-lantern('stair_house_lantern', tuple(HW(0, 0.75, P.STAIR_HOUSE_TOP - 0.55)), 0.22, 0.34,
-        cord=P.STAIR_HOUSE_TOP)
+# void in the upper slab and floor finish over the stair
+for ob_ in (slab, plat):
+    cut_box(ob_, SW((U0 + UE) / 2, 0.0, (P.CEIL_GF + P.FFL_UF) / 2), (UE - U0 + 0.1, 2 * V1 + 0.02, 1.4), SA_)
+lantern('stair_pendant', tuple(SW(7.4, 0.0, P.CEIL_UF - 0.9)), 0.3, 0.45, cord=P.CEIL_UF)
 
 # ---------------------------------------------------------------------------
 # 8. roof, dome
 # ---------------------------------------------------------------------------
-def cut_box(ob, center, size, rz):
-    bmc = bmesh.new()
-    cube(bmc, center, size, rz=rz)
-    me = bpy.data.meshes.new('cutter')
-    bmc.to_mesh(me)
-    bmc.free()
-    cutter = bpy.data.objects.new('cutter', me)
-    SCENE.collection.objects.link(cutter)
-    mod = ob.modifiers.new('cut', 'BOOLEAN')
-    mod.operation = 'DIFFERENCE'
-    mod.object = cutter
-    mod.solver = 'EXACT'
-    mod.use_self = True
-    mod.use_hole_tolerant = True
-    dg = bpy.context.evaluated_depsgraph_get()
-    new = bpy.data.meshes.new_from_object(ob.evaluated_get(dg))
-    ob.modifiers.remove(mod)
-    ob.data = new
-    bpy.data.objects.remove(cutter)
-
-
 ROOM_SLOTS = [k for k in range(P.N_SLOTS) if k != P.STAIR_SLOT]
 
 
@@ -1963,14 +1946,12 @@ def cut_skylights(ob, z0, z1):
 bm = bmesh.new()
 ring_prism(bm, P.APOTHEM_FRONT + 0.05, OCT(P.R_OUT), P.CEIL_UF, P.ROOF_Z_IN, step=0.5)
 roof = mk_obj('roof', bm, [M_CEIL, M_PLINTH, M_CLAD], 'roof')
-cut_cylinder(roof, HELIX_C, P.HELIX_CAGE_R + 0.10, P.CEIL_UF - 0.5, P.ROOF_Z_IN + 0.5)
 cut_skylights(roof, P.CEIL_UF, P.ROOF_Z_IN)
 set_face_mats(roof, lambda c, n: 1 if n.z > 0.5 else (0 if n.z < -0.5 else 2))
 # terrace deck (outdoor larch boards, laid in rings)
 bm = bmesh.new()
 ring_prism(bm, P.DOME_RING_OUT, OCT(P.R_TERRACE_OUT), P.ROOF_Z_IN, P.TERRACE_Z, step=0.5)
 deck = mk_obj('terrace_deck', bm, M_DECK, 'roof')
-cut_cylinder(deck, HELIX_C, P.HELIX_CAGE_R + 0.10, P.ROOF_Z_IN - 0.5, P.TERRACE_Z + 0.5)
 cut_skylights(deck, P.ROOF_Z_IN, P.TERRACE_Z)
 # dome upstand ring (45 cm above the deck); a timber bench ring runs outside it
 bm = bmesh.new()
@@ -1979,10 +1960,10 @@ sector(bm, P.APOTHEM_FRONT - 0.05, P.DOME_RING_OUT, 0, 360, P.ROOF_Z_IN - 0.02, 
 mk_obj('dome_base_ring', bm, M_WOOD, 'roof')
 sa_ = P.slot_center(P.STAIR_SLOT)
 bm = bmesh.new()
-sector(bm, P.DOME_RING_OUT, P.DOME_RING_OUT + 0.47, sa_ + 21, sa_ + 339, P.TERRACE_Z + 0.36, P.TERRACE_Z + 0.44,
+sector(bm, P.DOME_RING_OUT, P.DOME_RING_OUT + 0.47, 0, 360, P.TERRACE_Z + 0.36, P.TERRACE_Z + 0.44,
        step=1.5)
-for i in range(40):
-    a = sa_ + 21 + 318 * (i + 0.5) / 40
+for i in range(44):
+    a = 360 * (i + 0.5) / 44
     p = pol(P.DOME_RING_OUT + 0.25, a)
     cube(bm, (p.x, p.y, P.TERRACE_Z + 0.18), (0.4, 0.08, 0.36), rz=a)
 mk_obj('terrace_bench_ring', bm, M_WOOD, 'roof')

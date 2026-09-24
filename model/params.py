@@ -95,22 +95,16 @@ def front_corner_radius():
     return APOTHEM_FRONT / math.cos(math.radians(SLOT_DEG / 2))
 
 
-# --- stair: helical, around a central wooden trunk, hall -> upper floor -> roof terrace
-# One full turn per storey below, so you step on/off at the front of the slot on
-# the hall floor and on the upper floor; the last 3/4 turn reaches the roof terrace.
-STAIR_RISERS = 22                     # hall -> upper floor
-STAIR_RISE = FFL_UF / STAIR_RISERS    # 0.180
-HELIX_U = 7.80                        # centre, radial distance along the slot axis
-HELIX_CORE_R = 0.20                   # central trunk
-HELIX_R = 1.65                        # outer edge of treads (tread width 1.45 m)
-HELIX_CAGE_R = 1.75                   # fire-rated glass drum + larch slats (stair enclosure)
-HELIX_STEP_DEG = 360.0 / STAIR_RISERS # 16.36 deg per step
-HELIX_WALKLINE_R = 0.925
-STAIR_GOING = math.radians(HELIX_STEP_DEG) * HELIX_WALKLINE_R   # 0.243 on the walking line
+# --- stair: half-turn (U), hall -> upper floor only; the roof terrace is reached by the
+# external stair. 22 risers x 188 mm, going 260 mm (DIN 18065: 2R+G = 636 mm)
+STAIR_RISERS = 22
+STAIR_RISE = FFL_UF / STAIR_RISERS    # 0.188
+STAIR_GOING_U = 0.26
+STAIR_GOING = STAIR_GOING_U
+STAIR_FLIGHT_W = 1.20
 TERRACE_Z = 7.28                      # finished deck of the roof terrace
 TERRACE_RISERS = 17
-TERRACE_RISE = (TERRACE_Z - FFL_UF) / TERRACE_RISERS  # 0.185
-STAIR_HOUSE_TOP = TERRACE_Z + 2.55    # roof of the little round stair house
+TERRACE_RISE = (TERRACE_Z - FFL_UF) / TERRACE_RISERS  # 0.185 (external stair)
 
 # --- dome and roof ------------------------------------------------------
 R_DOME = 5.80          # dome springs here: 11.6 m, covers net + walkway
@@ -170,8 +164,7 @@ def face_openings():
     uf = FFL_UF
     for k in range(N_SLOTS):
         if k == STAIR_SLOT:
-            out[k] += [(-0.55, 0.55, 0.0, 2.15, 'door_exit'),               # stair enclosure -> outside
-                       (2.30, 3.30, uf, uf + 2.20, 'door_ext_stair'),        # upper floor -> external stair
+            out[k] += [(2.30, 3.30, uf, uf + 2.20, 'door_ext_stair'),        # upper floor -> external stair
                        (-3.05, -2.25, uf + 1.45, uf + 2.10, 'window')]       # bathroom
             continue
         if k == ENTRY_SLOT:

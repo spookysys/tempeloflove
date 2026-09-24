@@ -1,4 +1,4 @@
-# Tempel – a new Blue Saloon for ZEGG, concept v0.7
+# Tempel – a new Blue Saloon for ZEGG, concept v0.8
 
 A concept model, plans, a section and renderings for ZEGG's new temple of love (a successor to the Blue Saloon) in Bad
 Belzig, Brandenburg. It is for community members and guests alike:
@@ -24,6 +24,19 @@ specialist net maker, and the fire strategy by a fire engineer (Brandschutzplane
 
 Rebuild: `pip install bpy matplotlib pillow`, then
 `cd model && python3 build_model.py && python3 export_glb.py && python3 render.py` and `python3 ../drawings/plans.py`.
+
+## What changed in v0.8
+
+| Topic | Change |
+|---|---|
+| Stairs | **Inside: a simple half-turn stair from the hall to the upper floor only.** It has 2 flights of 11 × 188 mm, 260 mm going, 1.20 m wide, and runs between clay walls. Beside and under it are stores for mats, cushions and blankets, and upstairs a linen / laundry room and a small tea & water niche. **The roof terrace is reached only by the external stair.** Going up there means going outside anyway, and the roof is cleaner without the stair house. The spiral stair, its glass drum and the stair house are gone |
+| Bathroom as a place for showering together (foreplay, aftercare, pairs or groups) | Redesigned as a **bathing room**. **Both WCs have their own doors** from the walkway, so nobody has to use a toilet in the middle of other people's intimacy. The walkway front is a clay wall with a frosted-glass sliding door. Inside: 3 wide **rain showers from the ceiling, right under the skylight**; a **heated tadelakt bench** under the window to sit on together; and an **aftercare nook** behind a low curved wall, with a heated daybed, towels, a blanket and candles |
+| Heating | **Connected to ZEGG's wood-chip district heating** (from the ZEGG site pages) instead of a heat pump of its own. Underfloor heating stays |
+
+### Fire safety with this layout (to be confirmed by the fire engineer)
+- With the helix gone, the inside stair is an **open stair in the hall**. The **external stair** is the necessary stair and escape route from the upper floor and the roof terrace; the room windows remain rescue openings.
+- This is simplest if **overnight use stays at ≤ 12 beds**, which is 6 rooms × 2. More beds make the building a Beherbergungsstätte, which needs two built escape routes. In that case the inside stair would have to be enclosed (for example with fire-rated glass towards the hall), or a second external stair added.
+- **Roof terrace:** one escape route (the external stair) is normally accepted for a terrace of this size, if the number of people up there is limited.
 
 ## What changed in v0.7: dimensions fine-tuned (within 15 %)
 
@@ -84,7 +97,7 @@ Rebuild: `pip install bpy matplotlib pillow`, then
 | Rooms | 6 × ≈ 23 m² (+ shared bathroom in the 7th): 4.6 m wide at the door, 7.9 m at the outer wall, 3.8 m deep, 2.60 m high |
 | Dome | Ø 11.60, rise 2.90 m, on a 45 cm upstand (base +7.73, top +10.63), 20 glulam ribs, crown ring with vent |
 | Roof terrace | Deck +7.28; railing 1.20 m, or 1.80 m privacy screen on the south faces |
-| Stair | Spiral around a timber trunk, Ø 3.3 m, treads 1.45 m wide; hall → upper floor 22 × 188 mm, → terrace 17 × 185 mm, going 264 mm on the walking line |
+| Stairs | Inside: half-turn, hall → upper floor, 22 × 188 mm, going 260 mm, 1.20 m wide. Outside (NW face): ground → upper floor → roof terrace |
 | External stair | On the NW face: ground → upper floor → terrace, 1.20 m wide flights, 188 / 185 × 270 mm |
 | Bathroom | North segment of the upper floor, ≈ 24 m²: 2 WCs, walk-in group shower, 2 basins, all gender |
 | Annex | North face, 5 m deep: foyer + coats, WC, tech; entrance door with canopy |
@@ -188,8 +201,8 @@ The model has a switch for this (`CARVINGS` in `build_model.py`), which maps hei
 - **Dome over the walkway**: yes (Ø 11.20), so the walkway and the doors get daylight.
 - **Sliding doors**: three shoji-type panels per room: *closed*, *half open* (1.4 m) or *open* (2.9 m).
 - **Entrance**: through the small annex on the north face (foyer, coats, WC), then through a curtain into the hall.
-- **Heating**: low-temperature underfloor heating everywhere (floors about 26–28 °C, air about 24–26 °C), heat pump,
-  and balanced ventilation with heat recovery. Clay plaster buffers humidity.
+- **Heating**: low-temperature underfloor heating everywhere (floors about 26–28 °C, air about 24–26 °C), fed from
+  ZEGG's wood-chip district heating, and balanced ventilation with heat recovery. Clay plaster buffers humidity.
 - **People in the renderings**: abstract, sculptural figures that show scale and use, without committing to a dress
   code.
 
@@ -206,8 +219,8 @@ The model has a switch for this (`CARVINGS` in `build_model.py`), which maps hei
 | `06b_exterior_eye_level` | Eye level from the south-east: garden doors and big windows |
 | `06c_exterior_stair_side` | The north-west side: external stair and the small annex |
 | `09_roof_terrace` | The sun deck: daybeds, sails, privacy screen, dome |
-| `10_spiral_stair` | The spiral stair in its glass drum, seen from the hall |
-| `13_bathroom` | The shared bathroom: group shower under the window, WCs, basins |
+| `10_stair` | The stair to the upper floor, seen from the hall |
+| `13_bathroom` | The bathing room: rain showers under the skylight, warm bench, aftercare nook |
 | `14_hall_evening` | The hall in the evening: paper pendants, indirect light ledge, clay wall shells |
 | `07_walkway_evening` | The walkway in the evening, lanterns glowing through the doors |
 | `08_variant_central_rope` | View 01 with the single central rope, for comparison |

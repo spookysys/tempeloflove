@@ -58,9 +58,9 @@ VIEWS = {
     '09_roof_terrace': dict(
         loc=pol(7.3, 198, P.TERRACE_Z + 1.7), tgt=pol(7.4, 280, P.TERRACE_Z + 0.9), lens=19,
         sun=(230, 42), mode='day', volume=0.0, exposure=0.0),
-    '10_spiral_stair': dict(
-        loc=pol(3.2, 143, 1.5), tgt=pol(7.7, 134, 1.9), lens=17,
-        sun=(-60, 52), mode='day', volume=0.01, exposure=1.3),
+    '10_stair': dict(
+        loc=pol(2.2, 158, 1.6), tgt=pol(6.4, 136, 2.1), lens=20,
+        sun=(-60, 52), mode='day', volume=0.0, exposure=1.2),
     '13_bathroom': dict(
         loc=room_local(0, 6.0, -0.95, UF + 1.6), tgt=room_local(0, 9.3, 0.7, UF + 0.95), lens=17,
         sun=(100, 40), mode='day', volume=0.0, exposure=1.8),

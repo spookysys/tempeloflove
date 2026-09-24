@@ -190,67 +190,63 @@ def octagon_wall(ax, zcut, faces=range(P.N_SLOTS)):
 
 
 # ---------------------------------------------------------------------------
-# helical stair (enclosure = fire-rated glass drum + larch slats)
+# half-turn stair (hall -> upper floor) in the stair segment
 # ---------------------------------------------------------------------------
-def HWp(theta, r):
-    return to_world(SA, P.HELIX_U + r * math.cos(rad(theta)), r * math.sin(rad(theta)))
+G_U = P.STAIR_GOING_U
+W_U = P.STAIR_FLIGHT_W
+GAP_U = 0.14
+N_T = P.STAIR_RISERS // 2 - 1
+U0 = P.APOTHEM_FRONT + P.FRONT_T + 0.03
+UL = U0 + N_T * G_U
+UE = P.R_IN - 0.02
+V1 = GAP_U / 2 + W_U
 
 
-S_ = P.HELIX_STEP_DEG
-TH0 = 180.0 - (P.STAIR_RISERS - 1) * S_
-TH_UF0 = 180.0
-TH_UF1 = TH_UF0 + 2 * S_
-TH_TOP = TH_UF1 + (P.TERRACE_RISERS - 1) * S_
-
-
-def harc(r, a0, a1, n=60):
-    return [HWp(a0 + (a1 - a0) * i / (n - 1), r) for i in range(n)]
+def S(u, v):
+    return to_world(SA, u, v)
 
 
 def stair_plan(ax, level):
-    R0, R1, RC_ = P.HELIX_CORE_R, P.HELIX_R, P.HELIX_CAGE_R
-    ax.add_patch(Polygon(harc(R1, 0, 360, 90), closed=True, fc='#F4EADC', ec=INK, lw=0.5, zorder=3))
+    f1, f2 = (-V1, -GAP_U / 2), (GAP_U / 2, V1)
+    solid = dict(fc='#F4EADC', lw=0.5, z=3)
+    for (v0, v1) in (f1, f2):
+        poly(ax, [S(U0, v0), S(UL, v0), S(UL, v1), S(U0, v1)], **solid)
+    poly(ax, [S(UL, -V1), S(UE, -V1), S(UE, V1), S(UL, V1)], **solid)
+    cut = 6 if level == 'GF' else None
+    for i in range(1, N_T + 1):
+        for (v0, v1), fl in ((f1, 1), (f2, 2)):
+            u = U0 + i * G_U
+            above = (level == 'GF' and (fl == 2 or i > cut))
+            ax.plot(*zip(S(u, v0), S(u, v1)), color='#9C8E80' if above else INK, lw=0.35 if above else 0.45,
+                    ls=(0, (2, 2)) if above else '-', zorder=5)
+    seg_wall(ax, S(U0, 0), S(UL, 0), GAP_U, z=5)
+    for s_ in (-1, 1):
+        seg_wall(ax, S(U0, s_ * (V1 + 0.07)), S(UE, s_ * (V1 + 0.07)), 0.14, fc=POCHE if level == 'GF' or s_ < 0 else '#CDBFAF')
     if level == 'GF':
-        visible = [(TH0 + (k - 1) * S_, TH0 + k * S_) for k in range(1, 8)]
-        above = [(TH0 + (k - 1) * S_, TH0 + k * S_) for k in range(8, P.STAIR_RISERS)]
-        gaps = [(165, 232), (-16, 16)]
-        arrow = (TH0 + 0.3 * S_, TH0 + 6 * S_, 'UP')
-    elif level == 'UF':
-        ax.add_patch(Polygon([HWp(TH_UF0, R0)] + harc(R1, TH_UF0, TH_UF1, 12) + [HWp(TH_UF1, R0)],
-                             closed=True, fc='#E7D6BE', ec=INK, lw=0.5, zorder=4))
-        visible = [(TH_UF1 + (j - 1) * S_, TH_UF1 + j * S_) for j in range(1, 7)]
-        above = [(TH_UF1 + (j - 1) * S_, TH_UF1 + j * S_) for j in range(7, P.TERRACE_RISERS)]
-        gaps = [(150, 214)]
-        arrow = (TH_UF1 + 0.3 * S_, TH_UF1 + 5 * S_, 'UP')
+        uc = U0 + cut * G_U
+        ax.plot(*zip(S(uc, -V1), S(uc + 0.25, -V1 / 2), S(uc - 0.1, -GAP_U / 2)), color=INK, lw=0.8, zorder=6)
+        ax.annotate('', xy=S(U0 + 1.6, -V1 / 2), xytext=S(U0 + 0.1, -V1 / 2),
+                    arrowprops=dict(arrowstyle='-|>', lw=0.8, color=INK), zorder=6)
+        p = S(U0 + 0.5, -V1 / 2 - 0.35)
+        label(ax, p[0], p[1], 'UP', 6.5, weight='bold')
+        hf = P.APOTHEM_FRONT * math.tan(rad(P.SLOT_DEG / 2)) - 0.08
+        for k_ in (P.STAIR_SLOT, P.STAIR_SLOT + 1):
+            a_ = P.partition_angle(k_)
+            seg_wall(ax, pol(RC, a_), pol(P.octo_r(a_, P.R_IN), a_), P.PART_T)
+        for s_ in (-1, 1):
+            dv = (s_ * (V1 + 0.14) + s_ * hf) / 2
+            va, vb = sorted((s_ * (V1 + 0.14), s_ * hf))
+            seg_wall(ax, S(U0 - 0.06, va), S(U0 - 0.06, dv - 0.45), 0.12)
+            seg_wall(ax, S(U0 - 0.06, dv + 0.45), S(U0 - 0.06, vb), 0.12)
+            p = S(7.6, s_ * (V1 + 0.9))
+            label(ax, p[0], p[1], 'mats,\ncushions', 5.5)
+        seg_wall(ax, S(U0 - 0.06, GAP_U / 2), S(U0 - 0.06, V1), 0.12)
     else:
-        visible = [(TH_UF1 + (j - 1) * S_, TH_UF1 + j * S_) for j in range(8, P.TERRACE_RISERS)]
-        above = []
-        gaps = []
-        arrow = (TH_TOP - 0.3 * S_, TH_TOP - 5 * S_, 'DN')
-        ax.add_patch(Polygon([HWp(TH_TOP, R0)] + harc(R1 + 0.05, TH_TOP, TH_TOP + 150, 30) +
-                             [HWp(TH_TOP + 150, R0)], closed=True, fc='#E7D6BE', ec=INK, lw=0.5, zorder=4))
-    for a0, a1 in visible:
-        ax.plot(*zip(HWp(a0, R0), HWp(a0, R1)), color=INK, lw=0.45, zorder=5)
-    for a0, a1 in above:
-        ax.plot(*zip(HWp(a0, R0), HWp(a0, R1)), color='#9C8E80', lw=0.35, ls=(0, (2, 2)), zorder=5)
-    if visible and above:
-        a = visible[-1][1] - 4
-        ax.plot(*zip(HWp(a, R0), HWp(a + 5, (R0 + R1) / 2), HWp(a - 2, R1)), color=INK, lw=0.8, zorder=6)
-    ax.add_patch(Circle(HWp(0, 0), R0, fc=WOOD, ec=INK, lw=0.6, zorder=6))
-    if level != 'RF':
-        norm = [((a0 + 180) % 360 - 180, (a1 + 180) % 360 - 180) for a0, a1 in gaps]
-        cuts = sorted({-180.0, 180.0} | {g for gp in norm for g in gp})
-        for a0, a1 in zip(cuts[:-1], cuts[1:]):
-            if any(g0 < (a0 + a1) / 2 < g1 for g0, g1 in norm):
-                continue
-            ax.plot(*zip(*harc(RC_ - 0.04, a0, a1, 40)), color=GLASS, lw=1.4, zorder=5)
-            ax.plot(*zip(*harc(RC_ + 0.02, a0, a1, 40)), color='#8C6E50', lw=1.4, ls=(0, (0.8, 0.8)), zorder=5)
-    a0, a1, t = arrow
-    pts = harc(P.HELIX_WALKLINE_R, a0, a1, 20)
-    ax.plot(*zip(*pts[:-1]), color=INK, lw=0.7, zorder=7)
-    ax.annotate('', xy=pts[-1], xytext=pts[-3], arrowprops=dict(arrowstyle='-|>', lw=0.7, color=INK), zorder=7)
-    p = HWp((a0 + a1) / 2, P.HELIX_WALKLINE_R + 0.5)
-    label(ax, p[0], p[1], t, 6.5, weight='bold')
+        ax.annotate('', xy=S(U0 + 0.05, V1 / 2), xytext=S(U0 + 1.6, V1 / 2),
+                    arrowprops=dict(arrowstyle='-|>', lw=0.8, color=INK), zorder=6)
+        p = S(U0 + 0.6, V1 / 2 + 0.35)
+        label(ax, p[0], p[1], 'DN', 6.5, weight='bold')
+        seg_wall(ax, S(U0 - 0.07, -V1), S(U0 - 0.07, -GAP_U / 2), 0.14, fc='#CDBFAF')
 
 
 # ---------------------------------------------------------------------------
@@ -343,10 +339,8 @@ def ground_floor():
         ax.add_patch(Circle(pol(2.45, 360 * i / 14 + 8), 0.25, fc='#E9DCC6', ec='#9C8A70', lw=0.4, zorder=3))
     stair_plan(ax, 'GF')
     ext_stair(ax, 'GF')
-    p = to_world(SA, 7.3, 3.0)
-    label(ax, p[0], p[1], 'spiral stair in a\nglass drum (own stair\nenclosure) – up to the\nupper floor + roof', 6)
-    p = to_world(SA, 10.5, -0.95)
-    label(ax, p[0], p[1], 'exit', 6.5)
+    p = to_world(SA, 4.7, -2.3)
+    label(ax, p[0], p[1], 'stair to the\nupper floor', 6)
     # small annex on the north face: foyer + coats, WC, tech
     KE = P.ENTRY_SLOT
     AO = P.R_OUT + P.ANNEX_D
@@ -418,13 +412,12 @@ def ground_floor():
     label(ax, 0.8, -11.6, 'A', 10, weight='bold')
     label(ax, 0.8, 17.5, 'A', 10, weight='bold')
     legend(fig, tx, 0.60, [('cut wall (timber frame, clay inside, larch outside)', dict(fc=POCHE)),
-                           ('timber column / stair trunk', dict(fc=WOOD)),
-                           ('fire-rated glass drum around the stair', dict(fc='white', ec=GLASS)),
+                           ('timber column', dict(fc=WOOD)),
                            ('above: ring beam, beams, stair, windows', dict(fc='white', ls='--')),
                            ('sun spot through dome + net', dict(fc=LIGHT, alpha=0.3))])
     fig.text(tx, 0.41, 'Heating & comfort\n'
-             '• Underfloor heating (low-temp., heat pump) in hall\n   and rooms – floors ~26–28 °C, air ~24–26 °C\n'
-             '• Balanced ventilation with heat recovery; vents in the\n   dome crown and stair house for smoke + summer purge\n'
+             '• Underfloor heating in hall and rooms, fed by ZEGG\'s\n   wood-chip district heating – floors ~26–28 °C\n'
+             '• Balanced ventilation with heat recovery; vent in the\n   dome crown for smoke + summer purge\n'
              '• Clay plaster buffers humidity and sound\n'
              '• Outside shading on dome and big windows\n   (summer overheating, GEG / DIN 4108-2)',
              fontsize=10, color=INK, va='top', linespacing=1.45)
@@ -460,6 +453,7 @@ def room_furniture(ax, k):
 
 
 def bathroom_plan(ax, k):
+    """Bathing room: WCs with own doors at the front corners, rain showers, warm bench, aftercare nook."""
     a = P.slot_center(k)
     ht = math.tan(rad(P.SLOT_DEG / 2))
     e = P.PART_T / 2 / math.cos(rad(P.SLOT_DEG / 2))
@@ -467,35 +461,30 @@ def bathroom_plan(ax, k):
     def yw(x):
         return x * ht - e
     W = lambda x, y: to_world(a, x, y)  # noqa: E731
-    yf = -1.55
-    for xx in (6.15, 7.3, 8.45):
-        seg_wall(ax, W(xx, yf), W(xx, -yw(xx)), 0.08)
-    seg_wall(ax, W(6.15, yf), W(6.55, yf), 0.08)
-    seg_wall(ax, W(7.13, yf), W(7.47, yf), 0.08)
-    seg_wall(ax, W(8.05, yf), W(8.45, yf), 0.08)
-    for xc in (6.72, 7.87):
-        poly(ax, [W(xc - 0.19, -yw(xc) + 0.1), W(xc + 0.19, -yw(xc) + 0.1), W(xc + 0.19, -yw(xc) + 0.7),
-                  W(xc - 0.19, -yw(xc) + 0.7)], fc='white', lw=0.5, z=4)
-        p = W(xc, -yw(xc) + 1.0)
-        label(ax, p[0], p[1], 'WC', 6)
-    pts = []
-    for i in range(40):
-        th = 2 * math.pi * i / 40
-        pts.append(W(7.85 + 0.12 * math.cos(th), 1.55 + 0.95 * math.sin(th)))
-    poly(ax, pts, fc='#E6D6BF', lw=0.5, z=4)
-    poly(ax, [W(7.92, -0.9), W(P.R_IN, -0.9), W(P.R_IN, 2.4), W(7.92, 2.4)], fc='#E4ECEC', lw=0.4, z=3,
+    x0 = P.APOTHEM_FRONT + P.FRONT_T
+    XW, YW = 7.35, 1.05
+    for s_ in (-1, 1):
+        seg_wall(ax, W(x0, s_ * YW), W(XW, s_ * YW), 0.1)
+        seg_wall(ax, W(XW, s_ * YW), W(XW, s_ * yw(XW)), 0.1)
+        poly(ax, [W(XW - 0.55, s_ * 1.4), W(XW - 0.05, s_ * 1.4), W(XW - 0.05, s_ * 1.8), W(XW - 0.55, s_ * 1.8)],
+             fc='white', lw=0.5, z=4)
+        p = W(6.35, s_ * 1.75)
+        label(ax, p[0], p[1], 'WC', 6.5)
+    poly(ax, [W(7.9, -2.4), W(P.R_IN, -2.4), W(P.R_IN, 0.9), W(7.9, 0.9)], fc='#E4ECEC', lw=0.4, z=3,
          ls=(0, (3, 2)))
-    poly(ax, [W(9.1, -0.3), W(P.R_IN, -0.3), W(P.R_IN, 2.1), W(9.1, 2.1)], fc='#E6D6BF', lw=0.4, z=4)
-    p = W(8.6, 0.6)
-    label(ax, p[0], p[1], 'group\nshower', 6.5)
-    poly(ax, [W(5.9, yw(5.9) - 0.05), W(7.5, yw(7.5) - 0.05), W(7.5, yw(7.5) - 0.6), W(5.9, yw(5.9) - 0.6)],
-         fc=WOOD, lw=0.4, z=4)
-    for xc in (6.3, 7.1):
-        ax.add_patch(Circle(W(xc, yw(xc) - 0.33), 0.18, fc='white', ec=INK, lw=0.4, zorder=5))
-    p = W(6.7, yw(6.7) - 1.0)
-    label(ax, p[0], p[1], 'basins', 6)
-    p = W(6.35, 0.25)
-    label(ax, p[0], p[1], 'BATH\n(all gender)', 7.5, weight='bold')
+    for yy in (-1.9, -0.75, 0.4):
+        poly(ax, [W(8.38, yy - 0.17), W(8.72, yy - 0.17), W(8.72, yy + 0.17), W(8.38, yy + 0.17)], fc='none',
+             lw=0.4, z=5)
+    poly(ax, [W(9.06, -2.6), W(P.R_IN, -2.6), W(P.R_IN, 0.9), W(9.06, 0.9)], fc='#E6D6BF', lw=0.4, z=4)
+    p = W(8.45, -1.3)
+    label(ax, p[0], p[1], 'rain\nshowers', 6.5)
+    poly(ax, [W(7.65, 1.02), W(9.25, 1.02), W(9.25, 1.18), W(7.65, 1.18)], fc='#E6D6BF', lw=0.4, z=4)
+    poly(ax, [W(8.4, 1.4), W(9.5, 1.4), W(9.5, 3.2), W(8.4, 3.2)], fc='#E6D6BF', lw=0.4, z=4)
+    p = W(8.1, 2.3)
+    label(ax, p[0], p[1], 'after-\ncare', 6.5)
+    poly(ax, [W(5.95, YW - 0.05), W(7.2, YW - 0.05), W(7.2, YW - 0.55), W(5.95, YW - 0.55)], fc=WOOD, lw=0.4, z=4)
+    p = W(6.6, -0.1)
+    label(ax, p[0], p[1], 'BATH', 7.5, weight='bold')
 
 
 def upper_floor():
@@ -508,7 +497,7 @@ def upper_floor():
                         '   7.9 m at the straight outer wall, 3.8 m deep\n'
                         '• Shared bathroom (north): 2 WCs, walk-in group\n'
                         '   shower, 2 basins – all gender\n'
-                        '• Stair segment: spiral stair, linen / laundry,\n'
+                        '• Stair segment: stair, linen / laundry, tea,\n'
                         '   door to the external stair\n'
                         'Clear height in rooms 2.60 m')
     circle(ax, P.R_DOME, ec=GLASS, lw=0.7, ls='-.', zorder=7)
@@ -564,12 +553,12 @@ def upper_floor():
     label(ax, p[0], p[1], 'walkway', 6.5, rotation=-8)
     stair_plan(ax, 'UF')
     ext_stair(ax, 'UF')
-    seg_wall(ax, to_world(SA, 6.3, -1.98), to_world(SA, 9.55, -1.98), 0.10)
-    seg_wall(ax, to_world(SA, 6.3, -1.98), to_world(SA, 6.3, -2.3), 0.10)
-    p = to_world(SA, 8.3, -2.8)
-    label(ax, p[0], p[1], 'linen /\nlaundry /\nventilation', 5.5)
-    p = to_world(SA, 8.3, 2.7)
-    label(ax, p[0], p[1], 'to external\nstair', 6)
+    p = to_world(SA, 8.0, -2.3)
+    label(ax, p[0], p[1], 'linen /\nlaundry', 5.5)
+    p = to_world(SA, 7.6, 2.2)
+    label(ax, p[0], p[1], 'to external\nstair + roof', 5.5)
+    p = to_world(SA, 9.2, 1.9)
+    label(ax, p[0], p[1], 'tea', 5.5)
     dim(ax, (0, 0), pol(P.R_NET, 322), 'Ø 7.80 usable', size=6.5)
     ax.annotate('', xy=(-P.R_OUT, -11.8), xytext=(P.R_OUT, -11.8),
                 arrowprops=dict(arrowstyle='<|-|>', lw=0.5, color=INK, mutation_scale=6))
@@ -584,11 +573,11 @@ def upper_floor():
              '   the opening part is a rescue window (≥ 0.90 × 1.20 m)\n'
              '• Skylight 1.40 × 1.10 m over the nest: walk-on frosted\n   glass in the terrace (light, no view in)\n'
              '• Acoustic partitions 160 mm, clay plaster\n\n'
-             'Stair (DIN 18065, as a necessary stair)\n'
-             '• Spiral stair around a timber trunk, Ø 3.3 m, tread\n   width 1.45 m, one turn per storey\n'
-             '• 22 risers × 188 mm, going 264 mm on the walking\n   line (r = 0.925 m) · to the terrace 17 × 185 mm\n'
-             '• Own enclosure: fire-rated glass drum, doors held open\n   on magnets, exit straight outside, smoke vent on top\n'
-             '• External stair on the same face = 2nd escape route',
+             'Stairs\n'
+             '• Inside: half-turn stair hall -> upper floor, 2 flights\n   of 11 × 188 mm, going 260 mm, 1.20 m wide,\n'
+             '   between clay walls; mats / cushion stores beside it\n'
+             '• Outside (NW face): ground -> upper floor -> roof\n   terrace; 2nd escape route and the only way up\n'
+             '   to the terrace',
              fontsize=10, color=INK, va='top', linespacing=1.4)
     return fig
 
@@ -602,8 +591,8 @@ def roof_plan():
                         '• West / east: loungers; north: planters, grasses\n'
                         '• Dome on a 45 cm upstand = bench ring\n'
                         '• Frosted walk-on skylights over each room\n'
-                        '• Round stair house (doors both sides) and the\n'
-                        '   external stair both reach the terrace')
+                        '• Reached by the external stair only: going up\n'
+                        '   to the terrace means going outside anyway')
     poly(ax, oct_pts(P.R_OUT + 0.04), fc='#EFE5D6', lw=0.6, z=1)
     for k in range(P.N_SLOTS):
         hh = 1.80 if k in P.SUN_FACES else P.RAIL_H
@@ -611,8 +600,7 @@ def roof_plan():
         rect_face(ax, k, P.R_OUT - 0.10, P.R_OUT, -fh, fh, fc='#6E5440' if hh > 1.5 else '#B08D69', lw=0.3, z=3)
     for apo in np.arange(P.R_DOME + 0.6, P.R_OUT - 0.1, 0.4):
         poly(ax, oct_pts(apo), fc='none', ec='#DCCBB0', lw=0.3, z=2)
-    a0, a1 = SA + 21, SA + 339
-    poly(ax, arc_pts(P.DOME_RING_OUT + 0.47, a0, a1) + arc_pts(P.DOME_RING_OUT, a1, a0), fc=WOOD, lw=0.5, z=4)
+    ax.add_patch(Circle((0, 0), P.DOME_RING_OUT + 0.47, fc=WOOD, ec=INK, lw=0.5, zorder=4))
     ax.add_patch(Circle((0, 0), P.DOME_RING_OUT, fc='#C9A57A', ec=INK, lw=0.6, zorder=4))
     ax.add_patch(Circle((0, 0), P.R_DOME, fc='#DCE8EC', ec=GLASS, lw=0.8, zorder=5))
     for j in range(P.N_DOME_RIBS):
@@ -646,20 +634,6 @@ def roof_plan():
     for k in (0, 2, 6, 7):
         for t0, t1 in ((-3.6, -1.2), (1.2, 3.6)):
             rect_face(ax, k, P.R_OUT - 0.68, P.R_OUT - 0.12, t0, t1, fc=GREEN, lw=0.4, z=4)
-    stair_plan(ax, 'RF')
-    DOORS = [(119, 143), (226, 250)]
-    cuts = sorted({0.0, 360.0} | {a for d in DOORS for a in d})
-    for a0, a1 in zip(cuts[:-1], cuts[1:]):
-        if any(d0 < (a0 + a1) / 2 < d1 for d0, d1 in DOORS):
-            continue
-        ax.add_patch(Polygon(harc(P.HELIX_CAGE_R + 0.16, a0, a1, 30) + harc(P.HELIX_CAGE_R + 0.02, a1, a0, 30),
-                             closed=True, fc=POCHE, ec=INK, lw=0.5, zorder=8))
-    for d0, d1 in DOORS:
-        ax.plot(*zip(*harc(P.HELIX_CAGE_R + 0.09, d0, d1, 12)), color=INK, lw=1.2, zorder=8)
-        p = HWp((d0 + d1) / 2, P.HELIX_CAGE_R + 0.6)
-        label(ax, p[0], p[1], 'door', 6.5)
-    p = HWp(0, 2.6)
-    label(ax, p[0], p[1], 'stair house\n(roof +9.83,\nsmoke vent)', 6.2)
     ext_stair(ax, 'RF')
     p = FP(K_, P.R_OUT - 0.55, sum(P.TERRACE_GATE) / 2)
     label(ax, p[0], p[1], 'gate', 6)
