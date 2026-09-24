@@ -1118,20 +1118,20 @@ def _keyed(r):
 
 
 STILL = [o for o in CROWD.objects if o.type == 'ARMATURE' and not _keyed(o)]
-# clusters of people within 1.6 m of each other
+# small clusters (at most 5 people) of people close to each other - bigger groups are too slow to simulate
 groups_, seen = [], set()
 for r in STILL:
     if r.name in seen:
         continue
-    todo, g = [r], []
+    g = [r]
     seen.add(r.name)
-    while todo:
-        a = todo.pop()
-        g.append(a)
-        for b in STILL:
-            if b.name not in seen and (a.matrix_world.translation - b.matrix_world.translation).length < 1.6:
-                seen.add(b.name)
-                todo.append(b)
+    near = sorted((b for b in STILL if b.name not in seen),
+                  key=lambda b: (b.matrix_world.translation - r.matrix_world.translation).length)
+    for b in near:
+        if len(g) >= 5 or (b.matrix_world.translation - r.matrix_world.translation).length > 1.8:
+            break
+        g.append(b)
+        seen.add(b.name)
     groups_.append(g)
 SURF = [o for o in _static_objects() if o.type == 'MESH' and CROWD not in o.users_collection]
 
@@ -1147,7 +1147,8 @@ for gi, g in enumerate(groups_):
     pts = [r.matrix_world.translation for r in g]
     cols = [o for o in SURF if _near(o, pts) and len(o.data.polygons) < 60000]
     # dancers standing right next to the group are obstacles too (they stay as they are)
-    RD.settle([(r, body_of(r), False) for r in g], cols, frames=40)
+    RD.settle([(r, body_of(r), False) for r in g], cols + [body_of(o) for o in STILL if o not in g and
+               _near(body_of(o), pts, 0.8)], frames=30)
     print('settled group', gi + 1, '/', len(groups_), len(g), 'people', len(cols), 'surfaces')
 
 # clipboards for the organisers

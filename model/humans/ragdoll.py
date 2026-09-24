@@ -197,6 +197,7 @@ def add_collider(ob, shape='MESH'):
     if not ob.rigid_body:
         bpy.ops.rigidbody.object_add(type='PASSIVE')
     ob.rigid_body.collision_shape = shape
+    ob.rigid_body.mesh_source = 'FINAL'          # posed / deformed shape
     ob.rigid_body.friction = 0.9
     ob.rigid_body.collision_margin = 0.005
 
@@ -204,8 +205,8 @@ def add_collider(ob, shape='MESH'):
 def simulate(frames=40):
     sc = bpy.context.scene
     w = sc.rigidbody_world
-    w.substeps_per_frame = 20
-    w.solver_iterations = 30
+    w.substeps_per_frame = 10
+    w.solver_iterations = 15
     w.point_cache.frame_start = 1
     w.point_cache.frame_end = frames + 1
     for f in range(1, frames + 2):
