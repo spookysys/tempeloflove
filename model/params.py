@@ -44,7 +44,7 @@ def face_half(apothem):
 
 # --- levels -------------------------------------------------------------
 FFL_GF = 0.00
-FFL_UF = 3.96          # 22 risers x 180 mm
+FFL_UF = 4.14          # 22 risers x 188 mm (v0.7: +18 cm for a higher hall)
 SLAB_T = 0.40          # upper-floor build-up (boards, screed w/ UFH, acoustic, CLT)
 CEIL_GF = FFL_UF - SLAB_T          # 3.56 underside of upper floor
 BEAM_D = 0.22                      # radial glulam beams visible below ceiling
@@ -56,14 +56,14 @@ ROOF_T = 0.45
 
 # --- net and its edge -----------------------------------------------------
 R_NET = 3.90           # usable net, 7.80 m
-PAD_W = 0.35
+PAD_W = 0.40
 R_PAD_OUT = R_NET + PAD_W          # 4.25 -> opening 8.50 m
-RING_BEAM_IN = 4.20    # steel box ring beam (500x300) clad in timber, net anchored to inner face
-RING_BEAM_OUT = 4.50
-RING_BEAM_TOP = 3.86
-RING_BEAM_BOT = 3.34
+RING_BEAM_IN = 4.25    # steel box ring beam (500x300) clad in timber, net anchored to inner face
+RING_BEAM_OUT = 4.55
+RING_BEAM_TOP = 4.04
+RING_BEAM_BOT = 3.52
 PAD_T = 0.12
-Z_NET_EDGE = 3.84      # net level at the anchor
+Z_NET_EDGE = 4.02      # net level at the anchor
 NET_SAG_REST = 0.15    # pre-tensioned, unloaded
 NET_SAG_MAX = 0.90     # design sag with a crowd (to be confirmed by net maker)
 N_NET_RADIAL = 16
@@ -78,12 +78,12 @@ def net_z(r, sag=NET_SAG_REST):
 
 # --- pillars -------------------------------------------------------------
 N_PILLARS = 4          # steel tube 219 mm inside a round timber casing
-R_PILLAR = 4.35
+R_PILLAR = 4.40
 PILLAR_D = 0.30
 PILLAR0_DEG = 67.5     # on four of the room-partition lines (every 90 deg)
 
 # --- walkway and rooms ------------------------------------------------------
-WALK_W = 1.10
+WALK_W = 1.25
 APOTHEM_FRONT = R_PAD_OUT + WALK_W + 0.05   # 5.40 room fronts (decagon)
 FRONT_T = 0.12
 PART_T = 0.16          # acoustic partitions between rooms
@@ -100,27 +100,27 @@ def front_corner_radius():
 # the hall floor and on the upper floor; the last 3/4 turn reaches the roof terrace.
 STAIR_RISERS = 22                     # hall -> upper floor
 STAIR_RISE = FFL_UF / STAIR_RISERS    # 0.180
-HELIX_U = 7.72                        # centre, radial distance along the slot axis
+HELIX_U = 7.80                        # centre, radial distance along the slot axis
 HELIX_CORE_R = 0.20                   # central trunk
 HELIX_R = 1.65                        # outer edge of treads (tread width 1.45 m)
 HELIX_CAGE_R = 1.75                   # fire-rated glass drum + larch slats (stair enclosure)
 HELIX_STEP_DEG = 360.0 / STAIR_RISERS # 16.36 deg per step
 HELIX_WALKLINE_R = 0.925
 STAIR_GOING = math.radians(HELIX_STEP_DEG) * HELIX_WALKLINE_R   # 0.243 on the walking line
-TERRACE_Z = 7.10                      # finished deck of the roof terrace
+TERRACE_Z = 7.28                      # finished deck of the roof terrace
 TERRACE_RISERS = 17
 TERRACE_RISE = (TERRACE_Z - FFL_UF) / TERRACE_RISERS  # 0.185
 STAIR_HOUSE_TOP = TERRACE_Z + 2.55    # roof of the little round stair house
 
 # --- dome and roof ------------------------------------------------------
-R_DOME = 5.60          # dome springs here: 11.2 m, covers net + walkway
-DOME_BASE_Z = 7.55     # dome sits on a 45 cm upstand above the terrace (bench height)
-DOME_RISE = 2.60
+R_DOME = 5.80          # dome springs here: 11.6 m, covers net + walkway
+DOME_BASE_Z = 7.73     # dome sits on a 45 cm upstand above the terrace (bench height)
+DOME_RISE = 2.90
 DOME_OCULUS_R = 0.60
 N_DOME_RIBS = 20
 ROOF_OVERHANG = 0.0    # no eave: the facade battens rise to form the terrace railing
-ROOF_Z_IN = 7.00       # flat roof structure (falls in the build-up)
-ROOF_Z_OUT = 7.00
+ROOF_Z_IN = 7.18       # flat roof structure (falls in the build-up)
+ROOF_Z_OUT = 7.18
 R_TERRACE_OUT = R_OUT - 0.05
 RAIL_H = 1.20          # guard height above the deck
 
@@ -138,7 +138,7 @@ def dome_z(r):
 
 
 # --- openings ------------------------------------------------------------
-GF_WINDOW = dict(w=2.10, sill=0.40, head=3.00)     # two per face
+GF_WINDOW = dict(w=2.10, sill=0.40, head=3.20)     # two per face
 UF_WINDOW = dict(w=2.60, sill=0.45, head=2.10)     # relative to FFL_UF; fixed safety glass to 0.90
 ENTRY_DOOR = dict(w=1.80, h=2.40)
 GARDEN_DOOR = dict(w=3.00, h=2.60)
@@ -194,3 +194,5 @@ def face_openings():
 EXT_T_LAND = 2.10                 # external stair: upper-floor landing from here to the face end
 TERRACE_GATE = (-3.55, -2.30)     # gate in the terrace railing to the external stair (face t range)
 DAYBED_T = (-2.25, 2.25)          # daybed positions on each SUN_FACE (t), centred at n = 8.15
+
+DOME_RING_OUT = R_DOME + 0.10    # outer edge of the dome upstand / start of the terrace deck

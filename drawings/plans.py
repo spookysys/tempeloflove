@@ -311,7 +311,7 @@ def ext_stair(ax, level):
 def ground_floor():
     fig, ax, tx = sheet(-13.0, 16.5, -12.0, 18.0, 'Ground floor',
                         'Open hall ≈ 290 m², octagon 20.00 m across the flats\n'
-                        'Clear height 3.56 m (3.34 m under the beams)\n'
+                        'Clear height 3.74 m (3.52 m under the beams)\n'
                         'Only 4 slim columns (steel core Ø 219 in a Ø 30 cm\n'
                         'timber casing) carry the ring beam around the net\n'
                         'Big windows with deep window seats, garden doors\n'
@@ -410,7 +410,7 @@ def ground_floor():
     label(ax, 0, -11.0, '20.00 across the flats (21.65 across the corners)', 7.5)
     for x in (-P.R_OUT, P.R_OUT):
         ax.plot([x, x], [-11.6, -1], color=INK, lw=0.3)
-    dim(ax, (0, 0), pol(P.R_PILLAR, 337.5), 'columns on Ø 8.70', size=6.5)
+    dim(ax, (0, 0), pol(P.R_PILLAR, 337.5), 'columns on Ø 8.80', size=6.5)
     north_arrow(ax, 15.0, 15.8)
     scale_bar(ax, -12.8, -11.8)
     ax.plot([0.05, 0.05], [-11.9, -10.6], color=INK, lw=1.4)
@@ -481,12 +481,12 @@ def bathroom_plan(ax, k):
     pts = []
     for i in range(40):
         th = 2 * math.pi * i / 40
-        pts.append(W(8.55 + 0.12 * math.cos(th), 1.55 + 0.95 * math.sin(th)))
+        pts.append(W(7.85 + 0.12 * math.cos(th), 1.55 + 0.95 * math.sin(th)))
     poly(ax, pts, fc='#E6D6BF', lw=0.5, z=4)
-    poly(ax, [W(8.62, -0.9), W(P.R_IN, -0.9), W(P.R_IN, 2.1), W(8.62, 2.1)], fc='#E4ECEC', lw=0.4, z=3,
+    poly(ax, [W(7.92, -0.9), W(P.R_IN, -0.9), W(P.R_IN, 2.4), W(7.92, 2.4)], fc='#E4ECEC', lw=0.4, z=3,
          ls=(0, (3, 2)))
     poly(ax, [W(9.1, -0.3), W(P.R_IN, -0.3), W(P.R_IN, 2.1), W(9.1, 2.1)], fc='#E6D6BF', lw=0.4, z=4)
-    p = W(8.9, 0.4)
+    p = W(8.6, 0.6)
     label(ax, p[0], p[1], 'group\nshower', 6.5)
     poly(ax, [W(5.9, yw(5.9) - 0.05), W(7.5, yw(7.5) - 0.05), W(7.5, yw(7.5) - 0.6), W(5.9, yw(5.9) - 0.6)],
          fc=WOOD, lw=0.4, z=4)
@@ -501,11 +501,11 @@ def bathroom_plan(ax, k):
 def upper_floor():
     fig, ax, tx = sheet(-13.0, 15.5, -12.3, 12.7, 'Upper floor',
                         'From the centre outwards:\n'
-                        '• Net Ø 7.80 usable (opening Ø 8.50)\n'
-                        '• Padded edge 0.35 m on the ring beam\n'
-                        '• Ring walkway 1.10 m (up to 1.55 m at the posts)\n'
-                        '• 6 rooms, each ≈ 24 m²: 4.5 m wide at the door,\n'
-                        '   7.9 m at the straight outer wall, 4.1 m deep\n'
+                        '• Net Ø 7.80 usable (opening Ø 8.60)\n'
+                        '• Padded edge 0.40 m on the ring beam\n'
+                        '• Ring walkway 1.25 m (up to 1.75 m at the posts)\n'
+                        '• 6 rooms, each ≈ 23 m²: 4.6 m wide at the door,\n'
+                        '   7.9 m at the straight outer wall, 3.8 m deep\n'
                         '• Shared bathroom (north): 2 WCs, walk-in group\n'
                         '   shower, 2 basins – all gender\n'
                         '• Stair segment: spiral stair, linen / laundry,\n'
@@ -576,7 +576,7 @@ def upper_floor():
     label(ax, 0, -11.5, '20.00 across the flats', 7.5)
     north_arrow(ax, 14.0, 10.6)
     scale_bar(ax, -12.8, -12.1)
-    fig.text(tx, 0.58, 'Rooms (6 × ≈ 24 m², for 1–3 people, also overnight)\n'
+    fig.text(tx, 0.58, 'Rooms (6 × ≈ 23 m², for 1–3 people, also overnight)\n'
              '• Front: 3 shoji-type panels (oak frame, linen / paper\n   infill): closed / half (1.4 m) / open (2.9 m);\n'
              '   a small signal lantern by each door: lit = welcome /\n   ask, dark = private\n'
              '• Earthen sleeping nest under the window, clay bench,\n   sheepskins, lanterns, plants – no hotel furniture\n'
@@ -586,7 +586,7 @@ def upper_floor():
              '• Acoustic partitions 160 mm, clay plaster\n\n'
              'Stair (DIN 18065, as a necessary stair)\n'
              '• Spiral stair around a timber trunk, Ø 3.3 m, tread\n   width 1.45 m, one turn per storey\n'
-             '• 22 risers × 180 mm, going 264 mm on the walking\n   line (r = 0.925 m) · to the terrace 17 × 185 mm\n'
+             '• 22 risers × 188 mm, going 264 mm on the walking\n   line (r = 0.925 m) · to the terrace 17 × 185 mm\n'
              '• Own enclosure: fire-rated glass drum, doors held open\n   on magnets, exit straight outside, smoke vent on top\n'
              '• External stair on the same face = 2nd escape route',
              fontsize=10, color=INK, va='top', linespacing=1.4)
@@ -596,7 +596,7 @@ def upper_floor():
 def roof_plan():
     fig, ax, tx = sheet(-13.0, 15.5, -12.3, 12.7, 'Roof terrace',
                         'Flat roof over the rooms as a sun terrace\n'
-                        'around the dome, deck at +7.10\n'
+                        'around the dome, deck at +7.28\n'
                         '• South side (SW–S–SE): 6 daybeds, sun sails,\n'
                         '   1.80 m slatted privacy screen\n'
                         '• West / east: loungers; north: planters, grasses\n'
@@ -612,8 +612,8 @@ def roof_plan():
     for apo in np.arange(P.R_DOME + 0.6, P.R_OUT - 0.1, 0.4):
         poly(ax, oct_pts(apo), fc='none', ec='#DCCBB0', lw=0.3, z=2)
     a0, a1 = SA + 21, SA + 339
-    poly(ax, arc_pts(P.R_DOME + 0.72, a0, a1) + arc_pts(P.R_DOME + 0.25, a1, a0), fc=WOOD, lw=0.5, z=4)
-    ax.add_patch(Circle((0, 0), P.R_DOME + 0.25, fc='#C9A57A', ec=INK, lw=0.6, zorder=4))
+    poly(ax, arc_pts(P.DOME_RING_OUT + 0.47, a0, a1) + arc_pts(P.DOME_RING_OUT, a1, a0), fc=WOOD, lw=0.5, z=4)
+    ax.add_patch(Circle((0, 0), P.DOME_RING_OUT, fc='#C9A57A', ec=INK, lw=0.6, zorder=4))
     ax.add_patch(Circle((0, 0), P.R_DOME, fc='#DCE8EC', ec=GLASS, lw=0.8, zorder=5))
     for j in range(P.N_DOME_RIBS):
         a = 360 * j / P.N_DOME_RIBS
@@ -623,7 +623,7 @@ def roof_plan():
         circle(ax, rr, ec=WOOD, lw=0.6, zorder=6)
     ax.add_patch(Circle((0, 0), P.DOME_OCULUS_R + 0.05, fc='#4B4036', ec=INK, lw=0.5, zorder=7))
     label(ax, 0, 1.2, 'GLASS DOME', 11, weight='bold', color='#3F5D6C')
-    label(ax, 0, -1.0, 'Ø 11.20 on a 45 cm upstand\nvent at the crown', 7, color='#3F5D6C')
+    label(ax, 0, -1.0, 'Ø 11.60 on a 45 cm upstand\nvent at the crown', 7, color='#3F5D6C')
     for k in ROOM_SLOTS:
         a = P.slot_center(k)
         s0, s1 = P.SKYLIGHT['u'] - P.SKYLIGHT['d'] / 2, P.SKYLIGHT['u'] + P.SKYLIGHT['d'] / 2
@@ -659,7 +659,7 @@ def roof_plan():
         p = HWp((d0 + d1) / 2, P.HELIX_CAGE_R + 0.6)
         label(ax, p[0], p[1], 'door', 6.5)
     p = HWp(0, 2.6)
-    label(ax, p[0], p[1], 'stair house\n(roof +9.65,\nsmoke vent)', 6.2)
+    label(ax, p[0], p[1], 'stair house\n(roof +9.83,\nsmoke vent)', 6.2)
     ext_stair(ax, 'RF')
     p = FP(K_, P.R_OUT - 0.55, sum(P.TERRACE_GATE) / 2)
     label(ax, p[0], p[1], 'gate', 6)
@@ -717,15 +717,15 @@ def section():
         R(xf - 0.08, P.FFL_UF + P.DOOR_H, xf + 0.08, P.FFL_UF + P.DOOR_H + 0.12, fc=WOOD)
         R(xf - 0.01, P.FFL_UF + P.DOOR_H + 0.12, xf + 0.01, P.CEIL_UF, fc='#F3E6CC')
         R(s * (P.APOTHEM_FRONT - 0.05), P.CEIL_UF, s * (P.APOTHEM_FRONT + 0.2), P.ROOF_Z_IN, fc=CLAY)
-        R(s * (P.APOTHEM_FRONT - 0.05), P.ROOF_Z_IN - 0.02, s * (P.R_DOME + 0.25), P.DOME_BASE_Z + 0.02, fc=WOOD)
+        R(s * (P.APOTHEM_FRONT - 0.05), P.ROOF_Z_IN - 0.02, s * (P.DOME_RING_OUT), P.DOME_BASE_Z + 0.02, fc=WOOD)
         R(s * (P.APOTHEM_FRONT + 0.2), P.CEIL_UF, s * s0, P.ROOF_Z_IN, fc='#B79B7E')
         R(s * s1, P.CEIL_UF, s * P.R_OUT, P.ROOF_Z_IN, fc='#B79B7E')
-        R(s * (P.R_DOME + 0.25), P.ROOF_Z_IN, s * s0, P.TERRACE_Z, fc='#D8C09C', lw=0.5)
+        R(s * (P.DOME_RING_OUT), P.ROOF_Z_IN, s * s0, P.TERRACE_Z, fc='#D8C09C', lw=0.5)
         R(s * s1, P.ROOF_Z_IN, s * P.R_TERRACE_OUT, P.TERRACE_Z, fc='#D8C09C', lw=0.5)
         ax.plot([s * s0, s * s1], [P.TERRACE_Z - 0.03] * 2, color=GLASS, lw=1.6, zorder=6)
         ax.add_patch(Polygon([(s * s0, P.CEIL_UF), (s * s1, P.CEIL_UF), (s * (s1 - 0.3), P.FFL_UF + 0.5),
                               (s * (s0 - 0.6), P.FFL_UF + 0.5)], fc=LIGHT, alpha=0.14, ec='none', zorder=1))
-        R(s * (P.R_DOME + 0.25), P.TERRACE_Z + 0.36, s * (P.R_DOME + 0.72), P.TERRACE_Z + 0.44, fc=WOOD, lw=0.5)
+        R(s * (P.DOME_RING_OUT), P.TERRACE_Z + 0.36, s * (P.DOME_RING_OUT + 0.47), P.TERRACE_Z + 0.44, fc=WOOD, lw=0.5)
         hh = 1.80 if s < 0 else P.RAIL_H
         R(s * (P.R_OUT - 0.07), P.TERRACE_Z, s * (P.R_OUT - 0.02), P.TERRACE_Z + hh, fc='#8C6E50', lw=0.4)
         R(s * (P.R_OUT - 0.1), P.TERRACE_Z + hh, s * (P.R_OUT + 0.02), P.TERRACE_Z + hh + 0.05, fc=WOOD, lw=0.4)
@@ -734,7 +734,7 @@ def section():
             rbox(s * 7.48, P.FFL_UF + 0.30, s * 9.55, P.FFL_UF + 0.49, '#F4EDE2', 0.08)
         else:
             rbox(9.1, P.FFL_UF, 9.5, P.FFL_UF + 0.45, CLAY, 0.05)
-            rbox(8.43, P.FFL_UF, 8.67, P.FFL_UF + 1.35, CLAY, 0.05)
+            rbox(7.73, P.FFL_UF, 7.97, P.FFL_UF + 1.35, CLAY, 0.05)
         R(s * P.R_OUT, -0.05, s * (P.R_OUT + 0.06), 0.30, fc='#8A8076', lw=0.4)
     rbox(-9.2, P.TERRACE_Z, -7.1, P.TERRACE_Z + 0.5, '#E8D9C0', 0.06)
     ax.plot([-9.75, -6.55], [P.TERRACE_Z + 2.85, P.TERRACE_Z + 2.25], color='#9C8E80', lw=1.4)
@@ -772,7 +772,7 @@ def section():
     person(-0.9, 0.0)
     ax.annotate('', xy=(-0.4, zlow), xytext=(-0.4, 1.85), arrowprops=dict(arrowstyle='<|-|>', lw=0.5, color=INK,
                                                                          mutation_scale=6), zorder=8)
-    label(ax, -0.15, (zlow + 1.85) / 2, '≥ 1.1 m\nclear', 6.5, ha='left')
+    label(ax, -0.15, (zlow + 1.85) / 2, '≥ 1.2 m\nclear', 6.5, ha='left')
     for x in (0.6, 2.4):
         ax.add_patch(FancyBboxPatch((x - 0.85, P.net_z(abs(x)) - 0.02), 1.7, 0.24,
                      boxstyle='round,pad=0,rounding_size=0.1', fc='#D9C2A8', ec=INK, lw=0.4, zorder=7))
@@ -798,18 +798,19 @@ def section():
     label(ax, -8.3, P.CEIL_UF - 0.25, 'skylight', 6, color='#3F5D6C')
     label(ax, 5.0, 1.0, 'HALL', 10, weight='bold')
     label(ax, -4.85, P.FFL_UF + 1.5, 'walkway', 6.5, rotation=90)
-    label(ax, 0, 8.3, 'glass dome Ø 11.20', 7, color='#3F5D6C')
+    label(ax, 0, 8.6, 'glass dome Ø 11.60', 7, color='#3F5D6C')
     label(ax, 8.6, P.TERRACE_Z + 1.6, 'roof terrace', 7.5, ha='left')
     label(ax, -10.3, P.TERRACE_Z + 2.3, 'privacy screen 1.80', 6, ha='right')
-    levels = [(0.0, '±0.00 hall'), (P.CEIL_GF, '+3.56 ceiling hall'), (P.FFL_UF, '+3.96 upper floor'),
-              (P.Z_NET_EDGE, '+3.84 net at edge'), (P.CEIL_UF, '+6.56 ceiling rooms'),
-              (P.TERRACE_Z, '+7.10 roof terrace'), (P.DOME_BASE_Z, '+7.55 dome base'),
-              (P.TERRACE_Z + P.RAIL_H, '+8.30 railing'), (P.DOME_BASE_Z + P.DOME_RISE, '+10.15 dome top')]
-    for (z, t) in levels:
+    levels = [(0.0, '±0.00 hall', 0.1), (P.CEIL_GF, '+%.2f ceiling hall' % P.CEIL_GF, -0.2),
+              (P.FFL_UF, '+%.2f upper floor' % P.FFL_UF, 0.18), (P.Z_NET_EDGE, '+%.2f net at edge' % P.Z_NET_EDGE, -0.22),
+              (P.CEIL_UF, '+%.2f ceiling rooms' % P.CEIL_UF, 0.1), (P.TERRACE_Z, '+%.2f roof terrace' % P.TERRACE_Z, -0.15),
+              (P.DOME_BASE_Z, '+%.2f dome base' % P.DOME_BASE_Z, 0.12),
+              (P.TERRACE_Z + P.RAIL_H, '+%.2f railing' % (P.TERRACE_Z + P.RAIL_H), 0.1),
+              (P.DOME_BASE_Z + P.DOME_RISE, '+%.2f dome top' % (P.DOME_BASE_Z + P.DOME_RISE), 0.1)]
+    for (z, t, dz) in levels:
         x = -12.3
         ax.plot([x, x + 0.6], [z, z], color=INK, lw=0.5)
         ax.add_patch(Polygon([(x + 0.3, z), (x + 0.15, z + 0.18), (x + 0.45, z + 0.18)], fc=INK, ec=INK, lw=0.3))
-        dz = {'+3.84': -0.22, '+3.56': -0.2, '+3.96': 0.18, '+7.10': -0.15, '+7.55': 0.12}.get(t[:5], 0.1)
         label(ax, x + 0.7, z + dz, t, 6.5, ha='left')
     scale_bar(ax, 12.0, -1.2)
     fig.text(tx, 0.80, 'Net and structure (concept, to be verified)\n'
@@ -817,7 +818,7 @@ def section():
              '• 4 columns: steel tube Ø 219 in a timber casing Ø 30 cm,\n'
              '   ≈ 400 kN each (6 columns would allow a lighter ring)\n'
              '• 16 radial + 3 ring ropes, fine 45 mm mesh,\n   tensioners at every radial under the pad\n'
-             '• Net at +3.84 at the edge, 0.15 m pre-sag; design sag\n   ≈ 0.9 m leaves ≥ 1.1 m above a 1.9 m person\n'
+             '• Net at +4.02 at the edge, 0.15 m pre-sag; design sag\n   ≈ 0.9 m leaves ≥ 1.2 m above a 1.9 m person\n'
              '• Variant: one rope from a steel spider in the crown\n   ring (dome structure, not glass)',
              fontsize=10, color=INK, va='top', linespacing=1.45)
     return fig

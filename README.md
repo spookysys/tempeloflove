@@ -1,4 +1,4 @@
-# Tempel – a new Blue Saloon for ZEGG, concept v0.6
+# Tempel – a new Blue Saloon for ZEGG, concept v0.7
 
 A concept model, plans, a section and renderings for ZEGG's new temple of love (a successor to the Blue Saloon) in Bad
 Belzig, Brandenburg. It is for community members and guests alike:
@@ -24,6 +24,18 @@ specialist net maker, and the fire strategy by a fire engineer (Brandschutzplane
 
 Rebuild: `pip install bpy matplotlib pillow`, then
 `cd model && python3 build_model.py && python3 export_glb.py && python3 render.py` and `python3 ../drawings/plans.py`.
+
+## What changed in v0.7: dimensions fine-tuned (within 15 %)
+
+| | Before | Now | Why |
+|---|---|---|---|
+| Upper floor level | +3.96 | **+4.14** | The hall is 3.74 m clear, 3.52 m under the beams (was 3.34 m). That suits 290 m², dance and parties better, and leaves ≥ 1.2 m under the sagging net. The stairs have 22 risers of 188 mm, still within DIN 18065 |
+| Walkway | 1.10 m | **1.25 m** | Room to pass people sitting on the pad and sliding doors, also at parties |
+| Padded edge | 35 cm | **40 cm** | More margin for a head falling backwards; the usable net stays Ø 7.80 (opening Ø 8.60) |
+| Dome | Ø 11.20, rise 2.60 m | **Ø 11.60, rise 2.90 m** | It still covers the wider walkway; it's more generous and sheds rain and snow better |
+| Group shower | ≈ 1.0 × 3.0 m | **≈ 1.7 × 3.3 m** | Fits several people at once |
+| Rooms | ≈ 24 m², 4.1 m deep | ≈ 23 m², 3.8 m deep | A side effect of the wider walkway |
+| Heights above | terrace +7.10, dome top +10.15 | terrace +7.28, dome top +10.63 | Everything above the upper floor moves up |
 
 ## What changed in v0.6
 
@@ -67,13 +79,13 @@ Rebuild: `pip install bpy matplotlib pillow`, then
 | | |
 |---|---|
 | Outside | Octagon 20.00 m across the flats; timber-frame wall 45 cm (clay plaster inside, wood fibre, larch outside) |
-| Hall | ≈ 290 m², clear height 3.56 m (3.34 m under the beams); 4 columns on Ø 8.70 m |
-| Upper floor | +3.96. Net: opening Ø 8.50, usable Ø 7.80. Padded edge 0.35 m. Walkway 1.10 m |
-| Rooms | 6 × ≈ 24 m² (+ shared bathroom in the 7th): 4.5 m wide at the door, 7.9 m at the outer wall, 4.1 m deep, 2.60 m high |
-| Dome | Ø 11.20, rise 2.60 m, on a 45 cm upstand (base +7.55, top +10.15), 20 glulam ribs, crown ring with vent |
-| Roof terrace | Deck +7.10; railing 1.20 m, or 1.80 m privacy screen on the south faces |
-| Stair | Spiral around a timber trunk, Ø 3.3 m, treads 1.45 m wide; hall → upper floor 22 × 180 mm, → terrace 17 × 185 mm, going 264 mm on the walking line |
-| External stair | On the NW face: ground → upper floor → terrace, 1.20 m wide flights, 180 / 185 × 270 mm |
+| Hall | ≈ 290 m², clear height 3.74 m (3.52 m under the beams); 4 columns on Ø 8.80 m |
+| Upper floor | +4.14. Net: opening Ø 8.60, usable Ø 7.80. Padded edge 0.40 m. Walkway 1.25 m |
+| Rooms | 6 × ≈ 23 m² (+ shared bathroom in the 7th): 4.6 m wide at the door, 7.9 m at the outer wall, 3.8 m deep, 2.60 m high |
+| Dome | Ø 11.60, rise 2.90 m, on a 45 cm upstand (base +7.73, top +10.63), 20 glulam ribs, crown ring with vent |
+| Roof terrace | Deck +7.28; railing 1.20 m, or 1.80 m privacy screen on the south faces |
+| Stair | Spiral around a timber trunk, Ø 3.3 m, treads 1.45 m wide; hall → upper floor 22 × 188 mm, → terrace 17 × 185 mm, going 264 mm on the walking line |
+| External stair | On the NW face: ground → upper floor → terrace, 1.20 m wide flights, 188 / 185 × 270 mm |
 | Bathroom | North segment of the upper floor, ≈ 24 m²: 2 WCs, walk-in group shower, 2 basins, all gender |
 | Annex | North face, 5 m deep: foyer + coats, WC, tech; entrance door with canopy |
 

@@ -1592,7 +1592,7 @@ def bathroom_fixtures(k, parent, yw, x0, xb, z):
         cube(bm, (xc, -yw(xc) + 0.14, z + 0.55), (0.4, 0.16, 0.5))
     rounded(put('bath_wc_%d' % k, bm, M_CERAMIC), 0.05, 3, 1)
     # walk-in group shower under the window: low curved tadelakt screen, bench, 3 heads
-    screen = superellipse(8.55, 1.55, 0.95, 0.12, n=2.0, rot=90)
+    screen = superellipse(7.85, 1.55, 0.95, 0.12, n=2.0, rot=90)
     extrude_outline('bath_shower_screen_%d' % k, screen, z, z + 1.35, M_TADELAKT, parent, bevel=0.05)
     bench = superellipse(9.3, 0.9, 0.2, 1.2, n=3.0)
     extrude_outline('bath_shower_bench_%d' % k, bench, z, z + 0.45, M_TADELAKT, parent, bevel=0.05)
@@ -1603,7 +1603,7 @@ def bathroom_fixtures(k, parent, yw, x0, xb, z):
         cyl(bm, (P.R_IN - 0.3, yy, z + 1.94), 0.09, 0.02, segs=24)
     put('bath_shower_heads_%d' % k, bm, M_STEEL)
     bm = bmesh.new()
-    cyl(bm, (8.7, 0.5, z + 0.005), 0.06, 0.01, segs=16)
+    cyl(bm, (8.6, 0.5, z + 0.005), 0.06, 0.01, segs=16)
     put('bath_drain_%d' % k, bm, M_STEEL)
     # washbasins along the right side near the door
     top = [(xx, yw(xx) - 0.05 - dy) for xx, dy in ((5.9, 0.0), (7.5, 0.0), (7.5, 0.55), (5.9, 0.55))]
@@ -1968,22 +1968,22 @@ cut_skylights(roof, P.CEIL_UF, P.ROOF_Z_IN)
 set_face_mats(roof, lambda c, n: 1 if n.z > 0.5 else (0 if n.z < -0.5 else 2))
 # terrace deck (outdoor larch boards, laid in rings)
 bm = bmesh.new()
-ring_prism(bm, P.R_DOME + 0.25, OCT(P.R_TERRACE_OUT), P.ROOF_Z_IN, P.TERRACE_Z, step=0.5)
+ring_prism(bm, P.DOME_RING_OUT, OCT(P.R_TERRACE_OUT), P.ROOF_Z_IN, P.TERRACE_Z, step=0.5)
 deck = mk_obj('terrace_deck', bm, M_DECK, 'roof')
 cut_cylinder(deck, HELIX_C, P.HELIX_CAGE_R + 0.10, P.ROOF_Z_IN - 0.5, P.TERRACE_Z + 0.5)
 cut_skylights(deck, P.ROOF_Z_IN, P.TERRACE_Z)
 # dome upstand ring (45 cm above the deck); a timber bench ring runs outside it
 bm = bmesh.new()
-sector(bm, P.APOTHEM_FRONT - 0.05, P.R_DOME + 0.25, 0, 360, P.ROOF_Z_IN - 0.02, P.DOME_BASE_Z + 0.02,
+sector(bm, P.APOTHEM_FRONT - 0.05, P.DOME_RING_OUT, 0, 360, P.ROOF_Z_IN - 0.02, P.DOME_BASE_Z + 0.02,
        step=1.5)
 mk_obj('dome_base_ring', bm, M_WOOD, 'roof')
 sa_ = P.slot_center(P.STAIR_SLOT)
 bm = bmesh.new()
-sector(bm, P.R_DOME + 0.25, P.R_DOME + 0.72, sa_ + 21, sa_ + 339, P.TERRACE_Z + 0.36, P.TERRACE_Z + 0.44,
+sector(bm, P.DOME_RING_OUT, P.DOME_RING_OUT + 0.47, sa_ + 21, sa_ + 339, P.TERRACE_Z + 0.36, P.TERRACE_Z + 0.44,
        step=1.5)
 for i in range(40):
     a = sa_ + 21 + 318 * (i + 0.5) / 40
-    p = pol(P.R_DOME + 0.5, a)
+    p = pol(P.DOME_RING_OUT + 0.25, a)
     cube(bm, (p.x, p.y, P.TERRACE_Z + 0.18), (0.4, 0.08, 0.36), rz=a)
 mk_obj('terrace_bench_ring', bm, M_WOOD, 'roof')
 
@@ -2416,7 +2416,7 @@ for i in range(8):
     a = P.slot_center(i) + 11.25
     if i == P.STAIR_SLOT:
         continue
-    c_ = pol(7.0, a, 2.75)
+    c_ = pol(7.0, a, 2.95)
     paper_disc('hall_disc_%d' % i, tuple(c_), 0.55, 0.26, cord=P.CEIL_GF, power=40.0)
 # hall: continuous timber ledge above the windows with a hidden warm uplight (indirect)
 bm = bmesh.new()
@@ -2424,9 +2424,9 @@ for k in range(P.N_SLOTS):
     if k == P.STAIR_SLOT:
         continue
     fh = P.face_half(P.R_IN) - 0.25
-    cube(bm, FP(k, P.R_IN - 0.11, 0, 3.1), (2 * fh, 0.22, 0.05), rz=P.slot_center(k) + 90)
-    cube(bm, FP(k, P.R_IN - 0.21, 0, 3.16), (2 * fh, 0.03, 0.12), rz=P.slot_center(k) + 90)
-    light('hall_cove_%d' % k, 'AREA', FP(k, P.R_IN - 0.1, 0, 3.14), 30.0,
+    cube(bm, FP(k, P.R_IN - 0.11, 0, 3.3), (2 * fh, 0.22, 0.05), rz=P.slot_center(k) + 90)
+    cube(bm, FP(k, P.R_IN - 0.21, 0, 3.36), (2 * fh, 0.03, 0.12), rz=P.slot_center(k) + 90)
+    light('hall_cove_%d' % k, 'AREA', FP(k, P.R_IN - 0.1, 0, 3.34), 30.0,
           rot=(math.pi, 0, rad(P.slot_center(k) + 90)), size=2 * fh - 0.2, size_y=0.12)
 mk_obj('hall_light_ledge', bm, M_WOOD, 'furnishing')
 # hall: clay wall shells in the octagon corners
@@ -2671,7 +2671,7 @@ figure('person_room_lie', pose_lie_side(), (pr2.x, pr2.y, P.FFL_UF + 0.47), rz=a
 for i_, (k_, t_, pose_) in enumerate(((4, -2.25, pose_lie_back('head')), (3, 2.25, pose_lie_side()))):
     c_ = FP(k_, 8.05, t_, P.TERRACE_Z + 0.50)
     figure('person_terrace_%d' % i_, pose_, (c_.x, c_.y, c_.z), rz=P.slot_center(k_) - 90 + (0 if i_ == 0 else 90))
-cb_ = pol(P.R_DOME + 0.5, 255, P.TERRACE_Z + 0.44)
+cb_ = pol(P.DOME_RING_OUT + 0.25, 255, P.TERRACE_Z + 0.44)
 figure('person_terrace_bench', pose_sit_knees(), (cb_.x, cb_.y, cb_.z - 0.1), rz=255 - 90)
 
 # ---------------------------------------------------------------------------
