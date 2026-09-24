@@ -3181,8 +3181,15 @@ def sash(name, center, r, tilt_deg, rz_deg, mat, width=0.07):
     return ob
 
 
+# The event people are realistic MakeHuman figures added by humans/build_crowd.py; the stylised
+# mannequins below are kept only as a fallback (EVENT_MANNEQUINS = True).
+EVENT_MANNEQUINS = False
+
+
 def person(name, pose, loc, rz=0.0, scale=1.0, outfit=None, seed=0):
     """Figure + garments. outfit: None | ('skirt', mat) | ('robe', mat) | ('kimono', mat) | ('cape', mat)"""
+    if not EVENT_MANNEQUINS:
+        return None
     fo = figure(name, pose, loc, rz=rz, scale=scale, parent_coll=EV)
     r = random.Random(seed)
     fo.data.materials[0] = SKIN[r.randrange(len(SKIN))]
@@ -3421,6 +3428,8 @@ def drape(name, objs, center, size, rz, mat, base_fn, n=34):
 
 
 def couple(name, kind, loc, rz, seed, blanket_mat=None, base_fn=None, cover=(-1.15, 0.0)):
+    if not EVENT_MANNEQUINS:
+        return []
     loc = Vector(loc)
     if kind == 'straddle':
         obs = [person(name + '_a', _pose_bottom('straddle'), loc, rz, seed=seed),
@@ -3476,9 +3485,12 @@ for i, (dr, da, rz, pose) in enumerate(((0.2, -4, 90, pose_lie_side()), (-0.3, -
                                         (1.5, 1, 190, pose_sit_lean()))):
     c = pol(7.2 + dr, cz + da)
     person('ev_cuddle_%d' % i, pose, (c.x, c.y, 0.18), rz=cz + rz, seed=50 + i)
-for i, da in enumerate((-4, 5)):
-    c = pol(7.25, cz + da)
-    blanket('ev_cuddle_blanket_%d' % i, (c.x, c.y, 0.42), (1.6, 1.3, 0.2), cz + 90, M_WOOL[['rose', 'ochre'][i]])
+# mattress field under the net: people below can look up at the people on the net
+MF = [(0, 0, 0)] + [(1.45 * math.cos(rad(a)), 1.45 * math.sin(rad(a)), a + 90) for a in range(0, 360, 60)] + \
+     [(2.75 * math.cos(rad(a)), 2.75 * math.sin(rad(a)), a) for a in range(30, 360, 60)]
+for i, (x, y, rz) in enumerate(MF):
+    mattress('ev_field_mat_%02d' % i, (x, y), rz, mat=[M_MATTRESS, M_WOOL['cream'], M_WOOL['sand']][i % 3],
+             size=(1.4, 1.9, 0.15 + 0.012 * (i % 3)))
 # intimacy zone (south-west) under a round linen canopy, half open towards the hall
 iz = 235
 cc = pol(7.0, iz)

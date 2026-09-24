@@ -83,7 +83,13 @@ VIEWS = {
     '17_event_walkway': dict(
         loc=pol(4.95, 236, UF + 1.58), tgt=pol(4.75, 292, UF + 1.05), lens=18,
         sun=(162, 11), mode='dusk', volume=0.0, exposure=0.9, event=True),
+    '18_event_under_net': dict(
+        loc=pol(4.3, 205, 0.75), tgt=Vector((0.6, 0.4, 2.6)), lens=16,
+        sun=(162, 11), mode='dusk', volume=0.006, exposure=0.9, event=True),
 }
+for _v in VIEWS.values():                 # event views: model with the realistic crowd
+    if _v.get('event'):
+        _v['blend'] = 'tempel_event.blend'
 
 
 def setup_world(mode, sun_az, sun_el):
@@ -179,6 +185,12 @@ def set_event(on):
         c = bpy.data.collections.get(n)
         if c:
             c.hide_render = hide
+    for ob in bpy.data.objects:          # the round rug + cushion circle make way for the mattress field
+        if ob.name.startswith(('hall_zafu', 'hall_round_')):
+            ob.hide_render = on
+    c = bpy.data.collections.get('crowd')
+    if c:
+        c.hide_render = not on
 
 
 def camera(v):
@@ -241,10 +253,14 @@ def main():
     ap.add_argument('--res', type=int, default=1920)
     ap.add_argument('--samples', type=int, default=256)
     a = ap.parse_args()
-    bpy.ops.wm.open_mainfile(filepath=os.path.join(HERE, 'tempel.blend'))
     os.makedirs(OUT, exist_ok=True)
     names = a.views or list(VIEWS)
+    current = None
     for n in names:
+        blend = VIEWS[n].get('blend', 'tempel.blend')
+        if blend != current:
+            bpy.ops.wm.open_mainfile(filepath=os.path.join(HERE, blend))
+            current = blend
         render(n, VIEWS[n], a.res if not a.quick else 640, a.samples if not a.quick else 24, a.quick)
 
 
