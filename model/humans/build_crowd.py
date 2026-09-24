@@ -122,7 +122,7 @@ CRAZY = [('elvs_disco_pants_double_ruffles', 'elvs_disco_top_1_butterfly'), ('pu
                                                                             'punkduck_high_neck_crop_top'),
          ('elvs_frilled_party_dress',)]
 KIMONO = ('mindfront_kimono',)
-# most of the clothes already off: underwear / swimwear
+# most of the clothes already off: bare chests, loose pants and wraps, camisoles, slips
 UNDIES_F = [('toigo_camisole_top', 'elvs_retro_girly_shorts1'), ('elvs_crochet_baby_doll',),
             ('punkduck_tube_top', 'elvs_sarong_cover_up'), ('mindfront_cardigan_long_open_front', 'elvs_retro_girly_shorts1'),
             ('punkduck_spaghetti_strap_tank_top', 'elvs_retro_girly_shorts1'), ('punkduck_tube_dress',),
