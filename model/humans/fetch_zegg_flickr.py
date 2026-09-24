@@ -42,6 +42,11 @@ for acc in ('zegg', 'zegg2'):
 json.dump(urls, open(os.path.join(OUT, 'urls.json'), 'w'), indent=1)
 for i, (f, title) in enumerate(sorted(urls.items())):
     dst = os.path.join(OUT, f.replace('/', '_') + '.jpg')
-    if not os.path.exists(dst):
-        subprocess.run(['curl', '-sSL', '-m', '60', '-A', UA, '-o', dst, 'https://live.staticflickr.com/%s_b.jpg' % f])
+    if os.path.exists(dst) and os.path.getsize(dst) > 5000:
+        continue
+    for suffix in ('_b', '_c', '_z', ''):             # not every size exists for every photo
+        subprocess.run(['curl', '-sSL', '-m', '60', '-A', UA, '-o', dst,
+                        'https://live.staticflickr.com/%s%s.jpg' % (f, suffix)])
+        if os.path.getsize(dst) > 5000 and open(dst, 'rb').read(2) == b'\xff\xd8':
+            break
 print('downloaded', len(urls), 'photos to', OUT)

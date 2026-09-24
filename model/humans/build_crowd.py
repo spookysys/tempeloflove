@@ -789,6 +789,8 @@ SOLO = ['05_02', '05_03', '05_04', '05_06', '05_08', '05_11', '05_12', '05_18', 
 
 import json as _json  # noqa: E402
 PHOTO = _json.load(open(os.path.join(HUM, 'photo_poses.json')))
+if os.path.exists(os.path.join(HUM, 'photo_poses_zegg.json')):      # poses from ZEGG's own festival photos
+    PHOTO += _json.load(open(os.path.join(HUM, 'photo_poses_zegg.json')))
 PH_LOW = [i for i, p in enumerate(PHOTO) if p['kind'] == 'low']
 PH_MID = [i for i, p in enumerate(PHOTO) if p['kind'] == 'mid']
 PH_UP = [i for i, p in enumerate(PHOTO) if p['kind'] == 'upright']
