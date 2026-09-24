@@ -331,7 +331,7 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
     race = race or rnd.choice(['caucasian'] * 16 + ['african', 'asian', 'mixed', 'mixed'])
     build = rnd.choice(['slim', 'average', 'full'])     # body diversity: slim / average / curvy, heavy, soft bellies
     if kind == 'flow':                       # everyone dresses how they feel: a balanced, individual mix
-        w = {'flow': 0.30, 'mix': 0.25, 'lungi': 0.12 if sex < 0.5 else 0.07, 'crazy': 0.08,
+        w = {'flow': 0.27, 'mix': 0.22, 'everyday': 0.15, 'lungi': 0.12 if sex < 0.5 else 0.07, 'crazy': 0.08,
              'undress': 0.10 + 0.35 * UNDRESS[0]}
         u = rnd.random() * sum(w.values())
         for k_, v_ in w.items():
@@ -349,6 +349,18 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
             top = rnd.choice(TOPS_F if sex < 0.5 else TOPS_M)
             outfit = tuple(x for x in (bottom, top, 'mindfront_kimono' if rnd.random() < 0.25 else None) if x)
             kind = 'flow'
+        if kind == 'everyday':               # everyday and colourful (as on ZEGG's festival photos)
+            if sex < 0.5:
+                outfit = (rnd.choice(['punkduck_retro_polka_dot_skirt', 'toigo_tiered_skirt', 'elvs_gored_midi_skirt',
+                                      'toigo_long_full_skirt', 'mindfront_female_trousers_1', 'cortu_cargo_pants']),
+                          rnd.choice(['joepal_crude_t-shirt_female', 'toigo_basic_tucked_t-shirt',
+                                      'elvs_ruffle_sleeve_peasant_blouse_1', 'ews_striped_shirt']))
+            else:
+                outfit = (rnd.choice(['mindfront_male_trousers_1', 'toigo_wool_pants', 'cortu_cargo_pants',
+                                      'elvs_male_trouser_short_2']),
+                          rnd.choice(['elvs_crude_t-shirt_male', 'namuhekam_male_polo_shirt', 'ews_striped_shirt',
+                                      'elvs_male_shirt_untucked_bd1']))
+            kind = 'mix'
         if kind == 'lungi':                  # lungis / sarongs tied in different ways
             outfit = tuple(x for x in rnd.choice(LUNGI_F if sex < 0.5 else LUNGI_M) if x)
     if outfit is None:
