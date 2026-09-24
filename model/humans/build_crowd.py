@@ -338,6 +338,7 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
             kind = 'flow'
         if kind == 'lungi':                  # lungis / sarongs tied in different ways
             outfit = tuple(x for x in rnd.choice(LUNGI_F if sex < 0.5 else LUNGI_M) if x)
+    if outfit is None:
         pool = {'crazy': CRAZY, 'organiser': [KIMONO], 'naked': [()],
                 'undies': UNDIES_F if sex < 0.5 else UNDIES_M, 'lingerie': LINGERIE_F}.get(kind)
         if pool is None:
@@ -711,32 +712,85 @@ def drift(a):
 SOLO = ['05_02', '05_03', '05_04', '05_06', '05_08', '05_11', '05_12', '05_18', '49_09', '49_12', '49_14',
         '49_22', '55_01', '55_02', '111_05', '113_04', '141_12', '49_18', '05_13', '05_16']
 
-# -- ecstatic dance near the musicians (NE, around the bar and the drums) --
-eco = [(5.0, 18), (6.4, 28), (7.9, 22), (5.6, 55), (7.2, 62), (8.3, 75), (6.0, 88), (4.9, 102), (7.6, 100)]
-kinds = ['flow', 'crazy', 'flow', 'naked', 'flow', 'undies', 'flow', 'flow', 'crazy', 'flow', 'naked']
-for i, ((rr, a), kd) in enumerate(zip(eco, kinds)):
-    p = pol(rr, a)
-    dancer(SOLO[i % len(SOLO)], i // len(SOLO) + i % 2, p.x, p.y, drift(a), kind=kd)
-# partners turning together (recorded couple), hands held
-for (a_, b_, rr, ang, k) in (('60_01', '61_01', 6.6, 45, 0), ('60_03', '61_03', 5.4, 125, 1),
-                             ('60_02', '61_02', 7.6, 132, 0)):
-    p = pol(rr, ang)
-    duet(a_, b_, MC.contact_frames(a_, b_, 3)[k], p.x, p.y, drift(ang))
-# walking hand in hand through the room, swinging arms
-p = pol(4.6, 70)
-duet('22_08', '23_08', MC.contact_frames('22_08', '23_08', 1)[0], p.x, p.y, 70 + 90)
-print('ecstatic done', N[0])
+def floor_body(x, y, head, z0=0.0, on=(), kind='flow'):
+    """Someone on the floor: rolling, curled, spread out, rising (static library poses, laid down)."""
+    choice = random.Random(int(x * 100 + y * 37)).choice(
+        [('callharvey3d_sittingnatural', 'side_r'), ('callharvey3d_sittingnatural', 'side_l'),
+         ('elvs_yoga_star_pose_1', 'back'), ('standing02', 'back'), ('elvs_yoga_cobra_pose_1', 'front'),
+         ('callharvey3d_sittingfloor2', 'side_r'), ('sohh_posing4', 'back')])
+    return lying(choice[0], x, y, head, choice[1], z0, on=on, kind=kind)
 
-# -- contact improvisation (NW / W): weight, counterbalance, floor, a trio --
+
+def roll_duet(x, y, head, z0=0.0, style=0):
+    """Two people rolling on the floor with each other."""
+    if style == 0:                           # one rolling over the other
+        a = lying('callharvey3d_sittingnatural', x, y, head, 'side_l', z0)
+        b = lying('elvs_yoga_star_pose_1', x + 0.05, y + 0.05, head + 80, 'back', z0, on=(a,))
+    elif style == 1:                         # back to back
+        fdir = Rz(head - 90) @ Vector((1, 0, 0))
+        a = lying('callharvey3d_sittingnatural', x - fdir.x * 0.2, y - fdir.y * 0.2, head, 'side_l', z0)
+        b = lying('callharvey3d_sittingnatural', x + fdir.x * 0.2, y + fdir.y * 0.2, head + 10, 'side_r', z0)
+    else:                                    # lying across, head on the other's belly, a hand on the chest
+        a = lying('standing02', x, y, head, 'back', z0)
+        b = head_on('elvs_yoga_star_pose_1', a, 'spine04', head + 100, 'back', z0)
+        reach_to(b, 'R', bone_w(a, 'spine02', (0, -0.12, 0)))
+    return a, b
+
+
+def group(cx, cy, n_up, n_floor, spread, seed, clips=None, kinds=None, duet_clip=None):
+    """A contact group: standing dancers turned towards each other, people on the floor among them,
+    hands and weight connecting them. Returns the members."""
+    rg = random.Random(seed)
+    members, floor = [], []
+    pts = []
+    for i in range(n_up + n_floor):          # organic blob: golden-angle spiral with jitter
+        rr = spread * math.sqrt((i + 0.5) / (n_up + n_floor))
+        a = i * 137.5 + rg.uniform(-20, 20)
+        pts.append(Vector((cx, cy, 0)) + Rz(a) @ Vector((rr, 0, 0)))
+    rg.shuffle(pts)
+    for i in range(n_floor):
+        p = pts.pop()
+        floor.append(floor_body(p.x, p.y, rg.uniform(0, 360), on=tuple(floor)))
+    if duet_clip:
+        p = pts.pop()
+        pts.pop()
+        a_, b_, k_ = duet_clip
+        members += list(duet(a_, b_, MC.contact_frames(a_, b_, 3)[k_], p.x, p.y, rg.uniform(0, 360)))
+    for i, p in enumerate(pts[:n_up - (2 if duet_clip else 0)]):
+        toward = math.degrees(math.atan2(cy - p.y, cx - p.x))
+        clip_ = (clips or SOLO)[rg.randrange(len(clips or SOLO))]
+        members.append(dancer(clip_, rg.randrange(4), p.x, p.y, toward + rg.uniform(-45, 45),
+                              kind=(kinds[i % len(kinds)] if kinds else 'flow')))
+    # weight and touch: a hand on a neighbour's back / shoulder, or reaching down to someone on the floor
+    for m in members:
+        near = sorted((o for o in members + floor if o is not m), key=lambda o: (o.location - m.location).length)
+        for o in near[:1]:
+            dist = (o.location - m.location).length
+            if o in floor and dist < 0.9:
+                reach_to(m, rg.choice('LR'), bone_w(o, 'spine03', (0, -0.1, 0)))
+            elif dist < 0.75 and rg.random() < 0.6:
+                reach_to(m, rg.choice('LR'), on_back(o, 'spine02', rg.uniform(-0.1, 0.1), 0.12))
+    return members + floor
+
+
+# -- one large flowing group near the musicians (north-east): ecstatic, connected --
+big = group(*pol(6.3, 55).xy, 9, 2, 2.4, 11, duet_clip=('60_01', '61_01', 0),
+            kinds=['flow', 'crazy', 'naked', 'flow', 'lungi', 'undies', 'flow', 'crazy'])
+# a couple dancing at the east side of it
+p = pol(6.8, 5)
+duet('60_03', '61_03', MC.contact_frames('60_03', '61_03', 3)[1], p.x, p.y, drift(5))
+# walking hand in hand through the room, swinging arms
+p = pol(4.6, 95)
+duet('22_08', '23_08', MC.contact_frames('22_08', '23_08', 1)[0], p.x, p.y, 95 + 90)
+print('big group done', N[0])
+
+# -- contact improvisation: quartet, quintet, sextet, duets turning into trios, rolling on the floor --
 UNDRESS[0] = 0.35
-# counterbalance: pulling away from each other, hands held
-p = pol(6.6, 150)
-duet('18_03', '19_03', 519, p.x, p.y, 150 + 90)
-# kneeling floor duet
-p = pol(7.2, 175)
-duet('22_03', '23_03', 560, p.x, p.y, 175 + 60, z0=0.12)
-# trio: one on hands and knees, one lying across their back, a third reaching in
-c = pol(5.9, 160)
+group(*pol(6.4, 118).xy, 3, 1, 1.0, 21)                                 # quartet
+q5 = group(*pol(6.9, 150).xy, 2, 1, 1.0, 22, duet_clip=('18_03', '19_03', 0))   # quintet around a counterbalance
+group(*pol(6.5, 186).xy, 3, 3, 1.4, 23)                                 # sextet, half of it on the floor
+# a trio: one on hands and knees, one lying across their back, a third reaching in
+c = pol(4.9, 140)
 t1 = standing('drednicolson_prostrate', c.x, c.y, 250)
 t2 = new_person()
 pose(t2, 'elvs_yoga_star_pose_1')
@@ -744,23 +798,13 @@ lie(t2, c.x, c.y, 340, 'back')
 drop(t2, 0.0, on=(t1,))
 t3 = dancer('49_12', 1, c.x + 0.7, c.y - 0.45, 120)
 reach_to(t3, 'R', bone_w(t2, 'wrist.L'))
-# rolling and spiralling on the floor
-for i, (rr, a) in enumerate(((7.8, 195), (5.3, 190))):
-    r = new_person()
-    pose(r, ['elvs_gymnastic_pose_1', 'wolgade_sit_on_ground_01'][i])
-    stand(r, *pol(rr, a).xy, a + 120)
-    drop(r, 0.12 if i == 0 else 0.0)
-# someone lying across another who rolls on the floor (resting weight)
-c = pol(6.3, 205)
-w1 = lying('callharvey3d_sittingnatural', c.x, c.y, 120, 'side_l', 0.0)
-w2 = new_person()
-pose(w2, 'standing01')
-lie(w2, c.x + 0.1, c.y, 30, 'back')
-drop(w2, 0.0, on=(w1,))
-# slow solos between the groups, dancing with eyes half closed
-for i, (rr, a) in enumerate(((7.3, 140), (8.2, 165))):
-    p = pol(rr, a)
-    dancer(['49_10', '49_16', '05_18'][i], i, p.x, p.y, drift(a))
+# kneeling floor duet
+p = pol(8.0, 170)
+duet('22_03', '23_03', 560, p.x, p.y, 170 + 60, z0=0.12)
+# rolling with each other on the floor
+roll_duet(*pol(8.0, 200).xy, 110, 0.0, style=0)
+roll_duet(*pol(5.2, 200).xy, 20, 0.0, style=1)
+roll_duet(*pol(8.2, 128).xy, 250, 0.0, style=2)
 print('contact done', N[0])
 
 # -- dancing at the edge of the mattress field, reaching down to the people lying there --
