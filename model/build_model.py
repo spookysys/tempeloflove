@@ -2480,293 +2480,304 @@ figure('person_terrace_bench', pose_sit_knees(), (cb_.x, cb_.y, cb_.z - 0.1), rz
 #     each group is posed, scanned as a height map (ray casting), laid out on the surface
 #     and displaced into the timber.
 # ---------------------------------------------------------------------------
-import numpy as np  # noqa: E402
-from mathutils.bvhtree import BVHTree  # noqa: E402
-from PIL import Image  # noqa: E402
-
-CARVE_DIR = os.path.join(HERE, 'carvings')
-os.makedirs(CARVE_DIR, exist_ok=True)
-
-
-def _arms(p, **kw):
-    for k_, v_ in kw.items():
-        p[k_] = v_
-    return p
-
-
-def pose_embrace():
-    return _arms(mirror_pose(STAND), head=(0, 0.07, 1.61),
-                 le=(0.21, 0.20, 1.24), lw=(0.12, 0.38, 1.30), lh=(0.06, 0.42, 1.31),
-                 re=(-0.21, 0.20, 1.16), rw=(-0.12, 0.36, 1.04), rh=(-0.06, 0.40, 1.02))
-
-
-def pose_dance():
-    return _arms(mirror_pose(STAND), pelvis=(0.04, 0, 0.95), head=(-0.03, 0.02, 1.62),
-                 le=(0.30, 0.05, 1.66), lw=(0.24, 0.06, 1.92), lh=(0.21, 0.06, 2.0),
-                 re=(-0.45, 0.02, 1.40), rw=(-0.68, 0.05, 1.50), rh=(-0.75, 0.05, 1.53),
-                 rk=(-0.16, 0.14, 0.52), ra=(-0.12, -0.04, 0.16), rt=(-0.12, 0.08, 0.06))
-
-
-def pose_reach():
-    return _arms(mirror_pose(STAND), head=(0, 0.0, 1.63),
-                 le=(0.20, 0.03, 1.72), lw=(0.15, 0.05, 1.97), lh=(0.12, 0.05, 2.05),
-                 re=(-0.20, 0.03, 1.72), rw=(-0.15, 0.05, 1.97), rh=(-0.12, 0.05, 2.05))
-
-
-def pose_shoulders(side):
-    p = mirror_pose(STAND)
-    if side in ('mid', 'l'):   # right arm over the neighbour's shoulder (towards -x)
-        _arms(p, re=(-0.34, 0.02, 1.38), rw=(-0.56, 0.02, 1.42), rh=(-0.62, 0.02, 1.43))
-    if side in ('mid', 'r'):
-        _arms(p, le=(0.34, 0.02, 1.38), lw=(0.56, 0.02, 1.42), lh=(0.62, 0.02, 1.43))
-    return p
-
-
-CARVE_GROUPS = {
-    # name: (view axis, [(pose, location, rz)])
-    'embrace': ('X', [(pose_embrace(), (0, 0, 0), 0), (pose_embrace(), (0, 0.30, 0), 180)]),
-    'dance': ('Y', [(pose_dance(), (0, 0, 0), 0)]),
-    'reach': ('Y', [(pose_reach(), (0, 0, 0), 0)]),
-    'trio': ('Y', [(pose_shoulders('l'), (0.46, 0, 0), 0), (pose_shoulders('mid'), (0, 0, 0), 0),
-                   (pose_shoulders('r'), (-0.46, 0, 0), 0)]),
-    'lap': ('X', [(pose_sit_cross(), (0, 0, 0), 0), (pose_sit_knees(), (0, 0.40, 0.10), 180)]),
-    'lovers': ('X', [(pose_lie_back('open'), (0, 0, 0), 0), (pose_lie_side(), (0.30, 0.25, 0.06), 0)]),
-    'rest': ('X', [(pose_sit_lean(), (0, 0, 0), 0), (pose_lie_back('head'), (0, 0.62, 0.0), 180)]),
-}
-
-
-def carve_heightmap(name, px):
-    axis, members = CARVE_GROUPS[name]
-    obs = [figure('carve_%s_%d' % (name, i), pose, loc, rz=rz, parent_coll='tmp')
-           for i, (pose, loc, rz) in enumerate(members)]
-    bpy.context.view_layer.update()
-    verts, polys = [], []
-    for ob in obs:
-        off = len(verts)
-        mw = ob.matrix_world
-        verts += [mw @ v.co for v in ob.data.vertices]
-        polys += [[off + i for i in p.vertices] for p in ob.data.polygons]
-    tree = BVHTree.FromPolygons(verts, polys)
-    ia, ib, idp = (1, 2, 0) if axis == 'X' else (0, 2, 1)
-    lo = [min(v[i] for v in verts) for i in range(3)]
-    hi = [max(v[i] for v in verts) for i in range(3)]
-    W = int((hi[ia] - lo[ia]) / px) + 4
-    H = int((hi[ib] - lo[ib]) / px) + 4
-    depth = np.full((H, W), np.nan)
-    d = [0.0, 0.0, 0.0]
-    d[idp] = 1.0
-    d = Vector(d)
-    for r in range(H):
-        zb = hi[ib] - (r - 2) * px
-        for c in range(W):
-            o = [0.0, 0.0, 0.0]
-            o[ia] = lo[ia] + (c - 2) * px
-            o[ib] = zb
-            o[idp] = lo[idp] - 1.0
-            hit = tree.ray_cast(Vector(o), d)
-            if hit[0] is not None:
-                depth[r, c] = hit[3]
-    for ob in obs:
-        bpy.data.objects.remove(ob)
-    m = ~np.isnan(depth)
-    # nearer = higher, over a fixed 0.45 m depth range (so single bodies keep their volume)
-    dn = np.clip((depth - np.nanmin(depth)) / 0.45, 0, 1)
-    h = np.where(m, 0.45 + 0.55 * (1.0 - dn), 0.0)
-    # rounded edges like a carved relief: distance to the silhouette edge (in px)
-    dist = np.where(m, 1.0, 0.0)
-    acc = dist.copy()
-    cur = m.copy()
-    R = max(3, int(0.05 / px))
-    for i in range(R):
-        cur = cur & np.roll(cur, 1, 0) & np.roll(cur, -1, 0) & np.roll(cur, 1, 1) & np.roll(cur, -1, 1)
-        acc += cur
-    rnd = np.sqrt(1 - (1 - np.clip(acc / R, 0, 1)) ** 2)
-    return h * rnd
-
-
-def soften(a, it=2):
-    for _ in range(it):
-        a = (a + np.roll(a, 1, 0) + np.roll(a, -1, 0) + np.roll(a, 1, 1) + np.roll(a, -1, 1)) / 5.0
-    return a
-
-
-def place(tex, hm, cu, cv_from_top, wrap=True):
-    """Stamp height map hm (centre at column cu, row cv) into tex with max()."""
-    H, W = hm.shape
-    r0 = int(cv_from_top - H / 2)
-    c0 = int(cu - W / 2)
-    for r in range(H):
-        rr = r0 + r
-        if not 0 <= rr < tex.shape[0]:
-            continue
-        cols = (np.arange(W) + c0)
-        if wrap:
-            cols %= tex.shape[1]
-            tex[rr, cols] = np.maximum(tex[rr, cols], hm[r])
-        else:
-            ok = (cols >= 0) & (cols < tex.shape[1])
-            tex[rr, cols[ok]] = np.maximum(tex[rr, cols[ok]], hm[r][ok])
-
-
-def save_height(tex, name):
-    path = os.path.join(CARVE_DIR, name + '.png')
-    Image.fromarray((np.clip(tex, 0, 1) * 65535).astype(np.uint16)).save(path)
-    img = bpy.data.images.load(path)
-    img.colorspace_settings.name = 'Non-Color'
-    img.pack()
-    return img
-
-
-def mat_carved(name):
-    m, b = new_mat(name, srgb('#B7874F'))
-    v = b.mapping(b.coord(), scale=(6, 6, 0.25))
-    t = b.n('ShaderNodeTexWave', wave_type='RINGS', rings_direction='Z')
-    t.inputs['Scale'].default_value = 2.0
-    t.inputs['Distortion'].default_value = 6.0
-    b.l(v, t.inputs['Vector'])
-    col = b.ramp(t.outputs['Fac'], [(0.25, srgb('#AE7E48')), (0.85, srgb('#C99C66'))])
-    ao = b.n('ShaderNodeAmbientOcclusion', samples=12, only_local=True)
-    ao.inputs['Distance'].default_value = 0.05
-    b.l(col, ao.inputs['Color'])
-    shade = b.ramp(ao.outputs['AO'], [(0.0, srgb('#6A4A2C')), (1.0, (1, 1, 1, 1))])
-    col2 = b.mix(1.0, col, shade, blend='MULTIPLY')
-    b.output(b.principled(col2, rough=0.5, Coat_Weight=0.1, Coat_Roughness=0.3))
-    return m
-
-
-M_CARVED = mat_carved('carved_larch')
-
-# height maps at 3 mm per pixel of the carved surface
-PX = 0.003
-SCALE_FIG = 0.40            # carved figures ~ 75 cm tall on the columns
-HM = {n: soften(carve_heightmap(n, PX / SCALE_FIG)) for n in CARVE_GROUPS}
-
-# columns: 3 panels each, winding round the shaft
-Z0, Z1 = 0.06, P.RING_BEAM_BOT - 0.12
-R_SHAFT = P.PILLAR_D / 2 - 0.03
-CIRC = 2 * math.pi * R_SHAFT
-TW, TH = int(CIRC / PX), int((Z1 - Z0) / PX)
-LAYOUT = [[('dance', 0.10, 0.55), ('embrace', 0.55, 1.45), ('lovers', 0.25, 2.45)],
-          [('trio', 0.60, 0.55), ('lap', 0.12, 1.40), ('reach', 0.50, 2.40)],
-          [('embrace', 0.30, 0.55), ('rest', 0.80, 1.40), ('dance', 0.25, 2.40)],
-          [('trio', 0.80, 0.55), ('lap', 0.80, 1.50), ('dance', 0.80, 2.42)]]
-for ci, a in enumerate(PILLAR_ANGLES):
-    tex = np.zeros((TH, TW))
-    for (g, u, v) in LAYOUT[ci % len(LAYOUT)]:
-        place(tex, HM[g], u * TW, TH - v / PX)
-    img = save_height(soften(tex, 1), 'column_%d' % ci)
-    # UV cylinder
+# Switched off: reliefs made from the placeholder mannequins were not good enough.
+# Figurative carvings need an artist's drawings; until then the columns get a plain casing.
+CARVINGS = False
+if not CARVINGS:
     bm = bmesh.new()
-    uvl = bm.loops.layers.uv.new('UVMap')
-    NS, NZ = 180, 620
-    c = pol(P.R_PILLAR, a)
-    rows = []
-    for i in range(NZ + 1):
-        z = Z0 + (Z1 - Z0) * i / NZ
-        rows.append([bm.verts.new((c.x + R_SHAFT * math.cos(2 * math.pi * j / NS),
-                                   c.y + R_SHAFT * math.sin(2 * math.pi * j / NS), z)) for j in range(NS)])
-    for i in range(NZ):
-        for j in range(NS):
-            j2 = (j + 1) % NS
-            f = bm.faces.new((rows[i][j], rows[i][j2], rows[i + 1][j2], rows[i + 1][j]))
-            for lp, (uu, vv) in zip(f.loops, ((j, i), (j + 1, i), (j + 1, i + 1), (j, i + 1))):
-                lp[uvl].uv = (uu / NS, vv / NZ)
-    ob = mk_obj('column_carved_%d' % ci, bm, M_CARVED, 'structure', smooth=True, recalc=False)
-    for p_ in ob.data.polygons:
-        if (Vector(p_.center) - Vector((c.x, c.y, p_.center[2]))).dot(Vector(p_.normal)) < 0:
-            p_.flip()
-    tx_ = bpy.data.textures.new('carve_col_%d' % ci, 'IMAGE')
-    tx_.image = img
-    tx_.extension = 'REPEAT'
-    dm = ob.modifiers.new('carving', 'DISPLACE')
-    dm.texture = tx_
-    dm.texture_coords = 'UV'
-    dm.strength = 0.048
-    dm.mid_level = 0.0
+    for a in PILLAR_ANGLES:
+        c = pol(P.R_PILLAR, a)
+        cyl(bm, (c.x, c.y, P.RING_BEAM_BOT / 2), P.PILLAR_D / 2, P.RING_BEAM_BOT - 0.1, segs=48,
+            r2=P.PILLAR_D / 2 - 0.015)
+    mk_obj('column_casings', bm, M_WOOD_STAVE, 'structure', smooth=True)
+else:
+    import numpy as np  # noqa: E402
+    from mathutils.bvhtree import BVHTree  # noqa: E402
+    from PIL import Image  # noqa: E402
 
-# grazing accent light on each carved column (evening)
-for ci, a in enumerate(PILLAR_ANGLES):
-    li = bpy.data.lights.new('carving_spot_%d' % ci, 'SPOT')
-    li.energy = 0.0
-    li.spot_size = rad(32)
-    li.spot_blend = 0.6
-    li.color = (1.0, 0.80, 0.60)
-    li.shadow_soft_size = 0.03
-    lo = bpy.data.objects.new('carving_spot_%d' % ci, li)
-    c = pol(P.R_PILLAR, a)
-    src = pol(P.R_PILLAR + 0.75, a - 9, P.CEIL_GF - 0.28)
-    lo.location = src
-    lo.rotation_euler = (Vector((c.x, c.y, 1.5)) - src).to_track_quat('-Z', 'Y').to_euler()
-    lo['lantern_power'] = 120.0
-    coll('night_lights').objects.link(lo)
-
-# entrance arch on the inside of the hall door (face 0): the figures rise up the jambs and
-# meet as lovers at the top
-KA = P.ENTRY_SLOT
-AW, AH = 2.70, 3.30
-ATW, ATH = int(AW / PX), int(AH / PX)
-tex = np.zeros((ATH, ATW))
-hm_reach = soften(carve_heightmap('reach', PX / 0.82))
-hm_dance = soften(carve_heightmap('dance', PX / 0.70))
-place(tex, hm_reach, (0.225) / PX, ATH - (0.25 + hm_reach.shape[0] * PX / 2) / PX, wrap=False)
-place(tex, hm_reach[:, ::-1], (AW - 0.225) / PX, ATH - (0.25 + hm_reach.shape[0] * PX / 2) / PX, wrap=False)
-hm_top = soften(carve_heightmap('lovers', PX / 0.62))
-place(tex, hm_top, ATW / 2, ATH - 3.07 / PX, wrap=False)
-img = save_height(soften(tex, 1), 'entrance_arch')
-arr = np.array(Image.open(os.path.join(CARVE_DIR, 'entrance_arch.png')), dtype=np.float64) / 65535.0
+    CARVE_DIR = os.path.join(HERE, 'carvings')
+    os.makedirs(CARVE_DIR, exist_ok=True)
 
 
-def in_band(t, z):
-    outer = abs(t) <= AW / 2 and (z <= 2.35 or (abs(t) < AW / 2 and
-                                                  z <= 2.35 + 0.95 * math.sqrt(max(0, 1 - (t / (AW / 2)) ** 2))))
-    inner = abs(t) < 0.9 and (z < 2.35 or z < 2.35 + 0.55 * math.sqrt(max(0, 1 - (t / 0.9) ** 2)))
-    return outer and not inner
+    def _arms(p, **kw):
+        for k_, v_ in kw.items():
+            p[k_] = v_
+        return p
 
 
-bm = bmesh.new()
-STEP = 0.012
-NT, NZ_ = int(AW / STEP), int(AH / STEP)
-grid = {}
-nd0 = P.R_IN - 0.13
-for i in range(NT + 1):
-    for j in range(NZ_ + 1):
-        t = -AW / 2 + i * STEP
-        z = j * STEP
-        col_ = min(int((t + AW / 2) / PX), ATW - 1)
-        row_ = min(int((AH - z) / PX), ATH - 1)
-        h = arr[row_, col_]
-        grid[i, j] = (t, z, h)
-vmap = {}
-for i in range(NT):
-    for j in range(NZ_):
-        tc = -AW / 2 + (i + 0.5) * STEP
-        zc_ = (j + 0.5) * STEP
-        if not in_band(tc, zc_):
-            continue
-        quad = []
-        for (a_, b_) in ((i, j), (i, j + 1), (i + 1, j + 1), (i + 1, j)):
-            if (a_, b_) not in vmap:
-                t, z, h = grid[a_, b_]
-                vmap[a_, b_] = bm.verts.new(FP(KA, nd0 - 0.055 * h, t, z))
-            quad.append(vmap[a_, b_])
-        bm.faces.new(quad)
-arch = mk_obj('entrance_arch_carved', bm, M_CARVED, 'structure', smooth=True, recalc=False)
-for side in (-1, 1):
-    li = bpy.data.lights.new('arch_spot_%d' % side, 'SPOT')
-    li.energy = 0.0
-    li.spot_size = rad(45)
-    li.spot_blend = 0.5
-    li.color = (1.0, 0.80, 0.60)
-    li.shadow_soft_size = 0.03
-    lo = bpy.data.objects.new('arch_spot_%d' % side, li)
-    src = FP(KA, P.R_IN - 0.55, side * 0.9, P.CEIL_GF - 0.25)
-    lo.location = src
-    lo.rotation_euler = (FP(KA, P.R_IN - 0.12, side * 1.1, 1.3) - src).to_track_quat('-Z', 'Y').to_euler()
-    lo['lantern_power'] = 90.0
-    coll('night_lights').objects.link(lo)
-so = arch.modifiers.new('solid', 'SOLIDIFY')
-so.thickness = 0.10
-so.offset = -1.0
+    def pose_embrace():
+        return _arms(mirror_pose(STAND), head=(0, 0.07, 1.61),
+                     le=(0.21, 0.20, 1.24), lw=(0.12, 0.38, 1.30), lh=(0.06, 0.42, 1.31),
+                     re=(-0.21, 0.20, 1.16), rw=(-0.12, 0.36, 1.04), rh=(-0.06, 0.40, 1.02))
+
+
+    def pose_dance():
+        return _arms(mirror_pose(STAND), pelvis=(0.04, 0, 0.95), head=(-0.03, 0.02, 1.62),
+                     le=(0.30, 0.05, 1.66), lw=(0.24, 0.06, 1.92), lh=(0.21, 0.06, 2.0),
+                     re=(-0.45, 0.02, 1.40), rw=(-0.68, 0.05, 1.50), rh=(-0.75, 0.05, 1.53),
+                     rk=(-0.16, 0.14, 0.52), ra=(-0.12, -0.04, 0.16), rt=(-0.12, 0.08, 0.06))
+
+
+    def pose_reach():
+        return _arms(mirror_pose(STAND), head=(0, 0.0, 1.63),
+                     le=(0.20, 0.03, 1.72), lw=(0.15, 0.05, 1.97), lh=(0.12, 0.05, 2.05),
+                     re=(-0.20, 0.03, 1.72), rw=(-0.15, 0.05, 1.97), rh=(-0.12, 0.05, 2.05))
+
+
+    def pose_shoulders(side):
+        p = mirror_pose(STAND)
+        if side in ('mid', 'l'):   # right arm over the neighbour's shoulder (towards -x)
+            _arms(p, re=(-0.34, 0.02, 1.38), rw=(-0.56, 0.02, 1.42), rh=(-0.62, 0.02, 1.43))
+        if side in ('mid', 'r'):
+            _arms(p, le=(0.34, 0.02, 1.38), lw=(0.56, 0.02, 1.42), lh=(0.62, 0.02, 1.43))
+        return p
+
+
+    CARVE_GROUPS = {
+        # name: (view axis, [(pose, location, rz)])
+        'embrace': ('X', [(pose_embrace(), (0, 0, 0), 0), (pose_embrace(), (0, 0.30, 0), 180)]),
+        'dance': ('Y', [(pose_dance(), (0, 0, 0), 0)]),
+        'reach': ('Y', [(pose_reach(), (0, 0, 0), 0)]),
+        'trio': ('Y', [(pose_shoulders('l'), (0.46, 0, 0), 0), (pose_shoulders('mid'), (0, 0, 0), 0),
+                       (pose_shoulders('r'), (-0.46, 0, 0), 0)]),
+        'lap': ('X', [(pose_sit_cross(), (0, 0, 0), 0), (pose_sit_knees(), (0, 0.40, 0.10), 180)]),
+        'lovers': ('X', [(pose_lie_back('open'), (0, 0, 0), 0), (pose_lie_side(), (0.30, 0.25, 0.06), 0)]),
+        'rest': ('X', [(pose_sit_lean(), (0, 0, 0), 0), (pose_lie_back('head'), (0, 0.62, 0.0), 180)]),
+    }
+
+
+    def carve_heightmap(name, px):
+        axis, members = CARVE_GROUPS[name]
+        obs = [figure('carve_%s_%d' % (name, i), pose, loc, rz=rz, parent_coll='tmp')
+               for i, (pose, loc, rz) in enumerate(members)]
+        bpy.context.view_layer.update()
+        verts, polys = [], []
+        for ob in obs:
+            off = len(verts)
+            mw = ob.matrix_world
+            verts += [mw @ v.co for v in ob.data.vertices]
+            polys += [[off + i for i in p.vertices] for p in ob.data.polygons]
+        tree = BVHTree.FromPolygons(verts, polys)
+        ia, ib, idp = (1, 2, 0) if axis == 'X' else (0, 2, 1)
+        lo = [min(v[i] for v in verts) for i in range(3)]
+        hi = [max(v[i] for v in verts) for i in range(3)]
+        W = int((hi[ia] - lo[ia]) / px) + 4
+        H = int((hi[ib] - lo[ib]) / px) + 4
+        depth = np.full((H, W), np.nan)
+        d = [0.0, 0.0, 0.0]
+        d[idp] = 1.0
+        d = Vector(d)
+        for r in range(H):
+            zb = hi[ib] - (r - 2) * px
+            for c in range(W):
+                o = [0.0, 0.0, 0.0]
+                o[ia] = lo[ia] + (c - 2) * px
+                o[ib] = zb
+                o[idp] = lo[idp] - 1.0
+                hit = tree.ray_cast(Vector(o), d)
+                if hit[0] is not None:
+                    depth[r, c] = hit[3]
+        for ob in obs:
+            bpy.data.objects.remove(ob)
+        m = ~np.isnan(depth)
+        # nearer = higher, over a fixed 0.45 m depth range (so single bodies keep their volume)
+        dn = np.clip((depth - np.nanmin(depth)) / 0.45, 0, 1)
+        h = np.where(m, 0.45 + 0.55 * (1.0 - dn), 0.0)
+        # rounded edges like a carved relief: distance to the silhouette edge (in px)
+        dist = np.where(m, 1.0, 0.0)
+        acc = dist.copy()
+        cur = m.copy()
+        R = max(3, int(0.05 / px))
+        for i in range(R):
+            cur = cur & np.roll(cur, 1, 0) & np.roll(cur, -1, 0) & np.roll(cur, 1, 1) & np.roll(cur, -1, 1)
+            acc += cur
+        rnd = np.sqrt(1 - (1 - np.clip(acc / R, 0, 1)) ** 2)
+        return h * rnd
+
+
+    def soften(a, it=2):
+        for _ in range(it):
+            a = (a + np.roll(a, 1, 0) + np.roll(a, -1, 0) + np.roll(a, 1, 1) + np.roll(a, -1, 1)) / 5.0
+        return a
+
+
+    def place(tex, hm, cu, cv_from_top, wrap=True):
+        """Stamp height map hm (centre at column cu, row cv) into tex with max()."""
+        H, W = hm.shape
+        r0 = int(cv_from_top - H / 2)
+        c0 = int(cu - W / 2)
+        for r in range(H):
+            rr = r0 + r
+            if not 0 <= rr < tex.shape[0]:
+                continue
+            cols = (np.arange(W) + c0)
+            if wrap:
+                cols %= tex.shape[1]
+                tex[rr, cols] = np.maximum(tex[rr, cols], hm[r])
+            else:
+                ok = (cols >= 0) & (cols < tex.shape[1])
+                tex[rr, cols[ok]] = np.maximum(tex[rr, cols[ok]], hm[r][ok])
+
+
+    def save_height(tex, name):
+        path = os.path.join(CARVE_DIR, name + '.png')
+        Image.fromarray((np.clip(tex, 0, 1) * 65535).astype(np.uint16)).save(path)
+        img = bpy.data.images.load(path)
+        img.colorspace_settings.name = 'Non-Color'
+        img.pack()
+        return img
+
+
+    def mat_carved(name):
+        m, b = new_mat(name, srgb('#B7874F'))
+        v = b.mapping(b.coord(), scale=(6, 6, 0.25))
+        t = b.n('ShaderNodeTexWave', wave_type='RINGS', rings_direction='Z')
+        t.inputs['Scale'].default_value = 2.0
+        t.inputs['Distortion'].default_value = 6.0
+        b.l(v, t.inputs['Vector'])
+        col = b.ramp(t.outputs['Fac'], [(0.25, srgb('#AE7E48')), (0.85, srgb('#C99C66'))])
+        ao = b.n('ShaderNodeAmbientOcclusion', samples=12, only_local=True)
+        ao.inputs['Distance'].default_value = 0.05
+        b.l(col, ao.inputs['Color'])
+        shade = b.ramp(ao.outputs['AO'], [(0.0, srgb('#6A4A2C')), (1.0, (1, 1, 1, 1))])
+        col2 = b.mix(1.0, col, shade, blend='MULTIPLY')
+        b.output(b.principled(col2, rough=0.5, Coat_Weight=0.1, Coat_Roughness=0.3))
+        return m
+
+
+    M_CARVED = mat_carved('carved_larch')
+
+    # height maps at 3 mm per pixel of the carved surface
+    PX = 0.003
+    SCALE_FIG = 0.40            # carved figures ~ 75 cm tall on the columns
+    HM = {n: soften(carve_heightmap(n, PX / SCALE_FIG)) for n in CARVE_GROUPS}
+
+    # columns: 3 panels each, winding round the shaft
+    Z0, Z1 = 0.06, P.RING_BEAM_BOT - 0.12
+    R_SHAFT = P.PILLAR_D / 2 - 0.03
+    CIRC = 2 * math.pi * R_SHAFT
+    TW, TH = int(CIRC / PX), int((Z1 - Z0) / PX)
+    LAYOUT = [[('dance', 0.10, 0.55), ('embrace', 0.55, 1.45), ('lovers', 0.25, 2.45)],
+              [('trio', 0.60, 0.55), ('lap', 0.12, 1.40), ('reach', 0.50, 2.40)],
+              [('embrace', 0.30, 0.55), ('rest', 0.80, 1.40), ('dance', 0.25, 2.40)],
+              [('trio', 0.80, 0.55), ('lap', 0.80, 1.50), ('dance', 0.80, 2.42)]]
+    for ci, a in enumerate(PILLAR_ANGLES):
+        tex = np.zeros((TH, TW))
+        for (g, u, v) in LAYOUT[ci % len(LAYOUT)]:
+            place(tex, HM[g], u * TW, TH - v / PX)
+        img = save_height(soften(tex, 1), 'column_%d' % ci)
+        # UV cylinder
+        bm = bmesh.new()
+        uvl = bm.loops.layers.uv.new('UVMap')
+        NS, NZ = 180, 620
+        c = pol(P.R_PILLAR, a)
+        rows = []
+        for i in range(NZ + 1):
+            z = Z0 + (Z1 - Z0) * i / NZ
+            rows.append([bm.verts.new((c.x + R_SHAFT * math.cos(2 * math.pi * j / NS),
+                                       c.y + R_SHAFT * math.sin(2 * math.pi * j / NS), z)) for j in range(NS)])
+        for i in range(NZ):
+            for j in range(NS):
+                j2 = (j + 1) % NS
+                f = bm.faces.new((rows[i][j], rows[i][j2], rows[i + 1][j2], rows[i + 1][j]))
+                for lp, (uu, vv) in zip(f.loops, ((j, i), (j + 1, i), (j + 1, i + 1), (j, i + 1))):
+                    lp[uvl].uv = (uu / NS, vv / NZ)
+        ob = mk_obj('column_carved_%d' % ci, bm, M_CARVED, 'structure', smooth=True, recalc=False)
+        for p_ in ob.data.polygons:
+            if (Vector(p_.center) - Vector((c.x, c.y, p_.center[2]))).dot(Vector(p_.normal)) < 0:
+                p_.flip()
+        tx_ = bpy.data.textures.new('carve_col_%d' % ci, 'IMAGE')
+        tx_.image = img
+        tx_.extension = 'REPEAT'
+        dm = ob.modifiers.new('carving', 'DISPLACE')
+        dm.texture = tx_
+        dm.texture_coords = 'UV'
+        dm.strength = 0.048
+        dm.mid_level = 0.0
+
+    # grazing accent light on each carved column (evening)
+    for ci, a in enumerate(PILLAR_ANGLES):
+        li = bpy.data.lights.new('carving_spot_%d' % ci, 'SPOT')
+        li.energy = 0.0
+        li.spot_size = rad(32)
+        li.spot_blend = 0.6
+        li.color = (1.0, 0.80, 0.60)
+        li.shadow_soft_size = 0.03
+        lo = bpy.data.objects.new('carving_spot_%d' % ci, li)
+        c = pol(P.R_PILLAR, a)
+        src = pol(P.R_PILLAR + 0.75, a - 9, P.CEIL_GF - 0.28)
+        lo.location = src
+        lo.rotation_euler = (Vector((c.x, c.y, 1.5)) - src).to_track_quat('-Z', 'Y').to_euler()
+        lo['lantern_power'] = 120.0
+        coll('night_lights').objects.link(lo)
+
+    # entrance arch on the inside of the hall door (face 0): the figures rise up the jambs and
+    # meet as lovers at the top
+    KA = P.ENTRY_SLOT
+    AW, AH = 2.70, 3.30
+    ATW, ATH = int(AW / PX), int(AH / PX)
+    tex = np.zeros((ATH, ATW))
+    hm_reach = soften(carve_heightmap('reach', PX / 0.82))
+    hm_dance = soften(carve_heightmap('dance', PX / 0.70))
+    place(tex, hm_reach, (0.225) / PX, ATH - (0.25 + hm_reach.shape[0] * PX / 2) / PX, wrap=False)
+    place(tex, hm_reach[:, ::-1], (AW - 0.225) / PX, ATH - (0.25 + hm_reach.shape[0] * PX / 2) / PX, wrap=False)
+    hm_top = soften(carve_heightmap('lovers', PX / 0.62))
+    place(tex, hm_top, ATW / 2, ATH - 3.07 / PX, wrap=False)
+    img = save_height(soften(tex, 1), 'entrance_arch')
+    arr = np.array(Image.open(os.path.join(CARVE_DIR, 'entrance_arch.png')), dtype=np.float64) / 65535.0
+
+
+    def in_band(t, z):
+        outer = abs(t) <= AW / 2 and (z <= 2.35 or (abs(t) < AW / 2 and
+                                                      z <= 2.35 + 0.95 * math.sqrt(max(0, 1 - (t / (AW / 2)) ** 2))))
+        inner = abs(t) < 0.9 and (z < 2.35 or z < 2.35 + 0.55 * math.sqrt(max(0, 1 - (t / 0.9) ** 2)))
+        return outer and not inner
+
+
+    bm = bmesh.new()
+    STEP = 0.012
+    NT, NZ_ = int(AW / STEP), int(AH / STEP)
+    grid = {}
+    nd0 = P.R_IN - 0.13
+    for i in range(NT + 1):
+        for j in range(NZ_ + 1):
+            t = -AW / 2 + i * STEP
+            z = j * STEP
+            col_ = min(int((t + AW / 2) / PX), ATW - 1)
+            row_ = min(int((AH - z) / PX), ATH - 1)
+            h = arr[row_, col_]
+            grid[i, j] = (t, z, h)
+    vmap = {}
+    for i in range(NT):
+        for j in range(NZ_):
+            tc = -AW / 2 + (i + 0.5) * STEP
+            zc_ = (j + 0.5) * STEP
+            if not in_band(tc, zc_):
+                continue
+            quad = []
+            for (a_, b_) in ((i, j), (i, j + 1), (i + 1, j + 1), (i + 1, j)):
+                if (a_, b_) not in vmap:
+                    t, z, h = grid[a_, b_]
+                    vmap[a_, b_] = bm.verts.new(FP(KA, nd0 - 0.055 * h, t, z))
+                quad.append(vmap[a_, b_])
+            bm.faces.new(quad)
+    arch = mk_obj('entrance_arch_carved', bm, M_CARVED, 'structure', smooth=True, recalc=False)
+    for side in (-1, 1):
+        li = bpy.data.lights.new('arch_spot_%d' % side, 'SPOT')
+        li.energy = 0.0
+        li.spot_size = rad(45)
+        li.spot_blend = 0.5
+        li.color = (1.0, 0.80, 0.60)
+        li.shadow_soft_size = 0.03
+        lo = bpy.data.objects.new('arch_spot_%d' % side, li)
+        src = FP(KA, P.R_IN - 0.55, side * 0.9, P.CEIL_GF - 0.25)
+        lo.location = src
+        lo.rotation_euler = (FP(KA, P.R_IN - 0.12, side * 1.1, 1.3) - src).to_track_quat('-Z', 'Y').to_euler()
+        lo['lantern_power'] = 90.0
+        coll('night_lights').objects.link(lo)
+    so = arch.modifiers.new('solid', 'SOLIDIFY')
+    so.thickness = 0.10
+    so.offset = -1.0
 
 # remove temp collection
 tmp = COLLS.get('tmp')

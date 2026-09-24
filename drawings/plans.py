@@ -368,8 +368,8 @@ def ground_floor():
     fig, ax, tx = sheet(-13.0, 16.5, -12.0, 17.8, 'Ground floor',
                         'Open hall ≈ 290 m², octagon 20.00 m across the flats\n'
                         'Clear height 3.56 m (3.34 m under the beams)\n'
-                        'Only 4 slim columns (steel core Ø 219 in a carved\n'
-                        'Ø 30–35 cm timber casing) carry the ring beam\n'
+                        'Only 4 slim columns (steel core Ø 219 in a Ø 30 cm\n'
+                        'timber casing) carry the ring beam around the net\n'
                         'Big windows with deep window seats on 4 faces,\n'
                         'garden doors to the south\n'
                         'Annex on the N/NE faces: entrance, changing,\n'
@@ -402,10 +402,7 @@ def ground_floor():
     p = to_world(SA, 10.5, -0.95)
     label(ax, p[0], p[1], 'exit', 6.5)
     annex_plan(ax)
-    # carved entrance arch + tea / party bar
-    rect_face(ax, P.ENTRY_SLOT, P.R_IN - 0.24, P.R_IN - 0.12, -1.35, 1.35, fc=WOOD, lw=0.6, z=6)
-    p = FP(P.ENTRY_SLOT, P.R_IN - 0.75, 0)
-    label(ax, p[0], p[1], 'carved arch', 6.5)
+    # tea / party bar
     se = []
     for i in range(48):
         th = 2 * math.pi * i / 48
@@ -416,9 +413,6 @@ def ground_floor():
     poly(ax, se, fc='#E6D6BF', lw=0.6, z=4)
     p = FP(7, P.R_IN - 2.1, 0.6)
     label(ax, p[0], p[1], 'tea / party bar', 6.5, rotation=-45)
-    for i in range(P.N_PILLARS):
-        ax.add_patch(Circle(pol(P.R_PILLAR, P.PILLAR0_DEG + 90 * i), P.PILLAR_D / 2 + 0.06, fc='none', ec=INK,
-                            lw=0.4, ls=(0, (1, 1)), zorder=6))
     label(ax, 0, -1.2, 'HALL', 14, weight='bold')
     label(ax, 0, -2.0, 'open floor under the net · oak boards', 7)
     p = FP(3, P.R_IN - 1.2, 0)
@@ -426,7 +420,7 @@ def ground_floor():
     p = FP(4, P.R_IN - 1.3, 0)
     label(ax, p[0], p[1], 'garden doors', 6.5)
     p = pol(3.4, 250)
-    label(ax, p[0], p[1], 'carved column', 6.5)
+    label(ax, p[0], p[1], 'column', 6.5)
     rect_face(ax, 4, P.R_OUT + 0.6, P.R_OUT + 4.35, -3.4, 3.8, fc='#EFE5D6', lw=0.4, z=1)
     p = FP(4, P.R_OUT + 2.5, 0.2)
     label(ax, p[0], p[1], 'garden deck', 7)

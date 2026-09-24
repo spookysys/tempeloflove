@@ -18,7 +18,6 @@ specialist net maker, and the fire strategy by a fire engineer (Brandschutzplane
 | `model/tempel.blend` | Full model (Blender 5.0) with materials, lights, people; cameras are set by `render.py` |
 | `model/tempel.glb` | The same model as glTF (without the forest). Opens in Windows 3D Viewer, macOS Preview, SketchUp, Rhino, or https://gltf-viewer.donmccurdy.com. Flat colours only |
 | `drawings/*.pdf` | Ground floor, upper floor, roof terrace, section A–A (vector, 1:100 on A2), step-free access options; PNG previews next to them |
-| `model/carvings/*.png` | 16-bit height maps of the relief carvings, generated from the figures |
 | `renders/*.jpg` | Renderings (Cycles, 1600×900) |
 | `model/params.py` | **All dimensions in one place**; the model and the drawings are both generated from it |
 | `model/build_model.py`, `render.py`, `export_glb.py`, `drawings/plans.py` | Scripts to rebuild everything |
@@ -30,7 +29,7 @@ Rebuild: `pip install bpy matplotlib pillow`, then
 
 | Feedback | Change |
 |---|---|
-| Carved naked bodies: touch, embrace, being human among humans, sexuality welcome without overdoing it | The **4 columns** carry low-relief carvings, three scenes each, winding round the shaft: a couple sitting in each other's lap, lovers lying entwined, an embrace, three friends arm in arm, a dancer, a figure reaching up. A **carved arch** frames the hall entrance: two figures rise up the jambs and a pair of lovers lies across the top. The figures are sculptural and abstract, not explicit. All carvings are **inside**, so nothing is visible from outside (which matters for child protection). Small ceiling spots give them grazing light in the evening. See `11_carved_column`, `12_entrance_arch` |
+| Carved naked bodies: touch, embrace, being human among humans | **Not solved yet.** My first attempt stamped reliefs from the placeholder mannequins and looked bad, so it has been removed. The columns and the hall entrance are kept as plain timber, ready to be carved. See **Carvings** below |
 | Wheelchair access to the upper floor and terrace without a lift, if it fits in | Worked through, see **Step-free access** below and `drawings/05_step_free_access_options.pdf`. A ramp is possible, but not small |
 | This is the new Blue Saloon, used for erotic parties and overnight stays | A **tea / party bar** in the hall (curved clay counter on the windowless NE wall). The rooms are planned for overnight use (fire rules below). **Signal lanterns** at every sliding door: lit = come in / ask, dark = private. This carries the "I choose contact or withdrawal" principle of the doors into the evening |
 | ZEGG core values and awareness | An **awareness / retreat room** in the annex next to the foyer, for the awareness team and anyone who needs a quiet place. Carvings are inside only. The spaces are graded: open net and hall → walkway → rooms with open / half / closed doors |
@@ -135,6 +134,19 @@ parts and floors. The Sonderbau rules may ask for more.
 - an accessible WC (in the annex),
 - probably a lift or other step-free access to at least part of the upper floor. There is no lift yet.
 
+## Carvings
+
+The idea stays: naked bodies, touch and embrace, carved into the timber, so that sexuality is present and welcome
+without being the focus. The **4 column casings** (Ø 30 cm, 3.3 m high) and a **timber arch around the hall entrance**
+are the natural places. Both are inside, so nothing is visible from outside.
+
+Figures like these only work if they are really well drawn. That is a job for an artist, not for procedural 3D:
+1. an artist (ideally from the community) draws the figures as a band per column and as an arch composition;
+2. those drawings are carved by a woodcarver, or CNC-milled as low relief and hand-finished;
+3. the drawings can then be put back into this model for renderings.
+
+The model has a switch for this (`CARVINGS` in `build_model.py`), which maps height images onto the columns and the arch.
+
 ## Step-free access (ramp or lift?)
 
 DIN 18040-1 allows public ramps a maximum of 6 %, with a 1.50 m landing after every 6 m. That makes a ramp
@@ -157,8 +169,7 @@ short bridge from higher ground, with no ramp or lift at all. That is worth chec
 2. **Step-free access:** option C (platform lift), or is there a sloping site?
 3. **Sanitary facilities for events and overnight guests:** the upper floor has only one WC + shower. For parties and
    group use, a second one (and a small linen / laundry room) would help.
-4. **Carvings:** more of them (room door frames, the ring beam fascia, the bar front), or keep them to the columns and
-   the arch?
+4. **Carvings:** see below: who draws the figures?
 
 ## Other decisions (unchanged from v0.2, please review)
 
@@ -189,7 +200,5 @@ short bridge from higher ground, with no ramp or lift at all. That is worth chec
 | `06c_exterior_stair_side` | The north-west side: external stair and annex |
 | `09_roof_terrace` | The sun deck: daybeds, sails, privacy screen, dome |
 | `10_spiral_stair` | The spiral stair in its glass drum, seen from the hall |
-| `11_carved_column` | A carved column in the evening, grazing light, the bar behind |
-| `12_entrance_arch` | The carved arch at the hall entrance, evening |
 | `07_walkway_evening` | The walkway in the evening, lanterns glowing through the doors |
 | `08_variant_central_rope` | View 01 with the single central rope, for comparison |
