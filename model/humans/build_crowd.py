@@ -508,6 +508,20 @@ def reach_to(rig, side, target, chain=4):
     return e
 
 
+def foot_to(rig, side, target):
+    """Put a foot on something (IK over the leg)."""
+    N_IK[0] += 1
+    e = bpy.data.objects.new('ikf_%s_%d' % (rig.name, N_IK[0]), None)
+    e.location = target
+    CROWD.objects.link(e)
+    e.hide_render = True
+    c = rig.pose.bones['foot.' + side].constraints.new('IK')
+    c.target = e
+    c.chain_count = 5
+    c.use_tail = False
+    return e
+
+
 def on_back(partner, height='spine02', side=0.0, depth=0.13):
     """Point on the partner's back (for hands)."""
     return bone_w(partner, height, (side, depth, 0))
@@ -657,13 +671,15 @@ def blur_move(r, mv, face):
     r.location = loc
 
 
-def dancer(clip, i, x, y, face, kind='flow', z0=0.0, **kw):
+def dancer(clip, i, x, y, face, kind='flow', z0=0.0, lean_deg=0.0, **kw):
     fs = frames_of(clip)
     f = fs[i % len(fs)]
     r = new_person(kind, **kw)
     r['pose'] = '%s@%d' % (clip, f)
     mv = MC.key_motion(r, clip, f)
     stand(r, x, y, face)
+    if lean_deg:
+        lean(r, lean_deg)
     drop(r, z0)
     blur_move(r, mv, face)
     DANCERS.append(r)
@@ -788,6 +804,54 @@ duet('60_03', '61_03', MC.contact_frames('60_03', '61_03', 3)[1], p.x, p.y, drif
 p = pol(4.6, 95)
 duet('22_08', '23_08', MC.contact_frames('22_08', '23_08', 1)[0], p.x, p.y, 95 + 90)
 print('big group done', N[0])
+
+# -- a circle holding hands, leaning out, carrying each other's weight together --
+def hand_circle(cx, cy, n, radius, clips, lean_out=9, seed=0):
+    rg = random.Random(seed)
+    ring = []
+    for i in range(n):
+        a = 360 * i / n + rg.uniform(-8, 8)
+        p = Vector((cx, cy, 0)) + Rz(a) @ Vector((radius * rg.uniform(0.9, 1.1), 0, 0))
+        r = dancer(clips[i % len(clips)], rg.randrange(4), p.x, p.y, a + 180 + rg.uniform(-15, 15),
+                   lean_deg=-lean_out)
+        ring.append(r)
+    for i in range(n):
+        a_, b_ = ring[i], ring[(i + 1) % n]
+        pa, pb = bone_w(a_, 'wrist.L'), bone_w(b_, 'wrist.R')
+        m = (pa + pb) / 2
+        u = (pb - pa).normalized()
+        reach_to(a_, 'L', m - u * 0.075)
+        reach_to(b_, 'R', m + u * 0.075)
+    return ring
+
+
+hand_circle(*pol(7.7, 92).xy, 6, 0.95, ['49_10', '05_12', '49_16', '05_18', '55_02', '49_22'], seed=5)
+
+# -- weight structure: one low on all fours, another propped on one hand with a foot on their back,
+#    beside them two leaning into each other and a third leaning into both --
+c = pol(7.9, 205)
+s1 = standing('drednicolson_prostrate', c.x, c.y, 115, z0=0.0)
+s2 = new_person()
+pose(s2, 'elvs_pushups_1')
+stand(s2, c.x + 0.9, c.y + 0.5, 200)
+drop(s2, 0.0)
+foot_to(s2, 'R', bone_w(s1, 'spine03', (0, 0.12, 0)))
+c2 = pol(6.2, 222)
+f_ = Rz(40) @ Vector((1, 0, 0))
+l1 = standing('standing03', *(c2 - f_ * 0.4).xy, 40)
+l2 = standing('standing06', *(c2 + f_ * 0.4).xy, 220)
+for r_ in (l1, l2):
+    lean(r_, 13)
+    drop(r_, 0.0)
+for a_, b_ in ((l1, l2), (l2, l1)):
+    reach_to(a_, 'L', on_shoulder(b_, 'R'))
+    reach_to(a_, 'R', on_shoulder(b_, 'L'))
+side = Rz(40) @ Vector((0, 1, 0))
+l3 = standing('callharvey3d_standingnatural', *(c2 + side * 0.45).xy, 40 + 180 + 90)
+lean(l3, -12)
+drop(l3, 0.0)
+reach_to(l3, 'L', on_back(l1, 'spine02', 0.0, 0.12))
+reach_to(l3, 'R', on_back(l2, 'spine02', 0.0, 0.12))
 
 # -- contact improvisation: quartet, quintet, sextet, duets turning into trios, rolling on the floor --
 UNDRESS[0] = 0.35
