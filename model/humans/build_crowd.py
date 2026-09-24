@@ -233,6 +233,28 @@ def fabric(name, style, rnd):
         L(vo.outputs['Distance'], bump.inputs['Height'])
         L(bump.outputs[0], bs.inputs['Normal'])
         return m
+    if style == 'velvet':                                 # plain velvet in a strong colour
+        bs.inputs['Base Color'].default_value = _hex(rnd.choice(['#6B1E5A', '#1F3F8C', '#0F6B5C', '#B3261E', '#E0A21A',
+                                                                 '#2A1A3A', '#D25A8C', '#101010', '#F2E6D8']))
+        bs.inputs['Roughness'].default_value = 0.8
+        bs.inputs['Sheen Weight'].default_value = 1.0
+        bs.inputs['Sheen Roughness'].default_value = 0.3
+        return m
+    if style == 'rainbow':                                # rainbow gradient
+        mp = nt.nodes.new('ShaderNodeMapping')
+        mp.inputs['Scale'].default_value = (1, 3, 1)
+        L(uv, mp.inputs['Vector'])
+        sep = nt.nodes.new('ShaderNodeSeparateXYZ')
+        L(mp.outputs[0], sep.inputs[0])
+        hsv = nt.nodes.new('ShaderNodeCombineColor')
+        hsv.mode = 'HSV'
+        L(sep.outputs['Y'], hsv.inputs[0])
+        hsv.inputs[1].default_value = 0.75
+        hsv.inputs[2].default_value = 0.8
+        L(hsv.outputs[0], bs.inputs['Base Color'])
+        bs.inputs['Roughness'].default_value = 0.5
+        bs.inputs['Sheen Weight'].default_value = 0.6
+        return m
     if style == 'snake':                                  # snake skin: scales with a slight sheen
         pal = rnd.choice([('#C9B48A', '#5A4630'), ('#6E8B4A', '#1F2A14'), ('#B8B8B8', '#161616'), ('#8A2B3A', '#1A0B0E')])
         mp = nt.nodes.new('ShaderNodeMapping')
@@ -455,7 +477,7 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
     build = rnd.choice(['slim', 'average', 'full'])     # body diversity: slim / average / curvy, heavy, soft bellies
     if kind == 'flow':                       # everyone dresses how they feel: a balanced, individual mix
         w = {'flow': 0.27, 'mix': 0.22, 'everyday': 0.15, 'lungi': 0.12 if sex < 0.5 else 0.07, 'crazy': 0.08,
-             'undress': 0.14 + 0.4 * UNDRESS[0]}
+             'undress': 0.14 + 0.4 * UNDRESS[0], 'onesie': 0.07}
         u = rnd.random() * sum(w.values())
         for k_, v_ in w.items():
             if u < v_:
@@ -484,6 +506,8 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
                           rnd.choice(['elvs_crude_t-shirt_male', 'namuhekam_male_polo_shirt', 'ews_striped_shirt',
                                       'elvs_male_shirt_untucked_bd1']))
             kind = 'mix'
+        if kind == 'onesie':                 # body-tight onesie (painted on), maybe a kimono over it
+            outfit = ('mindfront_kimono',) if rnd.random() < 0.3 else ()
         if kind == 'lungi':                  # lungis / sarongs tied in different ways
             outfit = tuple(x for x in rnd.choice(LUNGI_F if sex < 0.5 else LUNGI_M) if x)
     if outfit is None:
@@ -536,7 +560,10 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
                                 rnd)
     dress_up(rig, fab)
     # skin-tight looks: bodysuits for the wild / lingerie looks, animal-print tights under skirts and dresses
-    if kind in ('crazy', 'lingerie') and rnd.random() < 0.35:
+    if kind == 'onesie':
+        body_paint(body, fabric('onesie_' + name, rnd.choice(['velvet', 'velvet', 'sequin', 'rainbow', 'snake', 'leopard',
+                                                              'fur_leopard', 'zebra']), rnd), 'full')
+    elif kind in ('crazy', 'lingerie') and rnd.random() < 0.35:
         body_paint(body, fabric('suit_' + name, rnd.choice(['snake', 'snake', 'leopard', 'zebra']), rnd), 'full')
     elif kind in ('flow', 'mix') and sex < 0.5 and rnd.random() < 0.12:
         body_paint(body, fabric('tights_' + name, rnd.choice(['leopard', 'snake', 'zebra', 'tiger']), rnd), 'legs')
