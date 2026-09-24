@@ -61,6 +61,9 @@ VIEWS = {
     '10_spiral_stair': dict(
         loc=pol(3.2, 143, 1.5), tgt=pol(7.7, 134, 1.9), lens=17,
         sun=(-60, 52), mode='day', volume=0.01, exposure=1.3),
+    '13_bathroom': dict(
+        loc=room_local(0, 6.0, -0.95, UF + 1.6), tgt=room_local(0, 9.3, 0.7, UF + 0.95), lens=17,
+        sun=(100, 40), mode='day', volume=0.0, exposure=1.8),
     '07_walkway_evening': dict(
         loc=pol(4.95, 236, UF + 1.58), tgt=pol(4.75, 292, UF + 1.05), lens=18,
         sun=(-60, 50), mode='night', volume=0.0, exposure=-0.2),

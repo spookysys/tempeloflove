@@ -31,7 +31,8 @@ FACE_OPEN = P.face_openings()
 RC = P.front_corner_radius()
 SA = P.slot_center(P.STAIR_SLOT)
 ROOM_SLOTS = [k for k in range(P.N_SLOTS) if k != P.STAIR_SLOT]
-DOOR_STATES = {0: 'half', 2: 'open', 3: 'half', 4: 'closed', 5: 'open', 6: 'closed', 7: 'half'}
+ROOMS = [k for k in ROOM_SLOTS if k != P.BATH_SLOT]
+DOOR_STATES = {0: 'closed', 2: 'open', 3: 'half', 4: 'closed', 5: 'open', 6: 'closed', 7: 'half'}
 
 
 # ---------------------------------------------------------------------------
@@ -307,73 +308,16 @@ def ext_stair(ax, level):
 
 
 # ---------------------------------------------------------------------------
-# annex on the NE + N faces
-# ---------------------------------------------------------------------------
-A0, A1 = 22.5, 112.5
-AO = P.R_OUT + P.ANNEX_D
-AC = P.R_OUT + P.ANNEX_CORR
-
-
-def annex_plan(ax, labels=True):
-    T = 0.35
-    for k, w in ((7, 3.0), (0, 3.4)):
-        for ta, tb in ((None, -w), (-w, w), (w, None)):
-            ti0 = -P.face_half(AO - T) if ta is None else ta
-            to0 = -P.face_half(AO) if ta is None else ta
-            ti1 = P.face_half(AO - T) if tb is None else tb
-            to1 = P.face_half(AO) if tb is None else tb
-            poly(ax, [FP(k, AO - T, ti0), FP(k, AO, to0), FP(k, AO, to1), FP(k, AO - T, ti1)])
-        ax.plot(*zip(FP(k, AO - 0.55, -w), FP(k, AO - 0.55, w)), color=INK, lw=0.5, ls=(0, (3, 2)), zorder=5)
-    door_r = (P.octo_r(A0, P.R_OUT) + P.octo_r(A0, AO)) / 2 + 0.6
-    for a, gaps, side in ((A0, [(door_r - 1.0, door_r + 1.0)], 1), (A1, [], -1)):
-        r0, r1 = P.octo_r(a, P.R_OUT), P.octo_r(a, AO - T)
-        pts = [r0] + [g for gp in gaps for g in gp] + [r1]
-        off = pol(T / 2, a + 90 * side)
-        for i in range(0, len(pts), 2):
-            p0, p1 = pol(pts[i], a), pol(pts[i + 1], a)
-            seg_wall(ax, (p0[0] + off[0], p0[1] + off[1]), (p1[0] + off[0], p1[1] + off[1]), T)
-    for k, holes in ((7, [(-2.9, -1.9), (-1.35, -0.45), (0.6, 1.6), (2.9, 3.9)]), (0, [(-3.2, -2.2), (-0.9, 0.9), (2.1, 3.1)])):
-        bounds = [None] + [h for hh in holes for h in hh] + [None]
-        for i in range(0, len(bounds), 2):
-            ta, tb = bounds[i], bounds[i + 1]
-            ti0 = -P.face_half(AC) if ta is None else ta
-            to0 = -P.face_half(AC + 0.12) if ta is None else ta
-            ti1 = P.face_half(AC) if tb is None else tb
-            to1 = P.face_half(AC + 0.12) if tb is None else tb
-            poly(ax, [FP(k, AC, ti0), FP(k, AC + 0.12, to0), FP(k, AC + 0.12, to1), FP(k, AC, ti1)])
-    for a in (36.5, 44.0, 101.0, 106.0, 67.5):
-        seg_wall(ax, pol(P.octo_r(a, AC + 0.12), a), pol(P.octo_r(a, AO - T), a), 0.12)
-    for a0, a1 in ((44, 67.5), (67.5, 90)):
-        for i in range(3):
-            a = a0 + 3.5 + i * (a1 - a0 - 7) / 2
-            c = pol(P.octo_r(a, AO - T) - 0.5, a)
-            ax.add_patch(Rectangle((c[0] - 0.42, c[1] - 0.42), 0.84, 0.84, fc='#DDE6E6', ec=INK, lw=0.4, zorder=3))
-    if labels:
-        rm = (AC + AO) / 2 - 0.4
-        for a, t in ((29.5, 'ENTRANCE\n& FOYER\nshoes,\ncoats'), (40.3, 'AWARE-\nNESS\nretreat'), (56, 'CHANGING 1\nlockers\n+ 3 showers'),
-                     (79, 'CHANGING 2\nlockers\n+ 3 showers'), (95.5, 'WC\n2 + acc.'), (103.5, 'clean'),
-                     (109.3, 'tech')):
-            p = pol(P.octo_r(a, rm), a)
-            label(ax, p[0], p[1], t, 6.5 if len(t) > 6 else 5.5)
-        p = FP(7, (P.R_OUT + AC) / 2, 0)
-        label(ax, p[0], p[1], 'warm corridor · towels', 6, rotation=-45)
-        pe = pol(door_r, A0 - 7)
-        ax.annotate('', xy=pol(door_r, A0 - 0.8), xytext=pe, arrowprops=dict(arrowstyle='-|>', lw=1.2, color=INK))
-        p = pol(door_r + 0.4, A0 - 11)
-        label(ax, p[0], p[1], 'main\nentrance', 7.5, weight='bold')
-
-
-# ---------------------------------------------------------------------------
 def ground_floor():
-    fig, ax, tx = sheet(-13.0, 16.5, -12.0, 17.8, 'Ground floor',
+    fig, ax, tx = sheet(-13.0, 16.5, -12.0, 15.0, 'Ground floor',
                         'Open hall ≈ 290 m², octagon 20.00 m across the flats\n'
                         'Clear height 3.56 m (3.34 m under the beams)\n'
                         'Only 4 slim columns (steel core Ø 219 in a Ø 30 cm\n'
                         'timber casing) carry the ring beam around the net\n'
-                        'Big windows with deep window seats on 4 faces,\n'
-                        'garden doors to the south\n'
-                        'Annex on the N/NE faces: entrance, changing,\n'
-                        'showers, WC, tech')
+                        'Big windows with deep window seats, garden doors\n'
+                        'to the south, tea / party bar on the NE wall\n'
+                        'Entrance on the north face with canopy, coat\n'
+                        'benches and a curtain; WCs + showers upstairs')
     ax.add_patch(Polygon(oct_pts(P.R_OUT + 0.6), closed=True, fc='none', ec='#B8AC98', lw=0.5, zorder=1))
     off = P.Z_NET_EDGE / math.tan(rad(61))
     ax.add_patch(Circle((0, off), P.R_PAD_OUT, fc=LIGHT, ec='none', alpha=0.18, zorder=1))
@@ -401,7 +345,18 @@ def ground_floor():
     label(ax, p[0], p[1], 'spiral stair in a\nglass drum (own stair\nenclosure) – up to the\nupper floor + roof', 6)
     p = to_world(SA, 10.5, -0.95)
     label(ax, p[0], p[1], 'exit', 6.5)
-    annex_plan(ax)
+    # entrance: canopy, curtain, coat benches
+    rect_face(ax, P.ENTRY_SLOT, P.R_OUT, P.R_OUT + 1.8, -1.8, 1.8, fc='none', lw=0.5, z=2, ls=(0, (3, 2)))
+    ax.plot(*zip(FP(P.ENTRY_SLOT, P.R_IN - 0.6, -1.3), FP(P.ENTRY_SLOT, P.R_IN - 0.6, 1.3)), color=INK, lw=0.8,
+            ls=(0, (1, 1)), zorder=6)
+    for side in (-1, 1):
+        rect_face(ax, P.ENTRY_SLOT, P.R_IN - 0.47, P.R_IN, side * 1.05, side * 2.05, fc='#F2E8DA', lw=0.4, z=3)
+    p = FP(P.ENTRY_SLOT, P.R_OUT + 1.2, 0)
+    label(ax, p[0], p[1], 'canopy', 6.5)
+    p = FP(P.ENTRY_SLOT, P.R_OUT + 3.3, 0)
+    label(ax, p[0], p[1], 'MAIN ENTRANCE', 8, weight='bold')
+    p = FP(P.ENTRY_SLOT, P.R_IN - 1.05, 0)
+    label(ax, p[0], p[1], 'curtain · coat benches', 6.5)
     # tea / party bar
     se = []
     for i in range(48):
@@ -430,19 +385,19 @@ def ground_floor():
     for x in (-P.R_OUT, P.R_OUT):
         ax.plot([x, x], [-11.6, -1], color=INK, lw=0.3)
     dim(ax, (0, 0), pol(P.R_PILLAR, 337.5), 'columns on Ø 8.70', size=6.5)
-    north_arrow(ax, 15.0, 15.8)
+    north_arrow(ax, 15.0, 12.8)
     scale_bar(ax, -12.8, -11.8)
     ax.plot([0.05, 0.05], [-11.9, -10.6], color=INK, lw=1.4)
-    ax.plot([0.05, 0.05], [16.9, 17.7], color=INK, lw=1.4)
+    ax.plot([0.05, 0.05], [14.0, 14.8], color=INK, lw=1.4)
     label(ax, 0.8, -11.6, 'A', 10, weight='bold')
-    label(ax, 0.8, 17.4, 'A', 10, weight='bold')
+    label(ax, 0.8, 14.5, 'A', 10, weight='bold')
     legend(fig, tx, 0.60, [('cut wall (timber frame, clay inside, larch outside)', dict(fc=POCHE)),
                            ('timber column / stair trunk', dict(fc=WOOD)),
                            ('fire-rated glass drum around the stair', dict(fc='white', ec=GLASS)),
                            ('above: ring beam, beams, stair, windows', dict(fc='white', ls='--')),
                            ('sun spot through dome + net', dict(fc=LIGHT, alpha=0.3))])
     fig.text(tx, 0.41, 'Heating & comfort\n'
-             '• Underfloor heating (low-temp., heat pump) in hall,\n   rooms, annex – floors ~26–28 °C, air ~24–26 °C\n'
+             '• Underfloor heating (low-temp., heat pump) in hall\n   and rooms – floors ~26–28 °C, air ~24–26 °C\n'
              '• Balanced ventilation with heat recovery; vents in the\n   dome crown and stair house for smoke + summer purge\n'
              '• Clay plaster buffers humidity and sound\n'
              '• Outside shading on dome and big windows\n   (summer overheating, GEG / DIN 4108-2)',
@@ -478,15 +433,56 @@ def room_furniture(ax, k):
          lw=0.6, z=6, ls=(0, (4, 2)), ec=GLASS)
 
 
+def bathroom_plan(ax, k):
+    a = P.slot_center(k)
+    ht = math.tan(rad(P.SLOT_DEG / 2))
+    e = P.PART_T / 2 / math.cos(rad(P.SLOT_DEG / 2))
+
+    def yw(x):
+        return x * ht - e
+    W = lambda x, y: to_world(a, x, y)  # noqa: E731
+    yf = -1.55
+    for xx in (6.15, 7.3, 8.45):
+        seg_wall(ax, W(xx, yf), W(xx, -yw(xx)), 0.08)
+    seg_wall(ax, W(6.15, yf), W(6.55, yf), 0.08)
+    seg_wall(ax, W(7.13, yf), W(7.47, yf), 0.08)
+    seg_wall(ax, W(8.05, yf), W(8.45, yf), 0.08)
+    for xc in (6.72, 7.87):
+        poly(ax, [W(xc - 0.19, -yw(xc) + 0.1), W(xc + 0.19, -yw(xc) + 0.1), W(xc + 0.19, -yw(xc) + 0.7),
+                  W(xc - 0.19, -yw(xc) + 0.7)], fc='white', lw=0.5, z=4)
+        p = W(xc, -yw(xc) + 1.0)
+        label(ax, p[0], p[1], 'WC', 6)
+    pts = []
+    for i in range(40):
+        th = 2 * math.pi * i / 40
+        pts.append(W(8.55 + 0.12 * math.cos(th), 1.55 + 0.95 * math.sin(th)))
+    poly(ax, pts, fc='#E6D6BF', lw=0.5, z=4)
+    poly(ax, [W(8.62, -0.9), W(P.R_IN, -0.9), W(P.R_IN, 2.1), W(8.62, 2.1)], fc='#E4ECEC', lw=0.4, z=3,
+         ls=(0, (3, 2)))
+    poly(ax, [W(9.1, -0.3), W(P.R_IN, -0.3), W(P.R_IN, 2.1), W(9.1, 2.1)], fc='#E6D6BF', lw=0.4, z=4)
+    p = W(8.9, 0.4)
+    label(ax, p[0], p[1], 'group\nshower', 6.5)
+    poly(ax, [W(5.9, yw(5.9) - 0.05), W(7.5, yw(7.5) - 0.05), W(7.5, yw(7.5) - 0.6), W(5.9, yw(5.9) - 0.6)],
+         fc=WOOD, lw=0.4, z=4)
+    for xc in (6.3, 7.1):
+        ax.add_patch(Circle(W(xc, yw(xc) - 0.33), 0.18, fc='white', ec=INK, lw=0.4, zorder=5))
+    p = W(6.7, yw(6.7) - 1.0)
+    label(ax, p[0], p[1], 'basins', 6)
+    p = W(6.35, 0.25)
+    label(ax, p[0], p[1], 'BATH\n(all gender)', 7.5, weight='bold')
+
+
 def upper_floor():
     fig, ax, tx = sheet(-13.0, 15.5, -12.3, 12.7, 'Upper floor',
                         'From the centre outwards:\n'
                         '• Net Ø 7.80 usable (opening Ø 8.50)\n'
                         '• Padded edge 0.35 m on the ring beam\n'
                         '• Ring walkway 1.10 m (up to 1.55 m at the posts)\n'
-                        '• 7 rooms, each ≈ 24 m²: 4.5 m wide at the door,\n'
+                        '• 6 rooms, each ≈ 24 m²: 4.5 m wide at the door,\n'
                         '   7.9 m at the straight outer wall, 4.1 m deep\n'
-                        '• Stair segment: spiral stair, WC + shower,\n'
+                        '• Shared bathroom (north): 2 WCs, walk-in group\n'
+                        '   shower, 2 basins – all gender\n'
+                        '• Stair segment: spiral stair, linen / laundry,\n'
                         '   door to the external stair\n'
                         'Clear height in rooms 2.60 m')
     circle(ax, P.R_DOME, ec=GLASS, lw=0.7, ls='-.', zorder=7)
@@ -513,9 +509,12 @@ def upper_floor():
             xc = x + off + 0.045
             seg_wall(ax, to_world(a, xc, yc - pw / 2), to_world(a, xc, yc + pw / 2), 0.035,
                      fc=WOOD if i == 0 else '#F3E6CC', lw=0.5, z=6)
-        room_furniture(ax, k)
-        p = to_world(a, 6.3, 1.2)
-        label(ax, p[0], p[1], 'R%d' % (idx + 1), 10, weight='bold')
+        if k == P.BATH_SLOT:
+            bathroom_plan(ax, k)
+        else:
+            room_furniture(ax, k)
+            p = to_world(a, 6.3, 1.2)
+            label(ax, p[0], p[1], 'R%d' % (ROOMS.index(k) + 1), 10, weight='bold')
         p = to_world(a, 5.85, 0.0)
         label(ax, p[0], p[1], state, 5.5, color='#6B5E55', rotation=(a + 90) % 180 - 90)
     ax.add_patch(Circle((0, 0), P.R_PAD_OUT, fc='#E7D9BF', ec=INK, lw=0.6, zorder=4))
@@ -542,7 +541,7 @@ def upper_floor():
     seg_wall(ax, to_world(SA, 6.3, -1.98), to_world(SA, 9.55, -1.98), 0.10)
     seg_wall(ax, to_world(SA, 6.3, -1.98), to_world(SA, 6.3, -2.3), 0.10)
     p = to_world(SA, 8.3, -2.8)
-    label(ax, p[0], p[1], 'WC +\nshower', 6)
+    label(ax, p[0], p[1], 'linen /\nlaundry /\nventilation', 5.5)
     p = to_world(SA, 8.3, 2.7)
     label(ax, p[0], p[1], 'to external\nstair', 6)
     dim(ax, (0, 0), pol(P.R_NET, 322), 'Ø 7.80 usable', size=6.5)
@@ -551,7 +550,7 @@ def upper_floor():
     label(ax, 0, -11.5, '20.00 across the flats', 7.5)
     north_arrow(ax, 14.0, 10.6)
     scale_bar(ax, -12.8, -12.1)
-    fig.text(tx, 0.58, 'Rooms (7 × ≈ 24 m², for 1–3 people, also overnight)\n'
+    fig.text(tx, 0.58, 'Rooms (6 × ≈ 24 m², for 1–3 people, also overnight)\n'
              '• Front: 3 shoji-type panels (oak frame, linen / paper\n   infill): closed / half (1.4 m) / open (2.9 m);\n'
              '   a small signal lantern by each door: lit = welcome /\n   ask, dark = private\n'
              '• Earthen sleeping nest under the window, clay bench,\n   sheepskins, lanterns, plants – no hotel furniture\n'
@@ -704,8 +703,12 @@ def section():
         hh = 1.80 if s < 0 else P.RAIL_H
         R(s * (P.R_OUT - 0.07), P.TERRACE_Z, s * (P.R_OUT - 0.02), P.TERRACE_Z + hh, fc='#8C6E50', lw=0.4)
         R(s * (P.R_OUT - 0.1), P.TERRACE_Z + hh, s * (P.R_OUT + 0.02), P.TERRACE_Z + hh + 0.05, fc=WOOD, lw=0.4)
-        rbox(s * 7.35, P.FFL_UF, s * 9.55, P.FFL_UF + 0.30, CLAY, 0.12)
-        rbox(s * 7.48, P.FFL_UF + 0.30, s * 9.55, P.FFL_UF + 0.49, '#F4EDE2', 0.08)
+        if s < 0:
+            rbox(s * 7.35, P.FFL_UF, s * 9.55, P.FFL_UF + 0.30, CLAY, 0.12)
+            rbox(s * 7.48, P.FFL_UF + 0.30, s * 9.55, P.FFL_UF + 0.49, '#F4EDE2', 0.08)
+        else:
+            rbox(9.1, P.FFL_UF, 9.5, P.FFL_UF + 0.45, CLAY, 0.05)
+            rbox(8.43, P.FFL_UF, 8.67, P.FFL_UF + 1.35, CLAY, 0.05)
         R(s * P.R_OUT, -0.05, s * (P.R_OUT + 0.06), 0.30, fc='#8A8076', lw=0.4)
     rbox(-9.2, P.TERRACE_Z, -7.1, P.TERRACE_Z + 0.5, '#E8D9C0', 0.06)
     ax.plot([-9.75, -6.55], [P.TERRACE_Z + 2.85, P.TERRACE_Z + 2.25], color='#9C8E80', lw=1.4)
@@ -755,19 +758,9 @@ def section():
     label(ax, -9.6, 11.9, 'sun at noon in June (~61°, Bad Belzig 52° N)', 6.5, color='#9A6B12', ha='left')
     ax.plot([0, 0], [P.Z_NET_EDGE - 0.05, zcr - 0.3], color=GLASS, lw=0.9, ls=(0, (2, 2)), zorder=5)
     label(ax, 0.15, 6.3, 'variant: single rope from\nthe crown ring (not the glass)', 6.2, color='#3F5D6C', ha='left')
-    AO_ = P.R_OUT + P.ANNEX_D
-    AC_ = P.R_OUT + P.ANNEX_CORR
-    R(P.R_OUT, P.ANNEX_H, AO_ + 0.45, P.ANNEX_H + 0.35, fc='#B79B7E')
-    ax.plot([P.R_OUT, AO_ + 0.45], [P.ANNEX_H + 0.39] * 2, color='#6B7A3A', lw=2.2)
-    R(AO_ - 0.35, 0, AO_, 2.05, fc=POCHE)
-    R(AO_ - 0.35, 2.85, AO_, P.ANNEX_H, fc=POCHE)
-    ax.plot([AO_ - 0.18] * 2, [2.05, 2.85], color=INK, lw=0.5)
-    R(P.R_OUT, -0.35, AO_, 0.0, fc='#CDBFAF')
-    ax.plot([AC_] * 2, [0, 2.4], color=INK, lw=0.5)
-    R(AC_, 2.4, AC_ + 0.12, P.ANNEX_H, fc=POCHE)
-    label(ax, (P.R_OUT + AC_) / 2, 1.5, 'corridor', 6.5, rotation=90)
-    label(ax, (AC_ + AO_) / 2, 1.3, 'changing 2 /\nshowers', 7)
-    label(ax, 7.4, P.FFL_UF + 1.9, 'room R1', 7.5)
+    R(P.R_OUT, 2.8, P.R_OUT + 1.8, 2.92, fc=WOOD, lw=0.5)
+    label(ax, P.R_OUT + 1.0, 3.15, 'canopy', 6.5)
+    label(ax, 7.4, P.FFL_UF + 1.9, 'bathroom (group shower)', 7.5)
     label(ax, -8.4, P.FFL_UF + 1.9, 'room R4', 7.5)
     label(ax, -8.3, P.CEIL_UF - 0.25, 'skylight', 6, color='#3F5D6C')
     label(ax, 5.0, 1.0, 'HALL', 10, weight='bold')

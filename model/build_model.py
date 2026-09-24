@@ -700,6 +700,12 @@ M_FROSTED = mat_frosted('frosted_glass')
 M_FUR = mat_fur('sheepskin', '#EDE3D1')
 M_SAIL = mat_translucent('sun_sail', '#EFE7D8')
 M_TERRACOTTA = mat_clay('terracotta', '#A65F3D', '#B87050', scale=4.0)
+M_TADELAKT = mat_clay('tadelakt_lime', '#C9A882', '#D6B892', scale=2.0)
+for n_ in M_TADELAKT.node_tree.nodes:
+    if n_.bl_idname == 'ShaderNodeBsdfPrincipled':
+        n_.inputs['Roughness'].default_value = 0.35
+        n_.inputs['Coat Weight'].default_value = 0.35
+M_CERAMIC = mat_simple('ceramic_white', '#EDE8DF', rough=0.15, Coat_Weight=0.4)
 M_DECK_DARK = mat_wood('oiled_larch', '#8E6A4A', '#A07A56', grain_axis='X', rough=0.6)
 
 
@@ -799,24 +805,23 @@ bm = bmesh.new()
 ring_prism(bm, OCT(P.R_OUT), OCT(P.R_OUT + 0.6), -0.05, -0.02, step=0.5)
 mk_obj('site_gravel_drip_strip', bm, M_GRAVEL, 'site')
 
-# path from the east to the annex entrance (east end of the annex)
+# path from the east, curving round to the entrance on the north face
 bm = bmesh.new()
 left, right = [], []
-p_start = pol(P.octo_r(22.5, (P.R_OUT + P.ANNEX_D / 2 + P.R_OUT) / 2 + 0.0), 22.5)
-for i in range(60):
-    t = i / 59
-    a = 22.5 - 4 - 38 * t
-    r_ = 13.2 + 24 * t ** 1.4
+for i in range(70):
+    t = i / 69
+    a = 90 - 80 * t
+    r_ = 12.2 + 26 * t ** 1.6
     left.append(bm.verts.new(pol(r_ - 0.9, a, -0.03)))
     right.append(bm.verts.new(pol(r_ + 0.9, a, -0.03)))
-for i in range(59):
+for i in range(69):
     bm.faces.new((left[i], right[i], right[i + 1], left[i + 1]))
 ob = mk_obj('site_path', bm, M_GRAVEL, 'site', recalc=False)
 for p in ob.data.polygons:
     if p.normal.z < 0:
         p.flip()
 bm = bmesh.new()
-cyl(bm, tuple(pol(14.0, 14, -0.035)), 3.2, 0.03, segs=48)
+cyl(bm, tuple(FP(P.ENTRY_SLOT, P.R_OUT + 2.4, 0, -0.035)), 3.0, 0.03, segs=48)
 mk_obj('site_forecourt', bm, M_GRAVEL, 'site')
 # garden terrace (south) in front of the garden doors
 bm = bmesh.new()
@@ -969,7 +974,7 @@ for k in range(P.N_SLOTS):
         opening_fill(k, t0, t1, z0, z1, kind)
 
 # exterior sliding lamella shutters on the room windows (open / half / closed per room)
-SHUTTER = {0: 'open', 2: 'half', 3: 'open', 4: 'open', 5: 'half', 6: 'closed', 7: 'open'}
+SHUTTER = {0: 'half', 2: 'half', 3: 'open', 4: 'open', 5: 'half', 6: 'closed', 7: 'open'}
 for k, state in SHUTTER.items():
     w = P.UF_WINDOW['w']
     sw = w / 2 + 0.06
@@ -1254,7 +1259,7 @@ for k in range(P.N_SLOTS):
 fas = mk_obj('fascia_ring', bm, M_CLAY_ROOM, 'structure')
 
 roomfronts = {}
-DOOR_STATES = {0: 'half', 2: 'open', 3: 'half', 4: 'closed', 5: 'open', 6: 'closed', 7: 'half'}
+DOOR_STATES = {0: 'closed', 2: 'open', 3: 'half', 4: 'closed', 5: 'open', 6: 'closed', 7: 'half'}
 
 
 def room_front(k, state):
@@ -1491,7 +1496,72 @@ def potted_plant(name, parent, x, y, z, h=1.1, seed=0):
     ob.parent = parent
 
 
-def room(k):
+def bathroom_fixtures(k, parent, yw, x0, xb, z):
+    """Shared bathroom (all gender): 2 WC cubicles, a walk-in group shower, 2 basins, bench."""
+    def put(name, bm, mat, smooth=False):
+        ob = mk_obj(name, bm, mat, 'furnishing', smooth=smooth)
+        ob.parent = parent
+        return ob
+    # WC cubicles along the left side (y < 0)
+    bm = bmesh.new()
+    yf = -1.55                                   # cubicle fronts
+    for xa, xb_ in ((6.15, 7.3), (7.3, 8.45)):
+        cube(bm, (xb_, (yf - yw(xb_)) / 2, z + 1.1), (0.08, abs(-yw(xb_) - yf), 2.2))    # side walls
+    cube(bm, (6.15, (yf - yw(6.15)) / 2, z + 1.1), (0.08, abs(-yw(6.15) - yf), 2.2))
+    cube(bm, (6.35, yf, z + 1.1), (0.4, 0.08, 2.2))                                   # front piers
+    cube(bm, (7.3, yf, z + 1.1), (0.34, 0.08, 2.2))
+    cube(bm, (8.25, yf, z + 1.1), (0.4, 0.08, 2.2))
+    cube(bm, (7.3, yf, z + 2.15), (2.3, 0.08, 0.1))
+    put('bath_wc_walls_%d' % k, bm, M_TADELAKT)
+    bm = bmesh.new()
+    cube(bm, (6.95, yf - 0.35, z + 1.05), (0.72, 0.04, 2.0), rz=-60)                 # doors, one ajar
+    cube(bm, (7.87, yf, z + 1.05), (0.72, 0.04, 2.0))
+    put('bath_wc_doors_%d' % k, bm, M_WOOD)
+    bm = bmesh.new()
+    for xc in (6.72, 7.87):
+        cube(bm, (xc, -yw(xc) + 0.45, z + 0.2), (0.38, 0.55, 0.4))
+        cube(bm, (xc, -yw(xc) + 0.14, z + 0.55), (0.4, 0.16, 0.5))
+    rounded(put('bath_wc_%d' % k, bm, M_CERAMIC), 0.05, 3, 1)
+    # walk-in group shower under the window: low curved tadelakt screen, bench, 3 heads
+    screen = superellipse(8.55, 1.55, 0.95, 0.12, n=2.0, rot=90)
+    extrude_outline('bath_shower_screen_%d' % k, screen, z, z + 1.35, M_TADELAKT, parent, bevel=0.05)
+    bench = superellipse(9.3, 0.9, 0.2, 1.2, n=3.0)
+    extrude_outline('bath_shower_bench_%d' % k, bench, z, z + 0.45, M_TADELAKT, parent, bevel=0.05)
+    bm = bmesh.new()
+    for yy in (-0.4, 0.5, 1.4):
+        cyl(bm, (P.R_IN - 0.06, yy, z + 1.55), 0.015, 0.8, segs=8)
+        cube(bm, (P.R_IN - 0.18, yy, z + 1.98), (0.26, 0.03, 0.03))
+        cyl(bm, (P.R_IN - 0.3, yy, z + 1.94), 0.09, 0.02, segs=24)
+    put('bath_shower_heads_%d' % k, bm, M_STEEL)
+    bm = bmesh.new()
+    cyl(bm, (8.7, 0.5, z + 0.005), 0.06, 0.01, segs=16)
+    put('bath_drain_%d' % k, bm, M_STEEL)
+    # washbasins along the right side near the door
+    top = [(xx, yw(xx) - 0.05 - dy) for xx, dy in ((5.9, 0.0), (7.5, 0.0), (7.5, 0.55), (5.9, 0.55))]
+    extrude_outline('bath_counter_%d' % k, top, z + 0.82, z + 0.88, M_WOOD, parent, bevel=0.01, seg=2)
+    bm = bmesh.new()
+    for xc in (6.3, 7.1):
+        res = bmesh.ops.create_uvsphere(bm, u_segments=24, v_segments=12, radius=0.2,
+                                        matrix=Matrix.Translation((xc, yw(xc) - 0.33, z + 0.95)) @
+                                        Matrix.Diagonal((1, 1, 0.45, 1)))
+    put('bath_basins_%d' % k, bm, M_CERAMIC, smooth=True)
+    bm = bmesh.new()
+    for xc in (6.3, 7.1):
+        c_ = Vector((xc, yw(xc) - 0.03, z + 1.55))
+        rot = Matrix.Rotation(rad(90), 4, 'X') @ Matrix.Rotation(rad(-P.SLOT_DEG / 2), 4, 'Y')
+        cyl(bm, c_, 0.3, 0.02, segs=40, rot=Matrix.Rotation(rad(P.SLOT_DEG / 2), 4, 'Z') @ Matrix.Rotation(rad(90), 4, 'X'))
+    put('bath_mirrors_%d' % k, bm, M_GLASS)
+    for i, xx in enumerate((6.4, 7.4)):
+        cushion('bath_towels_%d_%d' % (k, i), parent, (xx, 0.2 + 0.1 * i, z + 0.46), (0.5, 0.35, 0.12),
+                M_WOOL['cream'])
+    bm = bmesh.new()
+    cube(bm, (6.9, 0.25, z + 0.2), (1.4, 0.45, 0.4))
+    rounded(put('bath_bench_%d' % k, bm, M_WOOD), 0.02, 2, 0)
+    potted_plant('bath_plant_%d' % k, parent, 9.1, -3.1, z, h=1.1, seed=5)
+    lantern('bath_pendant_%d' % k, (7.2, 0.3, P.CEIL_UF - 0.7), 0.26, 0.4, parent=parent, cord=P.CEIL_UF)
+
+
+def room(k, bath=False):
     a = P.slot_center(k)
     parent = bpy.data.objects.new('room_%d' % k, None)
     coll('rooms').objects.link(parent)
@@ -1507,7 +1577,7 @@ def room(k):
 
     # floor
     poly_obj('room_floor_%d' % k, [(x0, -yw(x0)), (xb + 0.02, -yw(xb) - 0.1), (xb + 0.02, yw(xb) + 0.1),
-                                    (x0, yw(x0))], z, M_FLOOR_ROOM, parent, 'rooms')
+                                    (x0, yw(x0))], z, M_TADELAKT if bath else M_FLOOR_ROOM, parent, 'rooms')
     # ceiling with a skylight well
     sx0, sx1 = P.SKYLIGHT['u'] - P.SKYLIGHT['d'] / 2, P.SKYLIGHT['u'] + P.SKYLIGHT['d'] / 2
     sw = P.SKYLIGHT['w'] / 2
@@ -1537,6 +1607,9 @@ def room(k):
     ob = mk_obj('skylight_frame_%d' % k, bm, M_STEEL, 'roof')
     ob.parent = parent
 
+    if bath:
+        bathroom_fixtures(k, parent, yw, x0, xb, z)
+        return parent
     pal = PALETTES[(k * 3) % len(PALETTES)]
     seed = 11 * k
     # sleeping nest: earthen plinth with soft edges under the window, mattress, skins, cushions
@@ -1607,7 +1680,7 @@ for k in range(P.N_SLOTS):
     if k == P.STAIR_SLOT:
         continue
     room_front(k, DOOR_STATES[k])
-    room(k)
+    room(k, bath=(k == P.BATH_SLOT))
 
 # ---------------------------------------------------------------------------
 # 7. helical stair around a wooden trunk: hall -> upper floor -> roof terrace
@@ -2089,80 +2162,37 @@ cyl(bm, (0, 0, (z_top + z_bot) / 2), 0.014, z_top - z_bot, segs=12)
 mk_obj('variant_central_rope', bm, M_ROPE, 'variant_central_rope')
 
 # ---------------------------------------------------------------------------
-# 9. annex against the NE and N faces: entrance, changing + showers, WC, tech
+# 9. entrance on the north face (no annex): canopy outside, curtain + coat benches inside
 # ---------------------------------------------------------------------------
-A0, A1 = 22.5, 112.5
-AO = P.R_OUT + P.ANNEX_D          # outer apothem
-AC = P.R_OUT + P.ANNEX_CORR       # corridor wall apothem
-H = P.ANNEX_H
-T = 0.35
+KE = P.ENTRY_SLOT
+RZE = P.slot_center(KE) + 90
 bm = bmesh.new()
-for k in (7, 0):
-    face_wall(bm, k, [(-3.4, 3.4, 2.05, 2.85)] if k == 0 else [(-3.0, 3.0, 2.05, 2.85)], 0.0, H,
-              nin=AO - T, nout=AO)
-# end walls along the corner rays; entrance door in the east end
-door_r = (P.octo_r(A0, P.R_OUT) + P.octo_r(A0, AO)) / 2 + 0.6
-for a, gaps in ((A0, [(door_r - 1.0, door_r + 1.0)]), (A1, [])):
-    r0, r1 = P.octo_r(a, P.R_OUT), P.octo_r(a, AO - T)
-    pts = [r0] + [g for gp in gaps for g in gp] + [r1]
-    off = pol(T / 2, a + 90 if a == A0 else a - 90)
-    for i in range(0, len(pts), 2):
-        seg_box(bm, pol(pts[i], a) + off, pol(pts[i + 1], a) + off, T, 0.0, H)
-    for g0, g1 in gaps:
-        seg_box(bm, pol(g0, a) + off, pol(g1, a) + off, T, 2.5, H)
-ann = mk_obj('annex_walls', bm, [M_CLAD, M_CLAY_ROOM], 'annex')
-def annex_mat(c, n):
-    if abs(n.z) > 0.5:
-        return 1
-    a = math.degrees(math.atan2(c.y, c.x))
-    radial = Vector((c.x, c.y, 0)).normalized()
-    ccw = Vector((-radial.y, radial.x, 0))
-    if n.dot(radial) > 0.6 and math.hypot(c.x, c.y) > P.R_OUT + P.ANNEX_D - 0.5:
-        return 0
-    if abs(a - A1) < 4 and n.dot(ccw) > 0.6:
-        return 0
-    if abs(a - A0) < 4 and n.dot(ccw) < -0.6:
-        return 0
-    return 1
-
-
-set_face_mats(ann, annex_mat)
-# corridor wall (doors) and partitions
+cube(bm, FP(KE, P.R_OUT + 0.9, 0, 2.85), (3.6, 1.8, 0.12), rz=RZE)
+for tt in (-1.6, 1.6):
+    cube(bm, FP(KE, P.R_OUT + 1.7, tt, 1.4), (0.12, 0.12, 2.8), rz=RZE)
+mk_obj('entrance_canopy', bm, M_WOOD, 'structure')
 bm = bmesh.new()
-face_wall(bm, 7, [(-2.9, -1.9, 0, 2.2), (-1.35, -0.45, 0, 2.2), (0.6, 1.6, 0, 2.2), (2.9, 3.9, 0, 2.2)], 0.0, H,
-          nin=AC, nout=AC + 0.12)
-face_wall(bm, 0, [(-3.2, -2.2, 0, 2.2), (-0.9, 0.9, 0, 2.4), (2.1, 3.1, 0, 2.2)], 0.0, H, nin=AC, nout=AC + 0.12)
-for a in (36.5, 44.0, 90.0 + 11.0, 90.0 + 16.0):
-    seg_box(bm, pol(P.octo_r(a, AC + 0.12), a), pol(P.octo_r(a, AO - T), a), 0.12, 0.0, H)
-seg_box(bm, pol(P.octo_r(67.5, AC + 0.12), 67.5), pol(P.octo_r(67.5, AO - T), 67.5), 0.12, 0.0, H)
-mk_obj('annex_partitions', bm, M_CLAY_ROOM, 'annex')
-bm = bmesh.new()
-ring_prism(bm, OCT(P.R_OUT - 0.02), OCT(AO + 0.45), H, H + 0.35, a0=A0 - 0.8, a1=A1 + 0.8, step=0.5)
-aroof = mk_obj('annex_roof', bm, [M_CEIL, M_SEDUM, M_CLAD], 'annex')
-set_face_mats(aroof, lambda c, n: 1 if n.z > 0.5 else (0 if n.z < -0.5 else 2))
-bm = bmesh.new()
-ring_prism(bm, OCT(P.R_OUT), OCT(AO), -0.05, 0.0, a0=A0, a1=A1, step=0.5)
-mk_obj('annex_floor', bm, M_FLOOR_ROOM, 'annex')
-bm = bmesh.new()
-for k, w in ((7, 3.0), (0, 3.4)):
-    q = [FP(k, AO - 0.18, -w, 2.05), FP(k, AO - 0.18, w, 2.05), FP(k, AO - 0.18, w, 2.85), FP(k, AO - 0.18, -w, 2.85)]
-    bm.faces.new([bm.verts.new(p) for p in q])
-off = pol(0.2, A0 + 90)
-p0, p1 = pol(door_r - 1.0, A0) + off, pol(door_r + 1.0, A0) + off
-seg_box(bm, p0, p1, 0.02, 0.0, 2.5)
-mk_obj('annex_glass', bm, M_GLASS, 'annex')
-bm = bmesh.new()
-for zz in (0.05, 2.45):
-    seg_box(bm, p0, p1, 0.1, zz - 0.05, zz + 0.05)
-for pp in (p0, p1, (p0 + p1) / 2):
-    cube(bm, (pp.x, pp.y, 1.25), (0.1, 0.1, 2.5), rz=A0)
-mk_obj('annex_entrance_frame', bm, M_WOOD_DARK, 'annex')
-bm = bmesh.new()
-pc = pol(door_r, A0) + pol(0.9, A0 - 90)
-cube(bm, (pc.x, pc.y, 2.85), (3.2, 1.8, 0.12), rz=A0)
-mk_obj('annex_canopy', bm, M_WOOD, 'annex')
-vine('vine_annex_0', 7, -3.6, 3.0, 901)
-vine('vine_annex_1', 0, 3.8, 3.0, 902)
+prev = None
+for i in range(30):
+    s_ = i / 29
+    tt = -1.3 + 1.2 * s_
+    nd = P.R_IN - 0.6 - 0.06 * math.sin(s_ * math.pi * 8)
+    col_ = [bm.verts.new(FP(KE, nd, tt, 0.02)), bm.verts.new(FP(KE, nd, tt, 2.75))]
+    if prev:
+        bm.faces.new((prev[0], col_[0], col_[1], prev[1]))
+    prev = col_
+cube(bm, FP(KE, P.R_IN - 0.6, 0, 2.78), (2.8, 0.04, 0.04), rz=RZE)
+mk_obj('entrance_curtain', bm, M_CURTAIN, 'furnishing', smooth=True, recalc=False)
+for side in (-1, 1):
+    bm = bmesh.new()
+    cube(bm, FP(KE, P.R_IN - 0.25, side * 1.55, 0.22), (1.0, 0.45, 0.44), rz=RZE)
+    rounded(mk_obj('coat_bench_%d' % side, bm, M_WOOD, 'furnishing'), 0.02, 2, 0)
+    bm = bmesh.new()
+    cube(bm, FP(KE, P.R_IN - 0.05, side * 1.55, 1.75), (1.1, 0.06, 0.08), rz=RZE)
+    for i in range(5):
+        cyl(bm, FP(KE, P.R_IN - 0.12, side * 1.55 - 0.44 + i * 0.22, 1.72), 0.015, 0.12, segs=8,
+            rot=Matrix.Rotation(rad(P.slot_center(KE)), 4, 'Z') @ Matrix.Rotation(rad(90), 4, 'Y'))
+    mk_obj('coat_rail_%d' % side, bm, M_WOOD_DARK, 'furnishing')
 
 # ---------------------------------------------------------------------------
 # 10. hall furnishing

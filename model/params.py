@@ -158,7 +158,9 @@ EXT_LANDING = 1.40
 
 
 # --- openings in the octagon faces (face-local: t along the face, z) ---------
-ANNEX_FACES = (7, 0)       # annex built against the NE and N faces
+ANNEX_FACES = ()           # no annex (removed in v0.5)
+BAR_FACE = 7               # NE face: tea / party bar, no ground-floor windows
+BATH_SLOT = 0              # N room on the upper floor = shared bathroom (2 WC + group shower)
 SUN_FACES = (3, 4, 5)      # SW, S, SE: daybeds + 1.80 m privacy screen on the terrace
 
 
@@ -174,12 +176,14 @@ def face_openings():
             continue
         if k == ENTRY_SLOT:
             out[k].append((-ENTRY_DOOR['w'] / 2, ENTRY_DOOR['w'] / 2, 0.0, ENTRY_DOOR['h'], 'door_entry'))
+            for tc in (-2.75, 2.75):
+                out[k].append((tc - 0.65, tc + 0.65, GF_WINDOW['sill'] + 0.6, GF_WINDOW['head'], 'window_gf'))
         elif k == GARDEN_SLOT:
             w = GARDEN_DOOR['w']
             out[k] += [(-w / 2, w / 2, 0.0, GARDEN_DOOR['h'], 'door_garden'),
                        (-3.35, -2.05, GF_WINDOW['sill'], GF_WINDOW['head'], 'window_gf'),
                        (2.05, 3.35, GF_WINDOW['sill'], GF_WINDOW['head'], 'window_gf')]
-        elif k not in ANNEX_FACES:
+        elif k not in ANNEX_FACES and k != BAR_FACE:
             w = GF_WINDOW['w']
             for tc in (-1.95, 1.95):
                 out[k].append((tc - w / 2, tc + w / 2, GF_WINDOW['sill'], GF_WINDOW['head'], 'window_gf'))
