@@ -279,3 +279,54 @@ def key_duet(ra, rb, a, b, f, dt=4):
         out[clip_] = (j0, j1)
     (a0, a1), (b0, b1) = out[a], out[b]
     return b1['root'] - a1['root'], a1['root'] - a0['root'], b1['root'] - b0['root']
+
+
+# ---------------------------------------------------------------------------
+# poses reconstructed from photos (MediaPipe world landmarks) -> same retargeting
+# ---------------------------------------------------------------------------
+def photo_joints(world):
+    """MediaPipe world landmarks (metres, Z up) -> the joint names used above."""
+    W = [Vector(p) for p in world]
+    mh = (W[23] + W[24]) / 2
+    ms = (W[11] + W[12]) / 2
+    nose = W[0]
+    ears = (W[7] + W[8]) / 2
+    j = {'root': mh, 'lhipjoint': W[23], 'rhipjoint': W[24],
+         'lowerback': mh.lerp(ms, 0.3), 'upperback': mh.lerp(ms, 0.62), 'thorax': mh.lerp(ms, 0.9),
+         'lowerneck': ms, 'upperneck': ms.lerp(ears, 0.6), 'head': ears + (ears - ms).normalized() * 0.12}
+    for s_, (sh, el, wr, ix, hp, kn, an, ft) in (('l', (11, 13, 15, 19, 23, 25, 27, 31)), ('r', (12, 14, 16, 20, 24, 26, 28, 32))):
+        j.update({s_ + 'clavicle': W[sh], s_ + 'humerus': W[el], s_ + 'radius': W[wr], s_ + 'hand': W[ix],
+                  s_ + 'femur': W[kn], s_ + 'tibia': W[an], s_ + 'foot': W[ft]})
+    return j
+
+
+def apply_joints(rig, j, keep_yaw=False):
+    """Pose `rig` from a joint dict (like apply(), without a clip). Faces -Y unless keep_yaw."""
+    import bpy
+    update = lambda: bpy.context.view_layer.update()  # noqa: E731
+    yaw0 = yaw_of(j)
+    R = Matrix.Identity(3) if keep_yaw else Matrix.Rotation(-(yaw0 - math.pi / 2), 3, 'Z')
+    j = {k: R @ v for k, v in j.items()}
+    for pb in rig.pose.bones:
+        pb.rotation_mode = 'QUATERNION'
+        pb.rotation_quaternion = (1, 0, 0, 0)
+        pb.location = (0, 0, 0)
+    update()
+    P = pelvis_frame(j).to_4x4()
+    root = rig.pose.bones['root']
+    h = root.head.copy()
+    root.matrix = Matrix.Translation(h) @ P @ Matrix.Translation(-h) @ root.matrix
+    update()
+    for bn in ORDER:
+        pb = rig.pose.bones.get(bn)
+        if pb is None:
+            continue
+        a, b = SEG[bn]
+        d = (j[b] - j[a])
+        if d.length < 1e-6:
+            continue
+        q = (pb.tail - pb.head).rotation_difference(d.normalized()).to_matrix().to_4x4()
+        hd = pb.head.copy()
+        pb.matrix = Matrix.Translation(hd) @ q @ Matrix.Translation(-hd) @ pb.matrix
+        update()
+    return yaw0, j

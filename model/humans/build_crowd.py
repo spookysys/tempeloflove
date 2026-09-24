@@ -787,7 +787,45 @@ def drift(a):
 SOLO = ['05_02', '05_03', '05_04', '05_06', '05_08', '05_11', '05_12', '05_18', '49_09', '49_12', '49_14',
         '49_22', '55_01', '55_02', '111_05', '113_04', '141_12', '49_18', '05_13', '05_16']
 
+import json as _json  # noqa: E402
+PHOTO = _json.load(open(os.path.join(HUM, 'photo_poses.json')))
+PH_LOW = [i for i, p in enumerate(PHOTO) if p['kind'] == 'low']
+PH_MID = [i for i, p in enumerate(PHOTO) if p['kind'] == 'mid']
+PH_UP = [i for i, p in enumerate(PHOTO) if p['kind'] == 'upright']
+
+
+def photo_person(idx, x, y, face, z0=0.0, kind='flow', on=()):
+    """Someone in a pose reconstructed from a real photo of a jam / dance / cuddle puddle."""
+    r = new_person(kind)
+    r['pose'] = 'photo:%s#%d' % (PHOTO[idx]['photo'][:8], PHOTO[idx]['k'])
+    MC.apply_joints(r, MC.photo_joints(PHOTO[idx]['world']))
+    stand(r, x, y, face)
+    drop(r, z0, on=on)
+    return r
+
+
+def photo_pair(photo, x, y, face, z0=0.0):
+    """Two or three people exactly as they were together in one photo (relative placement from the image)."""
+    ps = [p for p in PHOTO if p['photo'] == photo]
+    s0 = sum(p['torso_m'] / max(p['torso_px'], 1) for p in ps) / len(ps)
+    cx = sum(p['hip_px'][0] for p in ps) / len(ps)
+    out = []
+    for p in ps:
+        idx = PHOTO.index(p)
+        off = Rz(face + 90) @ Vector(((p['hip_px'][0] - cx) * s0, 0, 0))
+        r = new_person()
+        r['pose'] = 'photo:%s#%d' % (p['photo'][:8], p['k'])
+        MC.apply_joints(r, MC.photo_joints(p['world']), keep_yaw=True)   # keep the photo's own facing
+        stand(r, x + off.x, y + off.y, face)
+        drop(r, z0, on=tuple(out))
+        out.append(r)
+    return out
+
+
 def floor_body(x, y, head, z0=0.0, on=(), kind='flow'):
+    rg_ = random.Random(int(x * 100 + y * 37))
+    if rg_.random() < 0.75:                  # most people on the floor: real poses from photos
+        return photo_person(rg_.choice(PH_LOW + PH_MID), x, y, head, z0, kind, on)
     """Someone on the floor: rolling, curled, spread out, rising (static library poses, laid down)."""
     choice = random.Random(int(x * 100 + y * 37)).choice(
         [('callharvey3d_sittingnatural', 'side_r'), ('callharvey3d_sittingnatural', 'side_l'),
@@ -834,8 +872,11 @@ def group(cx, cy, n_up, n_floor, spread, seed, clips=None, kinds=None, duet_clip
     for i, p in enumerate(pts[:n_up - (2 if duet_clip else 0)]):
         toward = math.degrees(math.atan2(cy - p.y, cx - p.x))
         clip_ = (clips or SOLO)[rg.randrange(len(clips or SOLO))]
-        members.append(dancer(clip_, rg.randrange(4), p.x, p.y, toward + rg.uniform(-45, 45),
-                              kind=(kinds[i % len(kinds)] if kinds else 'flow')))
+        kd = kinds[i % len(kinds)] if kinds else 'flow'
+        if rg.random() < 0.4:                # someone bent over / kneeling / leaning, from a real photo
+            members.append(photo_person(rg.choice(PH_MID + PH_UP), p.x, p.y, toward + rg.uniform(-45, 45), kind=kd))
+        else:
+            members.append(dancer(clip_, rg.randrange(4), p.x, p.y, toward + rg.uniform(-45, 45), kind=kd))
     # weight and touch: a hand on a neighbour's back / shoulder, or reaching down to someone on the floor
     for m in members:
         near = sorted((o for o in members + floor if o is not m), key=lambda o: (o.location - m.location).length)
@@ -905,6 +946,11 @@ lie(t2, c.x, c.y, 340, 'back')
 drop(t2, 0.0, on=(t1,))
 t3 = dancer('49_12', 1, c.x + 0.7, c.y - 0.45, 120)
 reach_to(t3, 'R', bone_w(t2, 'wrist.L'))
+# pairs and trios exactly as photographed at contact jams
+from collections import Counter as _C  # noqa: E402
+_multi = [ph for ph, n in _C(p['photo'] for p in PHOTO).items() if n > 1]
+for ph, (rr, ang) in zip(_multi, ((7.0, 128), (5.6, 172), (8.0, 112), (4.9, 208), (7.9, 188))):
+    photo_pair(ph, *pol(rr, ang).xy, ang + 90)
 # rolling with each other on the floor
 roll_duet(*pol(8.0, 200).xy, 110, 0.0, style=0)
 roll_duet(*pol(5.2, 200).xy, 20, 0.0, style=1)
