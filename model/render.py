@@ -193,6 +193,20 @@ def set_event(on):
         c.hide_render = not on
 
 
+def clear_lens(v, radius=1.2):
+    """Event views: nobody standing right in front of the lens."""
+    c = bpy.data.collections.get('crowd')
+    if not c:
+        return
+    cam = Vector(v['loc'])
+    for ob in c.objects:
+        if ob.type == 'ARMATURE':
+            d = Vector((ob.location.x - cam.x, ob.location.y - cam.y)).length
+            hide = v.get('event', False) and d < radius and abs(ob.location.z - cam.z) < 2.2
+            for o in [ob] + list(ob.children_recursive):
+                o.hide_render = hide
+
+
 def camera(v):
     sc = bpy.context.scene
     cam = bpy.data.objects.get('CAM')
@@ -247,6 +261,7 @@ def render(name, v, res, samples, quick):
     sc.render.motion_blur_shutter = 0.5
     sc.frame_set(10)
     camera(v)
+    clear_lens(v)
     path = os.path.join(OUT, ('quick_' if quick else '') + name + '.png')
     sc.render.filepath = path
     bpy.ops.render.render(write_still=True)
