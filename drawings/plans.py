@@ -309,15 +309,17 @@ def ext_stair(ax, level):
 
 # ---------------------------------------------------------------------------
 def ground_floor():
-    fig, ax, tx = sheet(-13.0, 16.5, -12.0, 15.0, 'Ground floor',
+    fig, ax, tx = sheet(-13.0, 16.5, -12.0, 18.0, 'Ground floor',
                         'Open hall ≈ 290 m², octagon 20.00 m across the flats\n'
                         'Clear height 3.56 m (3.34 m under the beams)\n'
                         'Only 4 slim columns (steel core Ø 219 in a Ø 30 cm\n'
                         'timber casing) carry the ring beam around the net\n'
                         'Big windows with deep window seats, garden doors\n'
                         'to the south, tea / party bar on the NE wall\n'
-                        'Entrance on the north face with canopy, coat\n'
-                        'benches and a curtain; WCs + showers upstairs')
+                        'Small annex on the north face: foyer with coats,\n'
+                        'WC, tech. Showers + 2 WCs upstairs.\n'
+                        'Light: paper pendants, indirect uplight ledge\n'
+                        'above the windows, clay wall shells')
     ax.add_patch(Polygon(oct_pts(P.R_OUT + 0.6), closed=True, fc='none', ec='#B8AC98', lw=0.5, zorder=1))
     off = P.Z_NET_EDGE / math.tan(rad(61))
     ax.add_patch(Circle((0, off), P.R_PAD_OUT, fc=LIGHT, ec='none', alpha=0.18, zorder=1))
@@ -345,19 +347,43 @@ def ground_floor():
     label(ax, p[0], p[1], 'spiral stair in a\nglass drum (own stair\nenclosure) – up to the\nupper floor + roof', 6)
     p = to_world(SA, 10.5, -0.95)
     label(ax, p[0], p[1], 'exit', 6.5)
-    # entrance: canopy, curtain, coat benches
-    rect_face(ax, P.ENTRY_SLOT, P.R_OUT, P.R_OUT + 1.8, -1.8, 1.8, fc='none', lw=0.5, z=2, ls=(0, (3, 2)))
-    ax.plot(*zip(FP(P.ENTRY_SLOT, P.R_IN - 0.6, -1.3), FP(P.ENTRY_SLOT, P.R_IN - 0.6, 1.3)), color=INK, lw=0.8,
-            ls=(0, (1, 1)), zorder=6)
-    for side in (-1, 1):
-        rect_face(ax, P.ENTRY_SLOT, P.R_IN - 0.47, P.R_IN, side * 1.05, side * 2.05, fc='#F2E8DA', lw=0.4, z=3)
-    p = FP(P.ENTRY_SLOT, P.R_OUT + 1.2, 0)
-    label(ax, p[0], p[1], 'canopy', 6.5)
-    p = FP(P.ENTRY_SLOT, P.R_OUT + 3.3, 0)
-    label(ax, p[0], p[1], 'MAIN ENTRANCE', 8, weight='bold')
-    p = FP(P.ENTRY_SLOT, P.R_IN - 1.05, 0)
-    label(ax, p[0], p[1], 'curtain · coat benches', 6.5)
-    # tea / party bar
+    # small annex on the north face: foyer + coats, WC, tech
+    KE = P.ENTRY_SLOT
+    AO = P.R_OUT + P.ANNEX_D
+    T = 0.35
+    for ta, tb in ((None, -3.9), (-2.2, -0.9), (0.9, 2.2), (3.9, None)):
+        ti0 = -P.face_half(AO - T) if ta is None else ta
+        to0 = -P.face_half(AO) if ta is None else ta
+        ti1 = P.face_half(AO - T) if tb is None else tb
+        to1 = P.face_half(AO) if tb is None else tb
+        poly(ax, [FP(KE, AO - T, ti0), FP(KE, AO, to0), FP(KE, AO, to1), FP(KE, AO - T, ti1)])
+    for t0, t1 in ((-3.9, -2.2), (2.2, 3.9)):
+        for n in (AO - 0.15, AO - 0.2):
+            ax.plot(*zip(FP(KE, n, t0), FP(KE, n, t1)), color=INK, lw=0.5, zorder=5)
+    for a, side in ((P.partition_angle(KE), 1), (P.partition_angle(KE + 1), -1)):
+        off = pol(T / 2, a + 90 * side)
+        p0, p1 = pol(P.octo_r(a, P.R_OUT), a), pol(P.octo_r(a, AO - T), a)
+        seg_wall(ax, (p0[0] + off[0], p0[1] + off[1]), (p1[0] + off[0], p1[1] + off[1]), T)
+    for tt in (-2.6, 2.6):
+        seg_wall(ax, FP(KE, P.R_OUT, tt), FP(KE, P.R_OUT + 3.1, tt), 0.12)
+        seg_wall(ax, FP(KE, P.R_OUT + 4.0, tt), FP(KE, AO - T, tt), 0.12)
+        rect_face(ax, KE, P.R_OUT + 1.3, P.R_OUT + 3.3, tt * 0.9 - 0.22, tt * 0.9 + 0.22, fc='#F2E8DA', lw=0.4, z=3)
+    rect_face(ax, KE, AO, AO + 1.8, -1.8, 1.8, fc='none', lw=0.5, z=2, ls=(0, (3, 2)))
+    ax.plot(*zip(FP(KE, P.R_IN - 0.6, -1.3), FP(KE, P.R_IN - 0.6, 1.3)), color=INK, lw=0.8, ls=(0, (1, 1)), zorder=6)
+    for (n, t, txt, sz) in ((P.R_OUT + 2.5, 0, 'FOYER\ncoats, shoes', 7), (P.R_OUT + 2.6, -3.35, 'WC', 7),
+                            (P.R_OUT + 2.6, 3.35, 'tech', 7), (AO + 1.1, 0, 'canopy', 6.5),
+                            (AO + 2.9, 0, 'MAIN ENTRANCE', 8), (P.R_IN - 1.05, 0, 'curtain', 6.5)):
+        p = FP(KE, n, t)
+        label(ax, p[0], p[1], txt, sz, weight='bold' if txt.startswith('MAIN') else 'normal')
+    # lighting: paper disc pendants + uplight ledge (indirect) + clay wall shells
+    for i in range(8):
+        if i == P.STAIR_SLOT:
+            continue
+        ax.add_patch(Circle(pol(7.0, P.slot_center(i) + 11.25), 0.55, fc='none', ec='#B07A2A', lw=0.7,
+                            ls=(0, (2, 1.5)), zorder=6))
+    p = pol(7.0, P.slot_center(5) + 11.25)
+    label(ax, p[0], p[1] - 0.85, 'paper pendant', 6, color='#8A5A1A')
+    # tea / party bar    # tea / party bar
     se = []
     for i in range(48):
         th = 2 * math.pi * i / 48
@@ -385,12 +411,12 @@ def ground_floor():
     for x in (-P.R_OUT, P.R_OUT):
         ax.plot([x, x], [-11.6, -1], color=INK, lw=0.3)
     dim(ax, (0, 0), pol(P.R_PILLAR, 337.5), 'columns on Ø 8.70', size=6.5)
-    north_arrow(ax, 15.0, 12.8)
+    north_arrow(ax, 15.0, 15.8)
     scale_bar(ax, -12.8, -11.8)
     ax.plot([0.05, 0.05], [-11.9, -10.6], color=INK, lw=1.4)
-    ax.plot([0.05, 0.05], [14.0, 14.8], color=INK, lw=1.4)
+    ax.plot([0.05, 0.05], [17.0, 17.8], color=INK, lw=1.4)
     label(ax, 0.8, -11.6, 'A', 10, weight='bold')
-    label(ax, 0.8, 14.5, 'A', 10, weight='bold')
+    label(ax, 0.8, 17.5, 'A', 10, weight='bold')
     legend(fig, tx, 0.60, [('cut wall (timber frame, clay inside, larch outside)', dict(fc=POCHE)),
                            ('timber column / stair trunk', dict(fc=WOOD)),
                            ('fire-rated glass drum around the stair', dict(fc='white', ec=GLASS)),
@@ -758,8 +784,15 @@ def section():
     label(ax, -9.6, 11.9, 'sun at noon in June (~61°, Bad Belzig 52° N)', 6.5, color='#9A6B12', ha='left')
     ax.plot([0, 0], [P.Z_NET_EDGE - 0.05, zcr - 0.3], color=GLASS, lw=0.9, ls=(0, (2, 2)), zorder=5)
     label(ax, 0.15, 6.3, 'variant: single rope from\nthe crown ring (not the glass)', 6.2, color='#3F5D6C', ha='left')
-    R(P.R_OUT, 2.8, P.R_OUT + 1.8, 2.92, fc=WOOD, lw=0.5)
-    label(ax, P.R_OUT + 1.0, 3.15, 'canopy', 6.5)
+    AO_ = P.R_OUT + P.ANNEX_D
+    R(P.R_OUT, P.ANNEX_H, AO_ + 0.45, P.ANNEX_H + 0.35, fc='#B79B7E')
+    ax.plot([P.R_OUT, AO_ + 0.45], [P.ANNEX_H + 0.39] * 2, color='#6B7A3A', lw=2.2)
+    R(AO_ - 0.35, 2.4, AO_, P.ANNEX_H, fc=POCHE)
+    ax.plot([AO_ - 0.18] * 2, [0, 2.4], color=INK, lw=0.5)
+    R(P.R_OUT, -0.35, AO_, 0.0, fc='#CDBFAF')
+    R(AO_, 2.8, AO_ + 1.8, 2.92, fc=WOOD, lw=0.5)
+    label(ax, (P.R_OUT + AO_) / 2, 1.3, 'foyer', 7)
+    label(ax, AO_ + 1.0, 3.15, 'canopy', 6.5)
     label(ax, 7.4, P.FFL_UF + 1.9, 'bathroom (group shower)', 7.5)
     label(ax, -8.4, P.FFL_UF + 1.9, 'room R4', 7.5)
     label(ax, -8.3, P.CEIL_UF - 0.25, 'skylight', 6, color='#3F5D6C')

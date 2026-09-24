@@ -64,6 +64,9 @@ VIEWS = {
     '13_bathroom': dict(
         loc=room_local(0, 6.0, -0.95, UF + 1.6), tgt=room_local(0, 9.3, 0.7, UF + 0.95), lens=17,
         sun=(100, 40), mode='day', volume=0.0, exposure=1.8),
+    '14_hall_evening': dict(
+        loc=pol(8.9, 292, 1.45), tgt=Vector((-1.2, 2.2, 1.45)), lens=17,
+        sun=(-80, 47), mode='night', volume=0.0, exposure=-0.2),
     '07_walkway_evening': dict(
         loc=pol(4.95, 236, UF + 1.58), tgt=pol(4.75, 292, UF + 1.05), lens=18,
         sun=(-60, 50), mode='night', volume=0.0, exposure=-0.2),

@@ -811,7 +811,7 @@ left, right = [], []
 for i in range(70):
     t = i / 69
     a = 90 - 80 * t
-    r_ = 12.2 + 26 * t ** 1.6
+    r_ = P.R_OUT + P.ANNEX_D + 2.2 + 22 * t ** 1.6
     left.append(bm.verts.new(pol(r_ - 0.9, a, -0.03)))
     right.append(bm.verts.new(pol(r_ + 0.9, a, -0.03)))
 for i in range(69):
@@ -821,7 +821,7 @@ for p in ob.data.polygons:
     if p.normal.z < 0:
         p.flip()
 bm = bmesh.new()
-cyl(bm, tuple(FP(P.ENTRY_SLOT, P.R_OUT + 2.4, 0, -0.035)), 3.0, 0.03, segs=48)
+cyl(bm, tuple(FP(P.ENTRY_SLOT, P.R_OUT + P.ANNEX_D + 2.2, 0, -0.035)), 3.0, 0.03, segs=48)
 mk_obj('site_forecourt', bm, M_GRAVEL, 'site')
 # garden terrace (south) in front of the garden doors
 bm = bmesh.new()
@@ -1496,6 +1496,75 @@ def potted_plant(name, parent, x, y, z, h=1.1, seed=0):
     ob.parent = parent
 
 
+# --- artificial light: paper disc pendants, indirect uplight ledge, clay wall shells ---------
+def light(name, kind, loc, power, rot=None, size=None, size_y=None, spot=None, soft=0.05):
+    li = bpy.data.lights.new(name, kind)
+    li.energy = 0.0
+    li.color = (1.0, 0.80, 0.60)
+    if kind == 'AREA':
+        li.shape = 'RECTANGLE'
+        li.size = size
+        li.size_y = size_y
+    elif kind == 'SPOT':
+        li.spot_size = spot
+        li.spot_blend = 0.7
+        li.shadow_soft_size = soft
+    else:
+        li.shadow_soft_size = soft
+    lo = bpy.data.objects.new(name, li)
+    lo.location = loc
+    if rot is not None:
+        lo.rotation_euler = rot
+    lo['lantern_power'] = power
+    coll('night_lights').objects.link(lo)
+    return lo
+
+
+def paper_disc(name, center, r, h, parent=None, coll_name='furnishing', cord=None, power=70.0):
+    """Large flat paper pendant (Akari-like disc) with a light inside."""
+    bm = bmesh.new()
+    bmesh.ops.create_uvsphere(bm, u_segments=40, v_segments=16, radius=1.0)
+    for v in bm.verts:
+        a_ = math.atan2(v.co.y, v.co.x)
+        f = 1 + 0.012 * math.cos(40 * a_)
+        v.co = Vector((v.co.x * r * f, v.co.y * r * f, v.co.z * h / 2))
+    bmesh.ops.translate(bm, vec=Vector(center), verts=bm.verts[:])
+    ob = mk_obj(name, bm, M_LANTERN, coll_name, smooth=True)
+    if parent:
+        ob.parent = parent
+    if cord:
+        bm = bmesh.new()
+        cyl(bm, (center[0], center[1], (center[2] + h / 2 + cord) / 2), 0.004, cord - center[2] - h / 2, segs=6)
+        c_ = mk_obj(name + '_cord', bm, M_STEEL, coll_name)
+        if parent:
+            c_.parent = parent
+    lo = light(name + '_light', 'POINT', center, power, soft=r * 0.7)
+    if parent:
+        lo.parent = parent
+    return ob
+
+
+def clay_sconce(name, loc, facing_deg, parent=None, power=8.0, coll_name='furnishing'):
+    """Half-bowl clay wall shell; light spills up and down the wall (indirect)."""
+    bm = bmesh.new()
+    bmesh.ops.create_uvsphere(bm, u_segments=24, v_segments=12, radius=1.0)
+    for v in bm.verts:
+        v.co = Vector((max(v.co.x, 0.0) * 0.11, v.co.y * 0.17, v.co.z * 0.26))
+    M = Matrix.Translation(Vector(loc)) @ Matrix.Rotation(rad(facing_deg), 4, 'Z')
+    bmesh.ops.transform(bm, verts=bm.verts[:], matrix=M)
+    ob = mk_obj(name, bm, M_CLAY_ROOM, coll_name, smooth=True)
+    if parent:
+        ob.parent = parent
+    back = Vector(loc) - Vector((math.cos(rad(facing_deg)), math.sin(rad(facing_deg)), 0)) * -0.05
+    for dz, nm in ((0.2, 'up'), (-0.2, 'dn')):
+        lo = light(name + '_' + nm, 'SPOT', back + Vector((0, 0, dz * 0.4)), power,
+                   rot=(math.pi if dz > 0 else 0, 0, 0), spot=rad(120), soft=0.04)
+        if parent:
+            lo.parent = parent
+    return ob
+
+
+
 def bathroom_fixtures(k, parent, yw, x0, xb, z):
     """Shared bathroom (all gender): 2 WC cubicles, a walk-in group shower, 2 basins, bench."""
     def put(name, bm, mat, smooth=False):
@@ -1672,6 +1741,12 @@ def room(k, bath=False):
     ob.parent = parent
     # paper lanterns: pendant + floor lantern
     lantern('room_pendant_%d' % k, (7.0, 0.9, P.CEIL_UF - 0.8), 0.3, 0.44, parent=parent, cord=P.CEIL_UF)
+    for side in (-1, 1):
+        wa_ = side * P.SLOT_DEG / 2
+        pnt = Vector((math.cos(rad(wa_)), math.sin(rad(wa_)), 0)) * 8.3 + \
+            Vector((-math.sin(rad(wa_)), math.cos(rad(wa_)), 0)) * (-side) * (e + 0.02)
+        clay_sconce('room_sconce_%d_%d' % (k, side), (pnt.x, pnt.y, z + 1.75), wa_ - side * 90, parent=parent,
+                    power=6.0)
     lantern('room_floorlamp_%d' % k, (6.15, -1.65 if k % 2 else 1.65, z + 0.45), 0.2, 0.8, parent=parent)
     return parent
 
@@ -2162,15 +2237,91 @@ cyl(bm, (0, 0, (z_top + z_bot) / 2), 0.014, z_top - z_bot, segs=12)
 mk_obj('variant_central_rope', bm, M_ROPE, 'variant_central_rope')
 
 # ---------------------------------------------------------------------------
-# 9. entrance on the north face (no annex): canopy outside, curtain + coat benches inside
+# 9. small annex on the north face: foyer with coats + shoes, ground-floor WC, tech room
 # ---------------------------------------------------------------------------
 KE = P.ENTRY_SLOT
 RZE = P.slot_center(KE) + 90
+A0, A1 = P.partition_angle(KE), P.partition_angle(KE + 1)       # 67.5 .. 112.5
+AO = P.R_OUT + P.ANNEX_D
+H = P.ANNEX_H
+T = 0.35
+DOOR_W = 1.8
 bm = bmesh.new()
-cube(bm, FP(KE, P.R_OUT + 0.9, 0, 2.85), (3.6, 1.8, 0.12), rz=RZE)
+# outer wall with the entrance door on the axis and a window each side
+face_wall(bm, KE, [(-DOOR_W / 2, DOOR_W / 2, 0.0, 2.4), (-3.9, -2.2, 0.9, 2.5), (2.2, 3.9, 0.9, 2.5)], 0.0, H,
+          nin=AO - T, nout=AO)
+# side walls along the corner rays
+for a, side in ((A0, 1), (A1, -1)):
+    off = pol(T / 2, a + 90 * side)
+    seg_box(bm, pol(P.octo_r(a, P.R_OUT), a) + off, pol(P.octo_r(a, AO - T), a) + off, T, 0.0, H)
+ann = mk_obj('annex_walls', bm, [M_CLAD, M_CLAY_ROOM], 'annex')
+
+
+def annex_mat(c, n):
+    if abs(n.z) > 0.5:
+        return 1
+    a = math.degrees(math.atan2(c.y, c.x))
+    radial = Vector((c.x, c.y, 0)).normalized()
+    ccw = Vector((-radial.y, radial.x, 0))
+    if n.dot(radial) > 0.6 and math.hypot(c.x, c.y) > AO - 0.5:
+        return 0
+    if abs(a - A1) < 4 and n.dot(ccw) > 0.6:
+        return 0
+    if abs(a - A0) < 4 and n.dot(ccw) < -0.6:
+        return 0
+    return 1
+
+
+set_face_mats(ann, annex_mat)
+# partitions: WC (east end) and tech (west end), doors from the foyer
+bm = bmesh.new()
+for tt, gap in ((-2.6, (P.R_OUT + 3.1, P.R_OUT + 4.0)), (2.6, (P.R_OUT + 3.1, P.R_OUT + 4.0))):
+    for n0, n1 in ((P.octo_r(0, P.R_OUT), gap[0]), (gap[1], AO - T)):
+        seg_box(bm, FP(KE, n0, tt), FP(KE, n1, tt), 0.12, 0.0, H)
+    seg_box(bm, FP(KE, gap[0], tt), FP(KE, gap[1], tt), 0.12, 2.1, H)
+mk_obj('annex_partitions', bm, M_CLAY_ROOM, 'annex')
+bm = bmesh.new()
+ring_prism(bm, OCT(P.R_OUT - 0.02), OCT(AO + 0.45), H, H + 0.35, a0=A0 - 0.8, a1=A1 + 0.8, step=0.5)
+aroof = mk_obj('annex_roof', bm, [M_CEIL, M_SEDUM, M_CLAD], 'annex')
+set_face_mats(aroof, lambda c, n: 1 if n.z > 0.5 else (0 if n.z < -0.5 else 2))
+bm = bmesh.new()
+ring_prism(bm, OCT(P.R_OUT), OCT(AO), -0.05, 0.0, a0=A0, a1=A1, step=0.5)
+mk_obj('annex_floor', bm, M_FLOOR_ROOM, 'annex')
+bm = bmesh.new()
+for t0, t1 in ((-3.9, -2.2), (2.2, 3.9)):
+    q = [FP(KE, AO - 0.18, t0, 0.9), FP(KE, AO - 0.18, t1, 0.9), FP(KE, AO - 0.18, t1, 2.5), FP(KE, AO - 0.18, t0, 2.5)]
+    bm.faces.new([bm.verts.new(p_) for p_ in q])
+q = [FP(KE, AO - 0.18, -DOOR_W / 2, 0), FP(KE, AO - 0.18, DOOR_W / 2, 0), FP(KE, AO - 0.18, DOOR_W / 2, 2.4),
+     FP(KE, AO - 0.18, -DOOR_W / 2, 2.4)]
+bm.faces.new([bm.verts.new(p_) for p_ in q])
+mk_obj('annex_glass', bm, M_GLASS, 'annex', recalc=False)
+bm = bmesh.new()
+for tt in (-DOOR_W / 2, 0.0, DOOR_W / 2):
+    cube(bm, FP(KE, AO - 0.18, tt, 1.2), (0.1, 0.1, 2.4), rz=RZE)
+cube(bm, FP(KE, AO - 0.18, 0, 2.42), (DOOR_W + 0.1, 0.1, 0.1), rz=RZE)
+mk_obj('annex_entrance_frame', bm, M_WOOD_DARK, 'annex')
+bm = bmesh.new()
+cube(bm, FP(KE, AO + 0.9, 0, 2.85), (3.6, 1.8, 0.12), rz=RZE)
 for tt in (-1.6, 1.6):
-    cube(bm, FP(KE, P.R_OUT + 1.7, tt, 1.4), (0.12, 0.12, 2.8), rz=RZE)
-mk_obj('entrance_canopy', bm, M_WOOD, 'structure')
+    cube(bm, FP(KE, AO + 1.7, tt, 1.4), (0.12, 0.12, 2.8), rz=RZE)
+mk_obj('annex_canopy', bm, M_WOOD, 'annex')
+bm = bmesh.new()
+cube(bm, FP(KE, P.R_OUT + 1.2, -3.4, 0.2), (0.55, 0.38, 0.4), rz=RZE)
+cube(bm, FP(KE, P.R_OUT + 0.9, -3.4, 0.55), (0.16, 0.4, 0.5), rz=RZE)
+cube(bm, FP(KE, P.R_OUT + 4.1, -3.3, 0.85), (0.4, 0.5, 0.12), rz=RZE)
+rounded(mk_obj('annex_wc_fixtures', bm, M_CERAMIC, 'annex'), 0.04, 3, 1)
+vine('vine_annex_0', KE, -4.5, 3.0, 901)
+vine('vine_annex_1', KE, 4.6, 3.0, 902)
+# foyer: coat benches with rails and shoe shelves along both side partitions
+for side in (-1, 1):
+    tt = side * 2.35
+    bm = bmesh.new()
+    cube(bm, FP(KE, P.R_OUT + 2.3, tt, 0.22), (2.0, 0.45, 0.44), rz=P.slot_center(KE))
+    rounded(mk_obj('coat_bench_%d' % side, bm, M_WOOD, 'annex'), 0.02, 2, 0)
+    bm = bmesh.new()
+    cube(bm, FP(KE, P.R_OUT + 2.3, side * 2.52, 1.75), (2.0, 0.06, 0.08), rz=P.slot_center(KE) + 90 - 90)
+    mk_obj('coat_rail_%d' % side, bm, M_WOOD_DARK, 'annex')
+# hall side of the door: heavy linen curtain
 bm = bmesh.new()
 prev = None
 for i in range(30):
@@ -2183,16 +2334,6 @@ for i in range(30):
     prev = col_
 cube(bm, FP(KE, P.R_IN - 0.6, 0, 2.78), (2.8, 0.04, 0.04), rz=RZE)
 mk_obj('entrance_curtain', bm, M_CURTAIN, 'furnishing', smooth=True, recalc=False)
-for side in (-1, 1):
-    bm = bmesh.new()
-    cube(bm, FP(KE, P.R_IN - 0.25, side * 1.55, 0.22), (1.0, 0.45, 0.44), rz=RZE)
-    rounded(mk_obj('coat_bench_%d' % side, bm, M_WOOD, 'furnishing'), 0.02, 2, 0)
-    bm = bmesh.new()
-    cube(bm, FP(KE, P.R_IN - 0.05, side * 1.55, 1.75), (1.1, 0.06, 0.08), rz=RZE)
-    for i in range(5):
-        cyl(bm, FP(KE, P.R_IN - 0.12, side * 1.55 - 0.44 + i * 0.22, 1.72), 0.015, 0.12, segs=8,
-            rot=Matrix.Rotation(rad(P.slot_center(KE)), 4, 'Z') @ Matrix.Rotation(rad(90), 4, 'Y'))
-    mk_obj('coat_rail_%d' % side, bm, M_WOOD_DARK, 'furnishing')
 
 # ---------------------------------------------------------------------------
 # 10. hall furnishing
@@ -2270,6 +2411,35 @@ for k, a in enumerate(PILLAR_ANGLES):
     lo.rotation_euler = (math.pi, 0, 0)
     lo['lantern_power'] = 80.0
     coll('night_lights').objects.link(lo)
+# hall: 8 paper disc pendants round the periphery, between the beams
+for i in range(8):
+    a = P.slot_center(i) + 11.25
+    if i == P.STAIR_SLOT:
+        continue
+    c_ = pol(7.0, a, 2.75)
+    paper_disc('hall_disc_%d' % i, tuple(c_), 0.55, 0.26, cord=P.CEIL_GF, power=40.0)
+# hall: continuous timber ledge above the windows with a hidden warm uplight (indirect)
+bm = bmesh.new()
+for k in range(P.N_SLOTS):
+    if k == P.STAIR_SLOT:
+        continue
+    fh = P.face_half(P.R_IN) - 0.25
+    cube(bm, FP(k, P.R_IN - 0.11, 0, 3.1), (2 * fh, 0.22, 0.05), rz=P.slot_center(k) + 90)
+    cube(bm, FP(k, P.R_IN - 0.21, 0, 3.16), (2 * fh, 0.03, 0.12), rz=P.slot_center(k) + 90)
+    light('hall_cove_%d' % k, 'AREA', FP(k, P.R_IN - 0.1, 0, 3.14), 30.0,
+          rot=(math.pi, 0, rad(P.slot_center(k) + 90)), size=2 * fh - 0.2, size_y=0.12)
+mk_obj('hall_light_ledge', bm, M_WOOD, 'furnishing')
+# hall: clay wall shells in the octagon corners
+for k in range(P.N_SLOTS):
+    a = P.partition_angle(k)
+    if k in (P.STAIR_SLOT, P.STAIR_SLOT + 1):
+        continue
+    for side in (-1, 1):
+        kk = k if side > 0 else k - 1
+        tt = -P.face_half(P.R_IN) + 0.6 if side > 0 else P.face_half(P.R_IN) - 0.6
+        clay_sconce('hall_sconce_%d_%d' % (k, side), tuple(FP(kk % P.N_SLOTS, P.R_IN - 0.02, tt, 1.95)),
+                    P.slot_center(kk % P.N_SLOTS) + 180)
+
 # cove light on top of the fascia, lighting the dome ribs (night)
 for k in range(P.N_SLOTS):
     li = bpy.data.lights.new('cove_%d' % k, 'AREA')

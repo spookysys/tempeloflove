@@ -1,4 +1,4 @@
-# Tempel – a new Blue Saloon for ZEGG, concept v0.5
+# Tempel – a new Blue Saloon for ZEGG, concept v0.6
 
 A concept model, plans, a section and renderings for ZEGG's new temple of love (a successor to the Blue Saloon) in Bad
 Belzig, Brandenburg. It is for community members and guests alike:
@@ -25,11 +25,18 @@ specialist net maker, and the fire strategy by a fire engineer (Brandschutzplane
 Rebuild: `pip install bpy matplotlib pillow`, then
 `cd model && python3 build_model.py && python3 export_glb.py && python3 render.py` and `python3 ../drawings/plans.py`.
 
+## What changed in v0.6
+
+| Feedback | Change |
+|---|---|
+| Keep the annex (simpler) | A **small annex on the north face** only (≈ 45 m², 5 m deep): foyer with coat benches, rails and shoe space; a **ground-floor WC**; a tech room (ventilation, heat-pump controls). The entrance door and canopy are on its outer face, on the axis of the hall door. The bathroom upstairs stays |
+| Nice ceiling lights + indirect light on the walls | **Hall:** 7 large paper disc pendants (Ø 1.1 m) hung between the beams round the periphery; a continuous **timber light ledge** above the windows with a hidden warm LED strip washing the clay wall and ceiling (indirect); **clay wall shells** in the corners that throw light up and down the wall. **Rooms:** 2 clay wall shells each (indirect), plus the paper pendant and floor lantern. All warm white (about 2700 K) and dimmable. See `14_hall_evening` |
+
 ## What changed in v0.5
 
 | Feedback | Change |
 |---|---|
-| Remove the annex; all essentials on the upper floor | The annex is gone. People enter directly on the **north face**, under a canopy, into the hall. Inside the door: a heavy linen curtain (warmth and privacy) and coat benches with rails on both sides |
+| Remove the annex; all essentials on the upper floor | The annex was removed (brought back in a smaller form in v0.6). Inside the hall door there is a heavy linen curtain for warmth and privacy |
 | 2 WCs and a larger, all-gender shower for several people | The north room on the upper floor is now the **shared bathroom**: 2 WC cubicles, a walk-in **group shower** under the window with 3 shower heads and a tadelakt bench, a low curved privacy wall, 2 basins, a bench, and a skylight. That leaves **6 rooms**. See `13_bathroom` |
 | Forget lift / ramp | Removed from the concept (note: German accessibility rules may still come up in the permit) |
 | – | The small bathroom in the stair segment is now linen storage and laundry, plus space for the ventilation unit. The heat pump stands outside |
@@ -68,6 +75,7 @@ Rebuild: `pip install bpy matplotlib pillow`, then
 | Stair | Spiral around a timber trunk, Ø 3.3 m, treads 1.45 m wide; hall → upper floor 22 × 180 mm, → terrace 17 × 185 mm, going 264 mm on the walking line |
 | External stair | On the NW face: ground → upper floor → terrace, 1.20 m wide flights, 180 / 185 × 270 mm |
 | Bathroom | North segment of the upper floor, ≈ 24 m²: 2 WCs, walk-in group shower, 2 basins, all gender |
+| Annex | North face, 5 m deep: foyer + coats, WC, tech; entrance door with canopy |
 
 ## Structure: how few columns?
 
@@ -156,8 +164,7 @@ The model has a switch for this (`CARVINGS` in `build_model.py`), which maps hei
 ## Open questions for you
 
 1. **Carvings:** who draws the figures (see **Carvings** above)?
-2. **More sanitary facilities?** 2 WCs and one group shower for 6 rooms plus the hall is tight for big events. A
-   WC on the ground floor (e.g. in the stair segment next to the drum) would help hall-only guests.
+2. **Sanitary capacity:** 3 WCs (1 down, 2 up) and one group shower. Enough for your events?
 3. **Where do guests change for seminars in the hall?** The bathroom upstairs, or their rooms?
 
 ## Other decisions (unchanged from v0.2, please review)
@@ -168,7 +175,7 @@ The model has a switch for this (`CARVINGS` in `build_model.py`), which maps hei
   glass (see `08_variant_central_rope`). I'd keep the clear version.
 - **Dome over the walkway**: yes (Ø 11.20), so the walkway and the doors get daylight.
 - **Sliding doors**: three shoji-type panels per room: *closed*, *half open* (1.4 m) or *open* (2.9 m).
-- **Entrance**: straight into the hall on the north face, with a canopy, a curtain and coat benches (the annex was removed in v0.5).
+- **Entrance**: through the small annex on the north face (foyer, coats, WC), then through a curtain into the hall.
 - **Heating**: low-temperature underfloor heating everywhere (floors about 26–28 °C, air about 24–26 °C), heat pump,
   and balanced ventilation with heat recovery. Clay plaster buffers humidity.
 - **People in the renderings**: abstract, sculptural figures that show scale and use, without committing to a dress
@@ -185,9 +192,10 @@ The model has a switch for this (`CARVINGS` in `build_model.py`), which maps hei
 | `05_on_net_up` | Lying on the net, looking up into the dome |
 | `06_exterior` | Aerial view from the south-west: octagon, climbing plants, sun deck, pine forest |
 | `06b_exterior_eye_level` | Eye level from the south-east: garden doors and big windows |
-| `06c_exterior_stair_side` | The north-west side: external stair |
+| `06c_exterior_stair_side` | The north-west side: external stair and the small annex |
 | `09_roof_terrace` | The sun deck: daybeds, sails, privacy screen, dome |
 | `10_spiral_stair` | The spiral stair in its glass drum, seen from the hall |
 | `13_bathroom` | The shared bathroom: group shower under the window, WCs, basins |
+| `14_hall_evening` | The hall in the evening: paper pendants, indirect light ledge, clay wall shells |
 | `07_walkway_evening` | The walkway in the evening, lanterns glowing through the doors |
 | `08_variant_central_rope` | View 01 with the single central rope, for comparison |

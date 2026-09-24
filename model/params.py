@@ -147,7 +147,7 @@ SKYLIGHT = dict(w=1.40, d=1.10, u=8.30)            # walk-on frosted glass in th
 # --- annex (entrance, changing, showers, WC, tech) ----------------------------
 # rectangular wing on the north face, x across, y outwards from the face
 ANNEX_W = 12.00
-ANNEX_D = 6.20
+ANNEX_D = 5.00
 ANNEX_CORR = 1.50      # corridor along the building
 ANNEX_H = 3.20
 
@@ -158,7 +158,7 @@ EXT_LANDING = 1.40
 
 
 # --- openings in the octagon faces (face-local: t along the face, z) ---------
-ANNEX_FACES = ()           # no annex (removed in v0.5)
+ANNEX_FACES = (0,)         # small annex on the N face: foyer + coats, WC, tech
 BAR_FACE = 7               # NE face: tea / party bar, no ground-floor windows
 BATH_SLOT = 0              # N room on the upper floor = shared bathroom (2 WC + group shower)
 SUN_FACES = (3, 4, 5)      # SW, S, SE: daybeds + 1.80 m privacy screen on the terrace
@@ -176,7 +176,7 @@ def face_openings():
             continue
         if k == ENTRY_SLOT:
             out[k].append((-ENTRY_DOOR['w'] / 2, ENTRY_DOOR['w'] / 2, 0.0, ENTRY_DOOR['h'], 'door_entry'))
-            for tc in (-2.75, 2.75):
+            for tc in (() if k in ANNEX_FACES else (-2.75, 2.75)):
                 out[k].append((tc - 0.65, tc + 0.65, GF_WINDOW['sill'] + 0.6, GF_WINDOW['head'], 'window_gf'))
         elif k == GARDEN_SLOT:
             w = GARDEN_DOOR['w']
