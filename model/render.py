@@ -73,6 +73,16 @@ VIEWS = {
     '08_variant_central_rope': dict(
         loc=Vector((1.5, -1.6, 0.35)), tgt=Vector((-0.2, 0.6, 9.0)), lens=15,
         sun=(-100, 61), mode='day', volume=0.014, exposure=0.1, variant=True),
+    # event: Pfingstfestival ZEGG 2027 (16 May), ~19:45 - low sun from the WNW, lanterns at half power
+    '15_event_hall': dict(
+        loc=pol(8.1, 82, 1.7), tgt=pol(3.2, 228, 1.0), lens=17,
+        sun=(162, 11), mode='dusk', volume=0.008, exposure=0.9, event=True),
+    '16_event_net': dict(
+        loc=pol(5.15, 300, UF + 1.62), tgt=Vector((-1.2, 0.8, 3.3)), lens=18,
+        sun=(162, 11), mode='dusk', volume=0.0, exposure=0.9, event=True),
+    '17_event_walkway': dict(
+        loc=pol(4.95, 236, UF + 1.58), tgt=pol(4.75, 292, UF + 1.05), lens=18,
+        sun=(162, 11), mode='dusk', volume=0.0, exposure=0.9, event=True),
 }
 
 
@@ -85,7 +95,7 @@ def setup_world(mode, sun_az, sun_el):
     out = nt.nodes.new('ShaderNodeOutputWorld')
     bg = nt.nodes.new('ShaderNodeBackground')
     nt.links.new(bg.outputs[0], out.inputs[0])
-    if mode == 'day':
+    if mode in ('day', 'dusk'):
         sky = nt.nodes.new('ShaderNodeTexSky')
         sky.sky_type = 'MULTIPLE_SCATTERING'
         sky.sun_disc = False
@@ -110,8 +120,10 @@ def setup_world(mode, sun_az, sun_el):
     d = Vector((math.cos(rad(sun_el)) * math.cos(rad(sun_az)),
                 math.cos(rad(sun_el)) * math.sin(rad(sun_az)), math.sin(rad(sun_el))))
     sun.rotation_euler = (-d).to_track_quat('-Z', 'Y').to_euler()
-    sun.data.energy = 4.2 if mode == 'day' else 0.0
-    sun.hide_render = mode != 'day'
+    sun.data.energy = {'day': 4.2, 'dusk': 3.0}.get(mode, 0.0)
+    if mode == 'dusk':
+        sun.data.color = (1.0, 0.70, 0.45)
+    sun.hide_render = mode == 'night'
     # moon-ish fill for night
     return sun
 
@@ -142,16 +154,17 @@ def setup_volume(density):
     mat.node_tree.nodes['Principled Volume'].inputs['Density'].default_value = density
 
 
-def set_night(on):
+def set_night(f):
+    """f = share of the lantern / indirect light power (1 = night, ~0.6 = dusk, 0 = off)."""
     for ob in bpy.data.collections['night_lights'].objects:
         if ob.type == 'LIGHT':
-            ob.data.energy = ob.get('lantern_power', 0.0) if on else 0.0
-            ob.hide_render = not on
+            ob.data.energy = ob.get('lantern_power', 0.0) * f
+            ob.hide_render = f <= 0
     for m in bpy.data.materials:
         if m.node_tree and 'LANTERN_EMISSION' in m.node_tree.nodes:
             s = 0.0
-            if on and m.name.startswith('paper_lantern'):
-                s = 3.0
+            if f > 0 and m.name.startswith('paper_lantern'):
+                s = 3.0 * f
             m.node_tree.nodes['LANTERN_EMISSION'].inputs['Strength'].default_value = s
 
 
@@ -159,6 +172,13 @@ def set_variant(on):
     bpy.data.collections['variant_central_rope'].hide_render = not on
     for n in ('net', 'net_ropes'):
         bpy.data.objects[n].hide_render = on
+
+
+def set_event(on):
+    for n, hide in (('event', not on), ('people', on)):
+        c = bpy.data.collections.get(n)
+        if c:
+            c.hide_render = hide
 
 
 def camera(v):
@@ -204,8 +224,9 @@ def render(name, v, res, samples, quick):
     sc.render.image_settings.file_format = 'PNG'
     setup_world(v['mode'], *v['sun'])
     setup_volume(v.get('volume', 0.0))
-    set_night(v['mode'] == 'night')
+    set_night({'night': 1.0, 'dusk': 0.6}.get(v['mode'], 0.0))
     set_variant(v.get('variant', False))
+    set_event(v.get('event', False))
     camera(v)
     path = os.path.join(OUT, ('quick_' if quick else '') + name + '.png')
     sc.render.filepath = path

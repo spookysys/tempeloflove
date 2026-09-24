@@ -3075,6 +3075,515 @@ else:
     so.thickness = 0.10
     so.offset = -1.0
 
+# ---------------------------------------------------------------------------
+# 13. EVENT LAYER (hidden in the normal views): Pfingstfestival ZEGG 2027, early evening.
+#     Contact improvisation meets temple: dancing in the sunlit centre, mat zones for cuddling,
+#     intimacy (screened by a linen canopy) and wrestling, a musician by the bar, organisers in
+#     kimonos with clipboards, couples on the net and in the rooms upstairs.
+#     Intimacy is shown non-explicitly (entwined bodies under blankets, closed glowing doors).
+# ---------------------------------------------------------------------------
+EV = 'event'
+EVL = 'event_lights'
+coll(EV)
+coll(EVL, COLLS[EV])
+EVR = random.Random(2027)
+
+
+def _arms(p, **kw):
+    for k_, v_ in kw.items():
+        p[k_] = v_
+    return p
+
+
+SKIN = [mat_simple('skin_%d' % i, h, rough=0.5, Subsurface_Weight=0.25, Subsurface_Scale=0.01,
+                   Sheen_Weight=0.15)
+        for i, h in enumerate(('#EBC7AE', '#D9A987', '#B9825E', '#8E5B3E', '#6A4330', '#F1D5C4'))]
+HAIR = [mat_simple('hair_%d' % i, h, rough=0.6, Sheen_Weight=0.4)
+        for i, h in enumerate(('#2A1D16', '#4A3222', '#7A5A3A', '#C9A66B', '#9E9A94', '#8A2F22'))]
+
+
+def silk(name, hexcol, sheen=0.8, trans=0.25, metal=0.0):
+    c = srgb(hexcol)
+    m, b = new_mat(name, c)
+    co = b.coord()
+    n1 = b.noise(co, scale=8.0, detail=4)
+    col = b.mix(0.12, c, n1.outputs['Color'], blend='OVERLAY')
+    p = b.principled(col, rough=0.35, Sheen_Weight=sheen, Sheen_Roughness=0.3, Metallic=metal,
+                     Subsurface_Weight=trans, Subsurface_Scale=0.02)
+    b.output(p)
+    return m
+
+
+def kimono_mat(name, base, stripe):
+    m, b = new_mat(name, srgb(base))
+    co = b.coord()
+    w = b.n('ShaderNodeTexWave', wave_type='BANDS', bands_direction='DIAGONAL')
+    w.inputs['Scale'].default_value = 28.0
+    w.inputs['Distortion'].default_value = 2.0
+    b.l(co, w.inputs['Vector'])
+    col = b.ramp(w.outputs['Fac'], [(0.45, srgb(base)), (0.55, srgb(stripe))])
+    b.output(b.principled(col, rough=0.5, Sheen_Weight=0.6))
+    return m
+
+
+FAB = {k: silk('silk_' + k, v) for k, v in dict(rose='#D98C8C', saffron='#E3A23A', turquoise='#3FA3A0',
+                                                    ivory='#EFE6D6', crimson='#A8263A', plum='#6E3A6B',
+                                                    moss='#6F8A4A', sky='#8FB8D8').items()}
+FAB['gold'] = silk('silk_gold', '#D4A548', metal=0.7, trans=0.0)
+FAB['magenta'] = silk('silk_magenta', '#D0308A', trans=0.0)
+KIMONO = [kimono_mat('kimono_indigo', '#2E3A6B', '#46598E'), kimono_mat('kimono_red', '#8E2A2A', '#A9483A')]
+M_PAPER = mat_simple('clipboard_paper', '#F4F1EA', rough=0.8)
+
+
+def world_joint(pose, j, loc, rz, scale=1.0):
+    v = Vector(pose[j]) * scale
+    return Matrix.Rotation(rad(rz), 4, 'Z') @ v + Vector(loc)
+
+
+def cone_cloth(name, top_c, top_r, bot_z, bot_r, mat, n=40, wave=0.06, seed=0, sway=(0.0, 0.0)):
+    """Flowing skirt / robe: flared tube with a wavy hem."""
+    r = random.Random(seed)
+    bm = bmesh.new()
+    rings = []
+    NZ = 10
+    ph = r.uniform(0, 6)
+    for i in range(NZ + 1):
+        f = i / NZ
+        z = top_c.z + (bot_z - top_c.z) * f
+        rad_ = top_r + (bot_r - top_r) * f ** 1.3
+        cx = top_c.x + sway[0] * f ** 2
+        cy = top_c.y + sway[1] * f ** 2
+        ring = []
+        for j in range(n):
+            a = 2 * math.pi * j / n
+            rr = rad_ * (1 + wave * f * math.sin(7 * a + ph) + 0.5 * wave * f * math.sin(3 * a + 2 * ph))
+            ring.append(bm.verts.new((cx + rr * math.cos(a), cy + rr * math.sin(a),
+                                      z + (0.05 * f * math.sin(5 * a + ph) if i == NZ else 0))))
+        rings.append(ring)
+    for i in range(NZ):
+        for j in range(n):
+            j2 = (j + 1) % n
+            bm.faces.new((rings[i][j], rings[i][j2], rings[i + 1][j2], rings[i + 1][j]))
+    ob = mk_obj(name, bm, mat, EV, smooth=True, recalc=False)
+    so = ob.modifiers.new('solid', 'SOLIDIFY')
+    so.thickness = 0.008
+    ob.modifiers.new('sub', 'SUBSURF').levels = 1
+    return ob
+
+
+def sash(name, center, r, tilt_deg, rz_deg, mat, width=0.07):
+    bm = bmesh.new()
+    bmesh.ops.create_cone(bm, cap_ends=False, segments=32, radius1=r, radius2=r, depth=width)
+    M = (Matrix.Translation(center) @ Matrix.Rotation(rad(rz_deg), 4, 'Z') @ Matrix.Rotation(rad(tilt_deg), 4, 'X'))
+    bmesh.ops.transform(bm, verts=bm.verts[:], matrix=M)
+    ob = mk_obj(name, bm, mat, EV, smooth=True, recalc=False)
+    ob.modifiers.new('solid', 'SOLIDIFY').thickness = 0.01
+    return ob
+
+
+def person(name, pose, loc, rz=0.0, scale=1.0, outfit=None, seed=0):
+    """Figure + garments. outfit: None | ('skirt', mat) | ('robe', mat) | ('kimono', mat) | ('cape', mat)"""
+    fo = figure(name, pose, loc, rz=rz, scale=scale, parent_coll=EV)
+    r = random.Random(seed)
+    fo.data.materials[0] = SKIN[r.randrange(len(SKIN))]
+    pel = world_joint(pose, 'pelvis', loc, rz, scale)
+    ch = world_joint(pose, 'chest', loc, rz, scale)
+    nk = world_joint(pose, 'neck', loc, rz, scale)
+    hd = world_joint(pose, 'head', loc, rz, scale)
+    up = (hd - nk).normalized()
+    bm = bmesh.new()                                    # hair: a cap, sometimes long hair or a bun
+    bmesh.ops.create_uvsphere(bm, u_segments=24, v_segments=14, radius=0.112 * scale,
+                              matrix=Matrix.Translation(hd + up * 0.045 * scale) @
+                              up.to_track_quat('Z', 'Y').to_matrix().to_4x4() @
+                              Matrix.Diagonal((0.95, 1.0, 0.95, 1)))
+    style = r.random()
+    if style < 0.4:
+        bmesh.ops.create_uvsphere(bm, u_segments=16, v_segments=10, radius=0.1 * scale,
+                                  matrix=Matrix.Translation(hd - up * 0.12 * scale) @
+                                  up.to_track_quat('Z', 'Y').to_matrix().to_4x4() @
+                                  Matrix.Diagonal((1.0, 0.55, 2.0, 1)))
+    elif style < 0.6:
+        bmesh.ops.create_uvsphere(bm, u_segments=12, v_segments=8, radius=0.06 * scale,
+                                  matrix=Matrix.Translation(hd + up * 0.15 * scale))
+    mk_obj(name + '_hair', bm, HAIR[r.randrange(len(HAIR))], EV, smooth=True)
+    if not outfit:
+        return fo
+    kind, mat = outfit
+    ank = min(world_joint(pose, 'la', loc, rz, scale).z, world_joint(pose, 'ra', loc, rz, scale).z)
+    if kind == 'skirt':
+        cone_cloth(name + '_skirt', pel + Vector((0, 0, 0.1)), 0.19 * scale, max(ank + 0.12, loc[2] + 0.05),
+                   0.36 * scale, mat, wave=0.14, seed=seed, sway=(r.uniform(-0.15, 0.15), r.uniform(-0.15, 0.15)))
+        sash(name + '_top', ch + Vector((0, 0, 0.02)), 0.165 * scale, 12, rz, mat, width=0.16)
+    elif kind in ('robe', 'kimono'):
+        cone_cloth(name + '_robe', nk + Vector((0, 0, -0.08)), 0.21 * scale, max(ank + 0.05, loc[2] + 0.04),
+                   0.33 * scale, mat, wave=0.03, seed=seed)
+        if kind == 'kimono':
+            sash(name + '_obi', pel + Vector((0, 0, 0.12)), 0.2 * scale, 0, rz, FAB['saffron'], width=0.14)
+            for s in ('l', 'r'):
+                el = world_joint(pose, s + 'e', loc, rz, scale)
+                wr = world_joint(pose, s + 'w', loc, rz, scale)
+                c = (el + wr) / 2 + Vector((0, 0, -0.12))
+                bm = bmesh.new()
+                cube(bm, c, (0.1, 0.3, 0.42), rz=rz)
+                rounded(mk_obj(name + '_sleeve_' + s, bm, mat, EV), 0.04, 2, 1)
+            # clipboard held in both hands
+            hand = (world_joint(pose, 'lh', loc, rz, scale) + world_joint(pose, 'rh', loc, rz, scale)) / 2
+            bm = bmesh.new()
+            cube(bm, hand + Vector((0, 0, 0.05)), (0.24, 0.012, 0.32), rz=rz, rx=-55)
+            mk_obj(name + '_clipboard', bm, M_WOOD_DARK, EV)
+            bm = bmesh.new()
+            cube(bm, hand + Vector((0, 0, 0.055)) + Matrix.Rotation(rad(rz), 4, 'Z') @ Vector((0, -0.01, 0)),
+                 (0.21, 0.004, 0.28), rz=rz, rx=-55)
+            mk_obj(name + '_paper', bm, M_PAPER, EV)
+    elif kind == 'cape':
+        cone_cloth(name + '_cape', nk + Vector((0, 0, -0.02)), 0.24 * scale, max(ank + 0.2, loc[2] + 0.1),
+                   0.5 * scale, mat, wave=0.15, seed=seed, sway=(r.uniform(-0.3, 0.3), r.uniform(-0.3, 0.3)))
+        bm = bmesh.new()
+        for i in range(9):                          # a crown of tall feathers
+            a = -80 + 20 * i
+            d = Matrix.Rotation(rad(rz), 4, 'Z') @ Vector((math.sin(rad(a)) * 0.35, -0.1, 1.0)).normalized()
+            base = hd + Vector((0, 0, 0.06))
+            tip = base + d * 0.42
+            rot = Vector((0, 0, 1)).rotation_difference(d).to_matrix().to_4x4()
+            cyl(bm, (base + tip) / 2, 0.035, 0.42, segs=8, r2=0.005, rot=rot)
+        mk_obj(name + '_feathers', bm, mat, EV, smooth=True)
+    return fo
+
+
+def blanket(name, center, size, rz, mat):
+    return cushion(name, None, tuple(center), size, mat, rz=rz, squish=0.15, coll_name=EV)
+
+
+def mattress(name, center, rz, mat=None, size=(1.4, 2.0, 0.18)):
+    bm = bmesh.new()
+    cube(bm, (center[0], center[1], size[2] / 2), size, rz=rz)
+    return rounded(mk_obj(name, bm, mat or M_MATTRESS, EV), 0.06, 3, 1)
+
+
+def ev_light(name, loc, power, color=(1.0, 0.75, 0.5), soft=0.15):
+    li = bpy.data.lights.new(name, 'POINT')
+    li.energy = power
+    li.color = color
+    li.shadow_soft_size = soft
+    lo = bpy.data.objects.new(name, li)
+    lo.location = loc
+    COLLS[EVL].objects.link(lo)
+    return lo
+
+
+# --- extra poses ---------------------------------------------------------------------------
+def pose_dance_open():
+    return _arms(mirror_pose(STAND), head=(0, -0.03, 1.62),
+                 le=(0.42, 0.06, 1.45), lw=(0.68, 0.12, 1.52), lh=(0.76, 0.12, 1.54),
+                 re=(-0.40, 0.1, 1.30), rw=(-0.62, 0.2, 1.18), rh=(-0.7, 0.22, 1.15),
+                 rk=(-0.13, 0.18, 0.52), ra=(-0.12, 0.28, 0.12), rt=(-0.12, 0.4, 0.06))
+
+
+def pose_lean():
+    p = mirror_pose(STAND)
+    return _arms(p, chest=(0, 0.12, 1.28), neck=(0, 0.2, 1.45), head=(0, 0.27, 1.55),
+                 ls=(0.18, 0.13, 1.40), rs=(-0.18, 0.13, 1.40),
+                 le=(0.22, 0.38, 1.28), lw=(0.14, 0.58, 1.33), lh=(0.1, 0.63, 1.33),
+                 re=(-0.22, 0.38, 1.22), rw=(-0.14, 0.56, 1.12), rh=(-0.1, 0.6, 1.1),
+                 lk=(0.12, 0.08, 0.5), rk=(-0.12, -0.08, 0.52), ra=(-0.12, -0.28, 0.1), rt=(-0.12, -0.18, 0.04))
+
+
+def pose_crouch():
+    return dict(pelvis=(0, 0, 0.64), belly=(0, 0.1, 0.8), chest=(0, 0.22, 0.96), neck=(0, 0.32, 1.08),
+                head=(0, 0.38, 1.17), ls=(0.18, 0.24, 1.0), rs=(-0.18, 0.24, 1.0), le=(0.26, 0.46, 0.95),
+                re=(-0.26, 0.46, 0.95), lw=(0.18, 0.64, 1.02), rw=(-0.18, 0.64, 1.02), lh=(0.15, 0.7, 1.03),
+                rh=(-0.15, 0.7, 1.03), lhip=(0.1, 0, 0.62), rhip=(-0.1, 0, 0.62), lk=(0.22, 0.3, 0.36),
+                rk=(-0.22, 0.3, 0.36), la=(0.24, 0.02, 0.07), ra=(-0.24, 0.02, 0.07), lt=(0.24, 0.15, 0.03),
+                rt=(-0.24, 0.15, 0.03))
+
+
+def pose_all_fours():
+    return dict(pelvis=(0, 0, 0.62), belly=(0, 0.2, 0.64), chest=(0, 0.42, 0.66), neck=(0, 0.6, 0.7),
+                head=(0, 0.72, 0.72), ls=(0.18, 0.5, 0.64), rs=(-0.18, 0.5, 0.64), le=(0.2, 0.52, 0.35),
+                re=(-0.2, 0.52, 0.35), lw=(0.2, 0.55, 0.06), rw=(-0.2, 0.55, 0.06), lh=(0.2, 0.62, 0.03),
+                rh=(-0.2, 0.62, 0.03), lhip=(0.1, 0, 0.6), rhip=(-0.1, 0, 0.6), lk=(0.12, -0.02, 0.06),
+                rk=(-0.12, -0.02, 0.06), la=(0.12, -0.45, 0.06), ra=(-0.12, -0.45, 0.06),
+                lt=(0.12, -0.55, 0.03), rt=(-0.12, -0.55, 0.03))
+
+
+def pose_organiser():
+    return _arms(mirror_pose(STAND), le=(0.22, 0.12, 1.14), lw=(0.12, 0.36, 1.18), lh=(0.06, 0.42, 1.2),
+                 re=(-0.21, 0.12, 1.12), rw=(-0.06, 0.36, 1.2), rh=(-0.02, 0.42, 1.21), head=(0, 0.05, 1.61))
+
+
+# --- couples: making love, shown without anatomical detail (abstract figures, blankets) -----------
+from mathutils.bvhtree import BVHTree  # noqa: E402
+
+
+def _pose_bottom(kind):
+    p = pose_lie_back('open')
+    if kind == 'straddle':      # hands on the partner's thighs, legs long
+        _arms(p, le=(0.3, 0.15, 0.2), lw=(0.3, -0.05, 0.3), lh=(0.29, -0.1, 0.31),
+              re=(-0.3, 0.15, 0.2), rw=(-0.3, -0.05, 0.3), rh=(-0.29, -0.1, 0.31))
+    else:                       # arms around the partner, knees up and apart
+        _arms(p, le=(0.35, 0.35, 0.3), lw=(0.2, 0.45, 0.45), lh=(0.12, 0.45, 0.47),
+              re=(-0.35, 0.35, 0.3), rw=(-0.2, 0.45, 0.45), rh=(-0.12, 0.45, 0.47),
+              lk=(0.3, -0.35, 0.32), la=(0.36, -0.72, 0.06), lt=(0.38, -0.82, 0.03),
+              rk=(-0.3, -0.35, 0.32), ra=(-0.36, -0.72, 0.06), rt=(-0.38, -0.82, 0.03))
+    return p
+
+
+def pose_straddle():
+    """Kneeling astride a partner who lies on the back (same origin, facing the partner's head)."""
+    return dict(pelvis=(0, 0.02, 0.36), belly=(0, 0.04, 0.52), chest=(0, 0.02, 0.72), neck=(0, 0.02, 0.9),
+                head=(0, 0.05, 1.02), ls=(0.18, 0.02, 0.84), rs=(-0.18, 0.02, 0.84),
+                le=(0.26, 0.16, 0.62), re=(-0.24, 0.1, 0.6), lw=(0.18, 0.32, 0.42), rw=(-0.16, 0.3, 0.4),
+                lh=(0.16, 0.37, 0.36), rh=(-0.14, 0.35, 0.34), lhip=(0.11, 0.02, 0.34), rhip=(-0.11, 0.02, 0.34),
+                lk=(0.34, 0.08, 0.07), rk=(-0.34, 0.08, 0.07), la=(0.3, -0.36, 0.06), ra=(-0.3, -0.36, 0.06),
+                lt=(0.28, -0.46, 0.03), rt=(-0.28, -0.46, 0.03))
+
+
+def pose_on_top():
+    """Lying face down on a partner, between the partner's knees, weight on the elbows."""
+    return dict(pelvis=(0, -0.05, 0.36), belly=(0, 0.12, 0.37), chest=(0, 0.32, 0.39), neck=(0.03, 0.5, 0.38),
+                head=(0.13, 0.62, 0.32), ls=(0.18, 0.4, 0.39), rs=(-0.18, 0.4, 0.39),
+                le=(0.32, 0.5, 0.14), re=(-0.32, 0.5, 0.14), lw=(0.24, 0.68, 0.08), rw=(-0.24, 0.68, 0.08),
+                lh=(0.2, 0.74, 0.07), rh=(-0.2, 0.74, 0.07), lhip=(0.1, -0.07, 0.34), rhip=(-0.1, -0.07, 0.34),
+                lk=(0.13, -0.5, 0.13), rk=(-0.13, -0.5, 0.13), la=(0.13, -0.95, 0.07), ra=(-0.13, -0.95, 0.07),
+                lt=(0.13, -1.03, 0.02), rt=(-0.13, -1.03, 0.02))
+
+
+def pose_lap():
+    """Sitting in the lap of a cross-legged partner, face to face, legs around the partner."""
+    return dict(pelvis=(0, 0.24, 0.26), belly=(0, 0.22, 0.42), chest=(0, 0.19, 0.6), neck=(0.04, 0.15, 0.78),
+                head=(0.13, 0.13, 0.88), ls=(0.18, 0.19, 0.7), rs=(-0.18, 0.19, 0.7),
+                le=(0.3, 0.02, 0.62), re=(-0.3, 0.02, 0.6), lw=(0.16, -0.14, 0.6), rw=(-0.16, -0.14, 0.58),
+                lh=(0.1, -0.16, 0.6), rh=(-0.1, -0.16, 0.58), lhip=(0.1, 0.24, 0.24), rhip=(-0.1, 0.24, 0.24),
+                lk=(0.32, -0.02, 0.22), rk=(-0.32, -0.02, 0.22), la=(0.22, -0.28, 0.1), ra=(-0.22, -0.28, 0.1),
+                lt=(0.16, -0.36, 0.08), rt=(-0.16, -0.36, 0.08))
+
+
+def pose_hold_cross():
+    p = pose_sit_cross()
+    return _arms(p, le=(0.28, 0.2, 0.5), lw=(0.18, 0.4, 0.62), lh=(0.12, 0.44, 0.63),
+                 re=(-0.28, 0.2, 0.46), rw=(-0.18, 0.4, 0.5), rh=(-0.12, 0.44, 0.5),
+                 head=(-0.1, 0.06, 0.8))
+
+
+def pose_spoon_big():
+    p = pose_lie_side()
+    return _arms(p, re=(-0.08, 0.42, 0.36), rw=(-0.3, 0.42, 0.3), rh=(-0.36, 0.4, 0.27))
+
+
+def drape(name, objs, center, size, rz, mat, base_fn, n=34):
+    """Blanket laid over bodies: a grid dropped onto the figures, softened, edges hanging down."""
+    bpy.context.view_layer.update()
+    verts, polys = [], []
+    for ob in objs:
+        o = len(verts)
+        verts += [ob.matrix_world @ v.co for v in ob.data.vertices]
+        polys += [[o + i for i in p.vertices] for p in ob.data.polygons]
+    tree = BVHTree.FromPolygons(verts, polys)
+    R = Matrix.Rotation(rad(rz), 3, 'Z')
+    W, L = size
+    grid, base = [], []
+    for j in range(n + 1):
+        row, brow = [], []
+        for i in range(n + 1):
+            p = Vector(center) + R @ Vector(((i / n - 0.5) * W, (j / n - 0.5) * L, 0))
+            b = base_fn(p.x, p.y)
+            hit = tree.ray_cast(Vector((p.x, p.y, b + 2.5)), Vector((0, 0, -1)))
+            z = max(b + 0.015, hit[0].z + 0.03) if hit[0] is not None else b + 0.015
+            row.append([p.x, p.y, z])
+            brow.append(b)
+        grid.append(row)
+        base.append(brow)
+    raw = [[c[2] for c in row] for row in grid]
+    z = [r[:] for r in raw]
+    for _ in range(6):
+        z2 = [r[:] for r in z]
+        for j in range(1, n):
+            for i in range(1, n):
+                z2[j][i] = max(raw[j][i], (z[j - 1][i] + z[j + 1][i] + z[j][i - 1] + z[j][i + 1]) / 4)
+        z = z2
+    bm = bmesh.new()
+    vv = []
+    for j in range(n + 1):
+        rowv = []
+        for i in range(n + 1):
+            e = min(i, j, n - i, n - j) / n
+            f = min(1.0, e / 0.08)
+            zz = base[j][i] + 0.01 + (z[j][i] - base[j][i] - 0.01) * (0.35 + 0.65 * f)
+            rowv.append(bm.verts.new((grid[j][i][0], grid[j][i][1], zz)))
+        vv.append(rowv)
+    for j in range(n):
+        for i in range(n):
+            bm.faces.new((vv[j][i], vv[j][i + 1], vv[j + 1][i + 1], vv[j + 1][i]))
+    ob = mk_obj(name, bm, mat, EV, smooth=True, recalc=False)
+    ob.modifiers.new('solid', 'SOLIDIFY').thickness = 0.02
+    ob.modifiers.new('sub', 'SUBSURF').levels = 1
+    return ob
+
+
+def couple(name, kind, loc, rz, seed, blanket_mat=None, base_fn=None, cover=(-1.15, 0.0)):
+    loc = Vector(loc)
+    if kind == 'straddle':
+        obs = [person(name + '_a', _pose_bottom('straddle'), loc, rz, seed=seed),
+               person(name + '_b', pose_straddle(), loc, rz, seed=seed + 1)]
+    elif kind == 'on_top':
+        obs = [person(name + '_a', _pose_bottom('on_top'), loc, rz, seed=seed),
+               person(name + '_b', pose_on_top(), loc, rz, seed=seed + 1)]
+    elif kind == 'lap':
+        obs = [person(name + '_a', pose_hold_cross(), loc, rz, seed=seed),
+               person(name + '_b', pose_lap(), loc, rz, seed=seed + 1)]
+    else:  # spoon
+        d = Matrix.Rotation(rad(rz), 4, 'Z') @ Vector((0.25, -0.03, 0.0))
+        obs = [person(name + '_a', pose_lie_side(), loc, rz, seed=seed),
+               person(name + '_b', pose_spoon_big(), loc + d, rz, seed=seed + 1)]
+    if blanket_mat:
+        y0, y1 = cover
+        c = loc + Matrix.Rotation(rad(rz), 4, 'Z') @ Vector((0.0, (y0 + y1) / 2, 0))
+        bf = base_fn or (lambda x, y: loc.z)
+        drape(name + '_blanket', obs, (c.x, c.y, 0), (1.35, y1 - y0), rz, blanket_mat, bf)
+    return obs
+
+
+def at(r, a, z=0.0):
+    p = pol(r, a)
+    return (p.x, p.y, z)
+
+
+# --- centre: contact improvisation in the evening light ---------------------------------------
+pairs = [(1.3, 20), (1.5, 140), (1.2, 255), (2.2, 320)]
+for i, (rr, a) in enumerate(pairs):
+    c = pol(rr, a)
+    if i == 3:
+        person('ev_ci_base_%d' % i, pose_all_fours(), (c.x, c.y, 0.03), rz=a, seed=i)
+        person('ev_ci_top_%d' % i, pose_lie_back('open'), (c.x + 0.05, c.y + 0.05, 0.62), rz=a + 90, seed=i + 1)
+        continue
+    person('ev_ci_a_%d' % i, pose_lean(), (c.x, c.y, 0.03), rz=a, outfit=('skirt', list(FAB.values())[i]), seed=i)
+    d = Matrix.Rotation(rad(a), 4, 'Z') @ Vector((0, 0.72, 0))
+    person('ev_ci_b_%d' % i, pose_lean(), (c.x + d.x, c.y + d.y, 0.03), rz=a + 180,
+           outfit=('skirt', list(FAB.values())[i + 3]) if i % 2 else None, seed=i + 10)
+for i, (rr, a, mat) in enumerate(((2.6, 80, 'turquoise'), (2.9, 200, 'saffron'), (3.2, 110, 'ivory'))):
+    person('ev_dancer_%d' % i, pose_dance_open(), at(rr, a, 0.03), rz=a + 60 * i, outfit=('skirt', FAB[mat]), seed=30 + i)
+person('ev_crazy_0', pose_dance_open(), at(3.4, 30, 0.03), rz=210, outfit=('cape', FAB['gold']), seed=41)
+person('ev_crazy_1', pose_stand_relaxed(), at(3.6, 290, 0.03), rz=100, outfit=('cape', FAB['magenta']), seed=42)
+
+# --- mat zones ----------------------------------------------------------------------------------
+# cuddle zone (east)
+cz = 310
+for i, (dr, da, rz) in enumerate(((0, -6, 10), (0, 6, 10), (1.5, 0, 100), (-1.2, -2, 100))):
+    c = pol(7.2 + dr, cz + da)
+    mattress('ev_cuddle_mat_%d' % i, (c.x, c.y), cz + rz, mat=M_WOOL['cream'] if i % 2 else M_MATTRESS)
+for i, (dr, da, rz, pose) in enumerate(((0.2, -4, 90, pose_lie_side()), (-0.3, -3, 270, pose_lie_back('open')),
+                                        (0.4, 5, 80, pose_lie_side()), (-0.2, 6, 260, pose_lie_back('head')),
+                                        (1.5, 1, 190, pose_sit_lean()))):
+    c = pol(7.2 + dr, cz + da)
+    person('ev_cuddle_%d' % i, pose, (c.x, c.y, 0.18), rz=cz + rz, seed=50 + i)
+for i, da in enumerate((-4, 5)):
+    c = pol(7.25, cz + da)
+    blanket('ev_cuddle_blanket_%d' % i, (c.x, c.y, 0.42), (1.6, 1.3, 0.2), cz + 90, M_WOOL[['rose', 'ochre'][i]])
+# intimacy zone (south-west) under a round linen canopy, half open towards the hall
+iz = 235
+cc = pol(7.0, iz)
+bm = bmesh.new()
+prev = None
+for i in range(90):
+    a = 360 * i / 89
+    if 330 < (a - (iz + 180)) % 360 or (a - (iz + 180)) % 360 < 30:     # opening towards the hall
+        prev = None
+        continue
+    rr = 2.0 + 0.06 * math.sin(a * 0.4)
+    col_ = [bm.verts.new((cc.x + rr * math.cos(rad(a)), cc.y + rr * math.sin(rad(a)), 0.02)),
+            bm.verts.new((cc.x + rr * math.cos(rad(a)), cc.y + rr * math.sin(rad(a)), 3.3))]
+    if prev:
+        bm.faces.new((prev[0], col_[0], col_[1], prev[1]))
+    prev = col_
+mk_obj('ev_canopy', bm, M_SHEER, EV, smooth=True, recalc=False)
+bm = bmesh.new()
+sector(bm, 1.95, 2.05, 0, 360, 3.28, 3.34, step=4)
+bmesh.ops.translate(bm, vec=Vector((cc.x, cc.y, 0)), verts=bm.verts[:])
+mk_obj('ev_canopy_ring', bm, M_WOOD, EV)
+for i, (dx, dy) in enumerate(((-0.72, 0.0), (0.72, 0.0), (0.0, 1.05))):
+    v = Matrix.Rotation(rad(iz), 4, 'Z') @ Vector((dx, dy - 0.3, 0))
+    mattress('ev_int_mat_%d' % i, (cc.x + v.x, cc.y + v.y), iz, mat=M_WOOL['wine'] if i == 2 else M_MATTRESS)
+for i, (dx, dy, kind, bl) in enumerate(((-0.72, -0.15, 'straddle', 'terracotta'), (0.72, -0.2, 'spoon', 'rose'),
+                                        (0.0, 0.95, 'lap', None))):
+    v = Matrix.Rotation(rad(iz), 4, 'Z') @ Vector((dx, dy, 0))
+    couple('ev_int_%d' % i, kind, (cc.x + v.x, cc.y + v.y, 0.18), iz + (90 if kind == 'lap' else 0), 60 + 2 * i,
+           blanket_mat=M_WOOL[bl] if bl else None, cover=(-1.0, -0.1) if kind == 'straddle' else (-1.15, 0.25))
+for i in range(3):
+    ev_light('ev_int_candle_%d' % i, tuple(pol(1.6, iz + 150 + 30 * i) + Vector((cc.x, cc.y, 0.3))), 3.0)
+# wrestling zone (west)
+wz = 178
+for i, (dr, da) in enumerate(((0, -5), (0, 5), (1.4, -5), (1.4, 5))):
+    c = pol(6.6 + dr, wz + da)
+    mattress('ev_wrestle_mat_%d' % i, (c.x, c.y), wz + 90, mat=M_WOOL['olive'] if i % 3 == 0 else M_WOOL['sand'],
+             size=(1.4, 2.0, 0.12))
+c = pol(7.2, wz - 3)
+person('ev_wrestle_a', pose_crouch(), (c.x, c.y, 0.12), rz=wz + 90, seed=70)
+d = Matrix.Rotation(rad(wz + 90), 4, 'Z') @ Vector((0, 0.95, 0))
+person('ev_wrestle_b', pose_crouch(), (c.x + d.x, c.y + d.y, 0.12), rz=wz + 270, seed=71)
+c = pol(7.0, wz + 6)
+person('ev_wrestle_c', pose_all_fours(), (c.x, c.y, 0.12), rz=wz, seed=72)
+person('ev_wrestle_d', pose_lie_side(), (c.x + 0.1, c.y, 0.7), rz=wz + 90, seed=73)
+# musician + speakers by the bar
+mc = FP(P.BAR_FACE, P.R_IN - 3.0, -2.4, 0)
+person('ev_musician', pose_sit_cross(), (mc.x, mc.y, 0.14), rz=P.slot_center(P.BAR_FACE) + 90,
+       outfit=('robe', FAB['moss']), seed=80)
+bm = bmesh.new()
+cyl(bm, (mc.x + 0.3, mc.y - 0.3, 0.2), 0.28, 0.12, segs=40)
+mk_obj('ev_handpan', bm, M_STEEL, EV, smooth=True)
+for s in (-1, 1):
+    sp = FP(P.BAR_FACE, P.R_IN - 1.0, -2.4 + s * 1.6, 0)
+    bm = bmesh.new()
+    cube(bm, (sp.x, sp.y, 1.2), (0.35, 0.3, 0.55), rz=P.slot_center(P.BAR_FACE))
+    cyl(bm, (sp.x, sp.y, 0.46), 0.02, 0.9, segs=8)
+    mk_obj('ev_speaker_%d' % s, bm, M_WOOD_DARK, EV)
+# people at the bar and on the stair seating steps
+bc = FP(P.BAR_FACE, P.R_IN - 2.2, 1.0, 0)
+person('ev_bar_0', pose_stand_relaxed(), (bc.x, bc.y, 0), rz=P.slot_center(P.BAR_FACE) - 90 + 30,
+       outfit=('robe', FAB['ivory']), seed=81)
+person('ev_bar_1', pose_stand_relaxed(), (bc.x + 0.4, bc.y - 0.6, 0), rz=P.slot_center(P.BAR_FACE) - 90 - 40,
+       outfit=('skirt', FAB['plum']), seed=82)
+for i, (tr, dn) in enumerate(((2, -0.7), (3, -0.1))):
+    sc = FP(P.STAIR_SLOT, P.R_IN - P.STAIR_FLIGHT_W_T + dn, P.STAIR_T0 + (tr - 0.5) * P.STAIR_GOING_T, 0)
+    person('ev_steps_%d' % i, pose_sit_knees(), (sc.x, sc.y, P.STAIR_RISE * tr - 0.12),
+           rz=P.slot_center(P.STAIR_SLOT) + 90, outfit=('skirt', FAB['crimson']) if i else None, seed=85 + i)
+# organisers: kimono + clipboard
+oc = FP(P.ENTRY_SLOT, P.R_IN - 1.6, 1.1, 0)
+person('ev_org_0', pose_organiser(), (oc.x, oc.y, 0), rz=P.slot_center(P.ENTRY_SLOT) + 90 - 25,
+       outfit=('kimono', KIMONO[0]), seed=90)
+o2 = pol(5.0, 284, P.FFL_UF)
+person('ev_org_1', pose_organiser(), tuple(o2), rz=284 - 90 - 30, outfit=('kimono', KIMONO[1]), seed=91)
+
+# --- the net: couples lying entwined, one resting alone ----------------------------------------
+NETB = lambda x, y: on_net(x, y) - 0.03  # noqa: E731
+couple('ev_net_0', 'straddle', (-0.9, 0.7, on_net(-0.9, 0.7) - 0.05), 30, 100)
+couple('ev_net_1', 'on_top', (1.4, -0.5, on_net(1.4, -0.5) - 0.05), 120, 102, blanket_mat=M_WOOL['rose'],
+       base_fn=NETB, cover=(-1.2, -0.05))
+couple('ev_net_2', 'spoon', (0.3, -2.2, on_net(0.3, -2.2) - 0.05), 80, 104)
+person('ev_net_3', pose_lie_back('head'), (-2.1, -1.2, on_net(-2.1, -1.2) - 0.05), rz=250, seed=106)
+pw_ = pol(4.08, 250)
+person('ev_pad', pose_sit_lean(), (pw_.x, pw_.y, P.RING_BEAM_TOP + P.PAD_T - 0.16), rz=250 + 90,
+       outfit=('robe', FAB['sky']), seed=110)
+
+# --- rooms upstairs: couples on the nests in the open / half-open rooms --------------------------
+for k in (2, 3, 5, 7):
+    a = P.slot_center(k)
+    kind = {2: 'straddle', 3: 'spoon', 5: 'lap', 7: 'on_top'}[k]
+    v = Matrix.Rotation(rad(a), 4, 'Z') @ Vector((8.45, 0.0, 0))
+    couple('ev_room_%d' % k, kind, (v.x, v.y, P.FFL_UF + 0.47), a + (0 if kind == 'lap' else 90), 120 + 3 * k,
+           blanket_mat=M_WOOL['cream'] if kind in ('on_top', 'spoon') else None)
+
+# --- warm candle / lantern light for the event ------------------------------------------------
+bm = bmesh.new()
+for i in range(10):
+    a = 36 * i + 10
+    ev_light('ev_floor_candle_%d' % i, at(8.9, a, 0.3), 4.0)
+    for j in range(3):
+        c = pol(8.9 + 0.1 * (j - 1), a + 0.8 * j)
+        cyl(bm, (c.x, c.y, 0.08 + 0.02 * j), 0.035, 0.16 + 0.04 * j, segs=12)
+mk_obj('ev_candles', bm, M_CANDLE, EV, smooth=True)
+for i, a in enumerate((358, 178)):
+    ev_light('ev_zone_glow_%d' % i, at(7.2, a, 1.2), 25.0, soft=0.5)
+
 # remove temp collection
 tmp = COLLS.get('tmp')
 if tmp:
@@ -3101,6 +3610,9 @@ for ob in list(bpy.data.objects):
 # variant hidden by default
 COLLS['variant_central_rope'].hide_render = True
 COLLS['variant_central_rope'].hide_viewport = True
+# event layer hidden by default (render.py switches it on for the event views)
+COLLS[EV].hide_render = True
+COLLS[EV].hide_viewport = True
 
 out = os.path.join(HERE, 'tempel.blend')
 bpy.ops.wm.save_as_mainfile(filepath=out, compress=True)
