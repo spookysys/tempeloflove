@@ -30,36 +30,43 @@ def room_local(k, x, y, z):
 UF = P.FFL_UF
 VIEWS = {
     # name: camera loc, target, lens, sun (azimuth deg, math convention: 0=E, 90=N; elevation), mode
+    # site: ZEGG, Bad Belzig (52.1 N) - summer noon sun ~61 deg
     '01_hall_up_through_net': dict(
         loc=Vector((1.5, -1.6, 0.35)), tgt=Vector((-0.2, 0.6, 9.0)), lens=15,
-        sun=(-100, 57), mode='day', volume=0.016, exposure=0.2, roll=0),
+        sun=(-100, 61), mode='day', volume=0.014, exposure=0.1),
     '02_hall_wide': dict(
-        loc=pol(8.7, 292, 1.45), tgt=Vector((-1.2, 2.2, 1.35)), lens=17,
-        sun=(-80, 47), mode='day', volume=0.02, exposure=1.8),
+        loc=pol(8.9, 292, 1.45), tgt=Vector((-1.2, 2.2, 1.45)), lens=17,
+        sun=(-80, 47), mode='day', volume=0.012, exposure=0.9),
     '03_walkway': dict(
         loc=pol(4.95, 236, UF + 1.58), tgt=pol(4.75, 292, UF + 1.05), lens=18,
         sun=(-60, 50), mode='day', volume=0.0, exposure=0.5),
     '04_room_to_net': dict(
-        loc=room_local(3, 8.75, -0.85, UF + 1.0), tgt=room_local(3, 5.2, 0.75, UF + 0.85), lens=19,
-        sun=(197, 20), mode='day', volume=0.0, exposure=2.3),
+        loc=room_local(3, 9.25, -2.55, UF + 1.45), tgt=room_local(3, 5.4, 0.9, UF + 0.75), lens=18,
+        sun=(215, 24), mode='day', volume=0.0, exposure=1.3),
     '05_on_net_up': dict(
-        loc=Vector((2.3, 1.6, P.net_z(2.8) + 0.30)), tgt=Vector((-2.0, -1.4, 6.4)), lens=14,
-        sun=(-95, 58), mode='day', volume=0.004, exposure=0.1),
+        loc=Vector((2.3, 1.6, P.net_z(2.8) + 0.30)), tgt=Vector((-2.0, -1.4, 6.6)), lens=14,
+        sun=(-95, 61), mode='day', volume=0.004, exposure=0.1),
     '06_exterior': dict(
-        loc=pol(33.0, 18, 13.5), tgt=Vector((0, 1.5, 3.2)), lens=32,
-        sun=(-40, 38), mode='day', volume=0.0, exposure=0.0),
+        loc=pol(42.0, 240, 17.0), tgt=Vector((0, -0.5, 3.6)), lens=40,
+        sun=(215, 38), mode='day', volume=0.0, exposure=0.0),
+    '06b_exterior_eye_level': dict(
+        loc=pol(24.0, 298, 1.7), tgt=Vector((0, 0, 4.2)), lens=26,
+        sun=(205, 36), mode='day', volume=0.0, exposure=0.0),
+    '06c_exterior_stair_side': dict(
+        loc=pol(22.0, 168, 1.7), tgt=pol(9.5, 140, 3.6), lens=26,
+        sun=(200, 36), mode='day', volume=0.0, exposure=0.0),
     '09_roof_terrace': dict(
-        loc=pol(8.9, 208, P.TERRACE_Z + 1.62), tgt=pol(6.3, 140, P.TERRACE_Z + 1.2), lens=19,
-        sun=(215, 28), mode='day', volume=0.0, exposure=0.0),
+        loc=pol(7.3, 198, P.TERRACE_Z + 1.7), tgt=pol(7.4, 280, P.TERRACE_Z + 0.9), lens=19,
+        sun=(230, 42), mode='day', volume=0.0, exposure=0.0),
     '10_spiral_stair': dict(
-        loc=pol(3.3, 133, 1.5), tgt=pol(7.6, 124, 1.9), lens=17,
-        sun=(-60, 52), mode='day', volume=0.01, exposure=1.8),
+        loc=pol(3.2, 143, 1.5), tgt=pol(7.7, 134, 1.9), lens=17,
+        sun=(-60, 52), mode='day', volume=0.01, exposure=1.3),
     '07_walkway_evening': dict(
         loc=pol(4.95, 236, UF + 1.58), tgt=pol(4.75, 292, UF + 1.05), lens=18,
         sun=(-60, 50), mode='night', volume=0.0, exposure=-0.2),
     '08_variant_central_rope': dict(
         loc=Vector((1.5, -1.6, 0.35)), tgt=Vector((-0.2, 0.6, 9.0)), lens=15,
-        sun=(-100, 57), mode='day', volume=0.016, exposure=0.2, variant=True),
+        sun=(-100, 61), mode='day', volume=0.014, exposure=0.1, variant=True),
 }
 
 

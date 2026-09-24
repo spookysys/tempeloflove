@@ -31,7 +31,7 @@ for c in bpy.data.collections:
         for o in list(c.objects):
             bpy.data.objects.remove(o)
 for o in list(bpy.data.objects):
-    if o.type in ('LIGHT', 'CAMERA') or o.name.startswith(('tree_',)) or o.name == 'site_meadow':
+    if o.type in ('LIGHT', 'CAMERA') or o.name.startswith(('tree_', 'pine_', 'birch_')) or o.name == 'site_meadow':
         bpy.data.objects.remove(o)
 
 bpy.ops.export_scene.gltf(filepath=os.path.join(HERE, 'tempel.glb'), export_format='GLB',
