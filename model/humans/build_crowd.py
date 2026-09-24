@@ -128,6 +128,14 @@ CRAZY = [('punkduck_black_mini_skirt', 'toigo_bodice-style_top', 'punkduck_lace-
          ('toigo_harem_pants', 'jaldmic_ankh_collar', 'culturalibre_hero_mask_1'),
          ('toigo_turtleneck_halter_top', 'punkduck_black_mini_skirt', 'grinsegold_female_pirate_boots'),
          ('punkduck_evening_gown', 'elvs_m_facial_jewel_array1', 'punkduck_lace-choker')]
+BOTTOMS = ['toigo_harem_pants', 'elvs_gored_elephant_pants', 'toigo_long_full_skirt', 'elvs_sarong_cover_up',
+           'toigo_tiered_skirt', 'elvs_gored_midi_skirt', 'mindfront_female_trousers_1', 'elvs_retro_girly_shorts1',
+           'cortu_jeans_shorts', 'toigo_wool_pants', 'punkduck_black_mini_skirt']
+TOPS_F = ['toigo_camisole_top', 'punkduck_tube_top', 'punkduck_off-shoulder_long-sleeve_top', 'elvs_ladies_tank1',
+          'punkduck_sleeveless_crop_top', 'elvs_ruffle_sleeve_peasant_blouse_1', 'toigo_keyhole_tank_top',
+          'punkduck_lace_up_blouse', 'mindfront_knitted_sweater_01', None]
+TOPS_M = ['elvs_male_boho_top1', 'elvs_male_tankshirt1', 'elvs_male_athletic_tank1', 'mindfront_tank_top_01', None,
+          None, None]
 # small adornments on bare skin (tantric / festival)
 JEWEL_F = ['elvs_heart_belly_jewel', 'elvs_stars_belly_circlet', 'elvs_braided_anklet1', 'elvs_pearl_anklet_1',
            'elvs_multi_bangle_bracelet1', 'elvs_twisty_hoops1', 'punkduck_brass_circlet_crown', 'elvs_bangle_bracelet1']
@@ -183,9 +191,20 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
     sex = rnd.choice([0.0, 0.05, 0.1, 0.9, 0.95, 1.0, 0.0, 1.0]) if sex is None else sex
     years = rnd.choice([24, 27, 29, 31, 34, 37, 41, 45, 49, 53, 58, 63, 68]) if years is None else years
     race = race or rnd.choice(['caucasian'] * 6 + ['african', 'asian', 'mixed', 'caucasian'])
-    if kind == 'flow' and rnd.random() < UNDRESS[0]:
-        kind = 'undies'
+    if kind == 'flow':                       # everyone dresses how they feel: an individual mix
+        u = rnd.random()
+        if u < 0.35 * UNDRESS[0] + 0.12:
+            kind = 'undies'
+        elif u > 0.93:
+            kind = 'crazy'
+        elif u > 0.55:
+            kind = 'mix'
     if outfit is None:
+        if kind == 'mix':                    # own combination of a bottom, maybe a top, maybe a kimono over it
+            bottom = rnd.choice(BOTTOMS)
+            top = rnd.choice(TOPS_F if sex < 0.5 else TOPS_M)
+            outfit = tuple(x for x in (bottom, top, 'mindfront_kimono' if rnd.random() < 0.25 else None) if x)
+            kind = 'flow'
         pool = {'crazy': CRAZY, 'organiser': [KIMONO], 'naked': [()],
                 'undies': UNDIES_F if sex < 0.5 else UNDIES_M}.get(kind)
         if pool is None:
