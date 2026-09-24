@@ -213,7 +213,28 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
         if CROWD not in ob.users_collection:
             CROWD.objects.link(ob)
     rig['body'] = body.name
+    if kind != 'organiser':                  # guests' kimonos: each in its own colour
+        for ob in rig.children:
+            if 'kimono' in ob.name and ob.active_material:
+                recolour(ob, rnd.random(), rnd.uniform(0.7, 1.3), rnd.uniform(0.8, 1.15))
     return rig
+
+
+def recolour(ob, hue, sat, val):
+    m = ob.active_material.copy()
+    ob.active_material = m
+    nt = m.node_tree
+    for lk in list(nt.links):
+        if lk.to_socket.name == 'Base Color' and lk.from_node.type == 'TEX_IMAGE':
+            hs = nt.nodes.new('ShaderNodeHueSaturation')
+            hs.inputs['Hue'].default_value = hue
+            hs.inputs['Saturation'].default_value = sat
+            hs.inputs['Value'].default_value = val
+            src, dst = lk.from_socket, lk.to_socket
+            nt.links.remove(lk)
+            nt.links.new(src, hs.inputs['Color'])
+            nt.links.new(hs.outputs['Color'], dst)
+            return
 
 
 def body_of(rig):
