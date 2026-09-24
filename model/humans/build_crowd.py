@@ -116,11 +116,21 @@ FLOW_M = [('toigo_harem_pants', 'elvs_male_boho_top1'), ('toigo_harem_pants', 'e
           ('wdg_mycenaean_tunic',), ('drednicolson_asymmetric_tunic_and_sash',),
           ('elvs_male_trouser_short_1', 'elvs_male_boho_top1'), ('toigo_wool_pants', 'elvs_crude_t-shirt_male'),
           ('elvs_sarong_cover_up', 'elvs_male_tankshirt1')]
-CRAZY = [('elvs_disco_pants_double_ruffles', 'elvs_disco_top_1_butterfly'), ('punkduck_figure_skating_dress',),
-         ('mindfront_ballet_dress_the_swan',), ('skalldyrssuppe_tube_top_funky_colors', 'elvs_disco_mini_skirt'),
-         ('elvs_fringe_leather_dress',), ('elvs_fashion_stylized_qipoa',), ('elvs_disco_pants_single_ruffles',
-                                                                            'punkduck_high_neck_crop_top'),
-         ('elvs_frilled_party_dress',)]
+# a few theatric / kinky looks
+CRAZY = [('punkduck_black_mini_skirt', 'toigo_bodice-style_top', 'punkduck_lace-choker', 'scailman_gogo_platform_boots',
+          'culturalibre_heroine_mask_1'),
+         ('elvs_fringe_leather_dress', 'learning_slave_collar_chain', 'toigo_stiletto_booties'),
+         ('punkduck_black_cocktail_dress', 'punkduck_lace-choker', 'culturalibre_heroine_mask_1'),
+         ('elvs_disco_pants_double_ruffles', 'elvs_goth_statement_necklace1'),
+         ('mindfront_ballet_dress_the_swan', 'punkduck_brass_circlet_crown'),
+         ('toigo_harem_pants', 'jaldmic_ankh_collar', 'culturalibre_hero_mask_1'),
+         ('toigo_turtleneck_halter_top', 'punkduck_black_mini_skirt', 'grinsegold_female_pirate_boots'),
+         ('punkduck_evening_gown', 'elvs_m_facial_jewel_array1', 'punkduck_lace-choker')]
+# small adornments on bare skin (tantric / festival)
+JEWEL_F = ['elvs_heart_belly_jewel', 'elvs_stars_belly_circlet', 'elvs_braided_anklet1', 'elvs_pearl_anklet_1',
+           'elvs_multi_bangle_bracelet1', 'elvs_twisty_hoops1', 'punkduck_brass_circlet_crown', 'elvs_bangle_bracelet1']
+JEWEL_M = ['culturalibre_leather_bracelet', 'elvs_braided_anklet1', 'culturalibre_cl_spiral_bracelets',
+           'punkduck_necklace_native_american_fashion_']
 KIMONO = ('mindfront_kimono',)
 # most of the clothes already off: bare chests, loose pants and wraps, camisoles, slips
 UNDIES_F = [('toigo_camisole_top', 'elvs_retro_girly_shorts1'), ('elvs_crochet_baby_doll',),
@@ -179,6 +189,8 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
         if pool is None:
             pool = FLOW_F if (sex < 0.5 or rnd.random() < 0.08) else FLOW_M
         outfit = rnd.choice(pool)
+        if kind in ('flow', 'undies', 'naked') and rnd.random() < 0.45:
+            outfit = tuple(outfit) + (rnd.choice(JEWEL_F if sex < 0.5 else JEWEL_M),)
     if sex < 0.5:
         hair = rnd.choice(HAIR_F)
     else:
@@ -390,7 +402,11 @@ b1 = lying('sohh_posing4', -2.2, 1.5, 110, 'back', MF_Z)                        
 b2 = lying('elvs_yoga_cobra_pose_1', -1.6, 1.95, 300, 'front', MF_Z)
 reach_to(b2, 'L', bone_w(b1, 'spine02', (0, -0.12, 0)))
 standing('callharvey3d_sittingfloorstretch2', 2.6, -0.4, 170, z0=MF_Z)              # leaning back, looking up
-lying('standing04', -0.4, -2.7, 320, 'back', MF_Z)
+# eye gazing, hands on each other's hearts
+g1 = standing('callharvey3d_lotus', -0.75, -2.55, 20, z0=MF_Z)
+g2 = standing('callharvey3d_lotus', 0.05, -2.3, 200, z0=MF_Z)
+reach_to(g1, 'R', bone_w(g2, 'spine02', (0.06, -0.12, 0)))
+reach_to(g2, 'R', bone_w(g1, 'spine02', (0.06, -0.12, 0)))
 print('field done', N[0])
 
 # ---------------------------------------------------------------------------
@@ -465,6 +481,14 @@ jump = standing('callharvey3d_archer_leap', *pol(6.6, 20).xy, 110, kind='crazy')
 jump.location.z += 0.22
 standing('elvs_yoga_triangle_pose_1', *pol(8.0, 160).xy, 30, kind='undies')
 standing('sohh_posing4', *pol(6.9, 45).xy, 250, kind='naked')
+# a small sitting circle holding hands (tantric practice)
+cc_ = pol(6.6, 3)
+circ = []
+for i in range(5):
+    p = cc_ + Rz(72 * i) @ Vector((0.72, 0, 0))
+    circ.append(standing('callharvey3d_lotus', p.x, p.y, 72 * i + 180))
+for i in range(5):
+    reach_to(circ[i], 'R', bone_w(circ[(i + 1) % 5], 'wrist.L'))
 print('dance done', N[0])
 
 # ---------------------------------------------------------------------------
@@ -526,7 +550,7 @@ def FP(k, n, t, z=0.0):
 
 ab = P.slot_center(P.BAR_FACE)
 bc = FP(P.BAR_FACE, P.R_IN - 2.2, 1.0)
-x1 = standing('mindfront_standing_holding_wine_glass', bc.x, bc.y, ab + 150)
+x1 = standing('mindfront_standing_holding_wine_glass', bc.x, bc.y, ab + 150, kind='crazy')
 x2 = standing('punkduck_hand_on_shoulder_01', bc.x + 0.45, bc.y - 0.55, ab + 200)
 reach_to(x2, 'R', on_shoulder(x1, 'L'))
 standing('jjones_leaning_on_counter_hands_folded', *FP(P.BAR_FACE, P.R_IN - 1.25, 0.2).xy, ab + 180)
@@ -565,7 +589,7 @@ for i, a in enumerate((255, 330)):
     p = pol(4.12, a)
     standing('callharvey3d_sittingdefault', p.x, p.y, a + 180, z0=pad - 0.45)          # on the pad, feet on the net
 c = pol(4.75, 300)
-u1 = standing('callharvey3d_standingnatural', *(c + Rz(300) @ Vector((0, 0.3, 0))).xy, 120, z0=UF)
+u1 = standing('callharvey3d_standingnatural', *(c + Rz(300) @ Vector((0, 0.3, 0))).xy, 120, z0=UF, kind='crazy')
 u2 = standing('standing04', *(c - Rz(300) @ Vector((0, 0.3, 0))).xy, 120, z0=UF)
 reach_to(u1, 'R', on_back(u2, 'spine03', 0.12, 0.12))
 standing('standing05', *pol(5.0, 210).xy, 300, z0=UF)
