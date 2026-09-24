@@ -149,6 +149,9 @@ UNDIES_F = [('mindfront_kimono', 'elvs_retro_girly_shorts1'), ('toigo_camisole_t
             ('toigo_camisole_top', 'toigo_harem_pants')]
 UNDIES_M = [('mindfront_kimono', 'toigo_harem_pants'), ('toigo_harem_pants',), ('elvs_gored_elephant_pants',), ('elvs_sarong_cover_up',),
             ('mindfront_male_trousers_1',), ('toigo_wool_pants',)]
+LINGERIE_F = [('elvs_crochet_baby_doll',), ('toigo_bodice-style_top', 'elvs_retro_girly_shorts1', 'punkduck_lace-choker'),
+              ('punkduck_tube_top', 'elvs_retro_girly_shorts1'), ('toigo_camisole_top', 'elvs_retro_girly_shorts1')]
+LINGERIE_TONES = [(0.0, 0.2, 0.25), (0.98, 1.4, 0.45), (0.85, 1.2, 0.5), (0.08, 0.6, 1.1), (0.0, 0.0, 0.2)]
 UNDRESS = [0.0]      # share of people in the current zone who have taken most of their clothes off
 
 HAIR_F = ['elvs_lady_hippy_hair', 'long01', 'braid01', 'elvs_braid_bun', 'elvs_wavy_bob', 'punkduck_alpha7_curly',
@@ -194,7 +197,7 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
     if kind == 'flow':                       # everyone dresses how they feel: an individual mix
         u = rnd.random()
         if u < 0.35 * UNDRESS[0] + 0.12:
-            kind = 'undies'
+            kind = 'lingerie' if (sex < 0.5 and rnd.random() < 0.5) else 'undies'
         elif u > 0.93:
             kind = 'crazy'
         elif u > 0.55:
@@ -206,7 +209,7 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
             outfit = tuple(x for x in (bottom, top, 'mindfront_kimono' if rnd.random() < 0.25 else None) if x)
             kind = 'flow'
         pool = {'crazy': CRAZY, 'organiser': [KIMONO], 'naked': [()],
-                'undies': UNDIES_F if sex < 0.5 else UNDIES_M}.get(kind)
+                'undies': UNDIES_F if sex < 0.5 else UNDIES_M, 'lingerie': LINGERIE_F}.get(kind)
         if pool is None:
             pool = FLOW_F if (sex < 0.5 or rnd.random() < 0.08) else FLOW_M
         outfit = rnd.choice(pool)
@@ -232,6 +235,12 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
         if CROWD not in ob.users_collection:
             CROWD.objects.link(ob)
     rig['body'] = body.name
+    if kind == 'lingerie':                   # deep lingerie tones
+        tone = rnd.choice(LINGERIE_TONES)
+        for ob in rig.children:
+            if ob.type == 'MESH' and ob.active_material and not any(
+                    k in ob.name for k in ('body', 'hair', 'eyebrow', 'eyelash', 'high-poly', 'choker')):
+                recolour(ob, *tone)
     if kind != 'organiser':                  # guests' kimonos: each in its own colour
         for ob in rig.children:
             if 'kimono' in ob.name and ob.active_material:
@@ -466,7 +475,7 @@ reach_to(n3, 'R', bone_w(n1, 'spine03', (0, -0.1, 0)))
 spoon(0.1, -2.3, 80, net_z(0.1, -2.3))
 standing('callharvey3d_lotus', -2.4, -1.0, 20, z0=net_z(-2.4, -1.0))
 lying('elvs_yoga_cobra_pose_1', -0.2, 2.5, 90, 'front', net_z(-0.2, 2.5))            # looking down through the mesh
-lying('elvs_yoga_star_pose_1', 2.4, 1.6, 30, 'back', net_z(2.4, 1.6))
+lying('elvs_yoga_star_pose_1', 2.4, 1.6, 30, 'back', net_z(2.4, 1.6), kind='naked')
 print('net done', N[0])
 
 # ---------------------------------------------------------------------------
@@ -515,7 +524,7 @@ for i in range(3):
     reach_to(g[i], 'L', on_back(g[(i + 1) % 3], 'spine02', 0.0, 0.12))
     reach_to(g[i], 'R', on_back(g[(i + 2) % 3], 'spine02', 0.0, 0.12))
 # solos
-standing('spreadcore_arms_up_pose_001', *pol(4.9, 75).xy, 240, kind='crazy')
+standing('spreadcore_arms_up_pose_001', *pol(4.9, 75).xy, 240, kind='naked')
 standing('sohh_posing5', *pol(7.8, 60).xy, 200, kind='crazy')
 standing('anrico_standing11', *pol(4.8, 140).xy, 320, kind='naked')
 jump = standing('callharvey3d_archer_leap', *pol(6.6, 20).xy, 110, kind='crazy')
