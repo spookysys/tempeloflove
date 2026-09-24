@@ -122,6 +122,13 @@ CRAZY = [('elvs_disco_pants_double_ruffles', 'elvs_disco_top_1_butterfly'), ('pu
                                                                             'punkduck_high_neck_crop_top'),
          ('elvs_frilled_party_dress',)]
 KIMONO = ('mindfront_kimono',)
+# most of the clothes already off: underwear / swimwear
+UNDIES_F = [('punkduck_sleeveless_crop_top', 'elvs_retro_girly_shorts1'), ('punkduck_tube_top', 'elvs_retro_girly_shorts1'),
+            ('punkduck_spaghetti_strap_tank_top', 'elvs_retro_girly_shorts1'), ('mindfront_tank_top_01',),
+            ('punkduck_tube_top', 'cortu_jeans_shorts'), ('elvs_sarong_cover_up',)]
+UNDIES_M = [('mindfront_male_swimming_trunks_01',), ('mindfront_male_swimming_trunks_02',), ('elvs_male_swim_shorts1',),
+            ('mindfront_male_swimming_trunks_03',), ('toigo_harem_pants',), ('elvs_sarong_cover_up',)]
+UNDRESS = [0.0]      # share of people in the current zone who have taken most of their clothes off
 
 HAIR_F = ['elvs_lady_hippy_hair', 'long01', 'braid01', 'elvs_braid_bun', 'elvs_wavy_bob', 'punkduck_alpha7_curly',
           'punkduck_alpha7_long', 'elvs_island_princess_hair', 'o4saken_curly01', 'ponytail01', 'elvs_micky_afro',
@@ -163,8 +170,11 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
     sex = rnd.choice([0.0, 0.05, 0.1, 0.9, 0.95, 1.0, 0.0, 1.0]) if sex is None else sex
     years = rnd.choice([24, 27, 29, 31, 34, 37, 41, 45, 49, 53, 58, 63, 68]) if years is None else years
     race = race or rnd.choice(['caucasian'] * 6 + ['african', 'asian', 'mixed', 'caucasian'])
+    if kind == 'flow' and rnd.random() < UNDRESS[0]:
+        kind = 'undies'
     if outfit is None:
-        pool = {'crazy': CRAZY, 'organiser': [KIMONO]}.get(kind)
+        pool = {'crazy': CRAZY, 'organiser': [KIMONO], 'naked': [()],
+                'undies': UNDIES_F if sex < 0.5 else UNDIES_M}.get(kind)
         if pool is None:
             pool = FLOW_F if (sex < 0.5 or rnd.random() < 0.08) else FLOW_M
         outfit = rnd.choice(pool)
@@ -312,13 +322,15 @@ def lying(pname, x, y, head, how, z0, on=(), kind='flow', tilt=0.0, **kw):
     return r
 
 
-def embrace_standing(x, y, face, z0=0.0, a_pose='standing02', b_pose='standing05', kinds=('flow', 'flow')):
-    """Close dance / embrace: A faces `face`, B faces A; heads pass each other."""
+def embrace_standing(x, y, face, z0=0.0, a_pose='standing02', b_pose='standing05', kinds=('flow', 'flow'),
+                     kiss=False):
+    """Close dance / embrace: A faces `face`, B faces A; heads pass each other (or meet: kiss)."""
     c = Vector((x, y, 0))
     f = Rz(face) @ Vector((1, 0, 0))
     s = Rz(face) @ Vector((0, 1, 0))
-    a = standing(a_pose, *(c - f * 0.13 + s * 0.07).xy, face, kinds[0], z0)
-    b = standing(b_pose, *(c + f * 0.13 - s * 0.07).xy, face + 180, kinds[1], z0)
+    d, l = (0.115, 0.025) if kiss else (0.13, 0.07)
+    a = standing(a_pose, *(c - f * d + s * l).xy, face, kinds[0], z0)
+    b = standing(b_pose, *(c + f * d - s * l).xy, face + 180, kinds[1], z0)
     reach_to(a, 'L', on_back(b, 'spine02', 0.1))
     reach_to(a, 'R', on_back(b, 'spine04', -0.1, 0.12))
     reach_to(b, 'L', on_back(a, 'spine01', 0.12, 0.1))
@@ -335,10 +347,12 @@ def spoon(x, y, head, z0, pname='callharvey3d_sittingnatural', on=()):
     return back, fr
 
 
-def face_to_face(x, y, head, z0, pa='standing02', pb='standing03', on=()):
+def face_to_face(x, y, head, z0, pa='standing02', pb='standing03', on=(), kiss=True):
+    """Lying on their sides facing each other, holding each other, making out."""
     fdir = Rz(head - 90) @ Vector((1, 0, 0))
-    a = lying(pa, x - fdir.x * 0.17, y - fdir.y * 0.17, head, 'side_r', z0, on=on)
-    b = lying(pb, x + fdir.x * 0.17, y + fdir.y * 0.17, head, 'side_l', z0, on=on)
+    d = 0.135 if kiss else 0.17
+    a = lying(pa, x - fdir.x * d, y - fdir.y * d, head, 'side_r', z0, on=on)
+    b = lying(pb, x + fdir.x * d, y + fdir.y * d, head + (4 if kiss else 0), 'side_l', z0, on=on)
     reach_to(a, 'L', on_back(b, 'spine03', 0.0, 0.12))
     reach_to(b, 'R', on_back(a, 'spine02', 0.0, 0.12))
     return a, b
@@ -363,6 +377,7 @@ def head_on(pname, partner, rest_bone, head_away, how, z0, extra_on=()):
 # 1. mattress field under the net (12): lying together, some looking up at the net
 # ---------------------------------------------------------------------------
 MF_Z = 0.17
+UNDRESS[0] = 0.6
 a1 = lying('elvs_yoga_star_pose_1', 0.3, 0.2, 60, 'back', MF_Z)                      # starfish, looking up
 head_on('standing01', a1, 'spine04', 200, 'back', MF_Z)                              # head on a1's belly
 lying('callharvey3d_sittingnatural', -0.55, 0.9, 150, 'side_r', MF_Z)                # curled up alongside
@@ -397,6 +412,7 @@ lying('elvs_yoga_star_pose_1', 2.4, 1.6, 30, 'back', net_z(2.4, 1.6))
 print('net done', N[0])
 
 # ---------------------------------------------------------------------------
+UNDRESS[0] = 0.15
 # 3. dance floor, north half of the hall (contact improvisation, solos, close dancing) (18)
 # ---------------------------------------------------------------------------
 # trio: one on hands and knees, one lying across their back, a third reaching in
@@ -429,7 +445,7 @@ lean(q2, -6)
 drop(q1, 0.0)
 drop(q2, 0.0)
 # close dancing couples
-embrace_standing(*pol(5.2, 40).xy, 130)
+embrace_standing(*pol(5.2, 40).xy, 130, kiss=True)
 embrace_standing(*pol(7.4, 95).xy, 300, a_pose='standing04', b_pose='standing01')
 # group hug of three
 c = pol(6.3, 150)
@@ -443,14 +459,16 @@ for i in range(3):
 # solos
 standing('spreadcore_arms_up_pose_001', *pol(4.9, 75).xy, 240, kind='crazy')
 standing('sohh_posing5', *pol(7.8, 60).xy, 200, kind='crazy')
-standing('anrico_standing11', *pol(4.8, 140).xy, 320)
+standing('anrico_standing11', *pol(4.8, 140).xy, 320, kind='naked')
 jump = standing('callharvey3d_archer_leap', *pol(6.6, 20).xy, 110, kind='crazy')
 jump.location.z += 0.22
-standing('elvs_yoga_triangle_pose_1', *pol(8.0, 160).xy, 30)
+standing('elvs_yoga_triangle_pose_1', *pol(8.0, 160).xy, 30, kind='undies')
+standing('sohh_posing4', *pol(6.9, 45).xy, 250, kind='naked')
 print('dance done', N[0])
 
 # ---------------------------------------------------------------------------
 # 4. wrestling mats (west) (4)
+UNDRESS[0] = 0.5
 # ---------------------------------------------------------------------------
 wz = 178
 c = pol(7.2, wz - 3)
@@ -467,6 +485,7 @@ reach_to(w4, 'L', on_back(w3, 'spine05', 0.05, 0.12))
 
 # ---------------------------------------------------------------------------
 # 5. intimate zone under the linen canopy (south-west) (6)
+UNDRESS[0] = 0.7
 # ---------------------------------------------------------------------------
 iz = 235
 cc = pol(7.0, iz)
@@ -497,6 +516,7 @@ print('zones done', N[0])
 
 # ---------------------------------------------------------------------------
 # 7. bar, musician, organisers, stair seating steps, window seats (10)
+UNDRESS[0] = 0.1
 # ---------------------------------------------------------------------------
 def FP(k, n, t, z=0.0):
     a = P.slot_center(k)
@@ -551,6 +571,7 @@ standing('standing05', *pol(5.0, 210).xy, 300, z0=UF)
 
 # ---------------------------------------------------------------------------
 # 9. rooms upstairs (open / half-open doors) (9)
+UNDRESS[0] = 0.7
 # ---------------------------------------------------------------------------
 def room_pt(k, x, y):
     return Rz(P.slot_center(k)) @ Vector((x, y, 0))
