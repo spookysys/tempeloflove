@@ -1866,9 +1866,10 @@ for k in range(P.N_SLOTS):
     room(k, bath=(k == P.BATH_SLOT))
 
 # ---------------------------------------------------------------------------
-# 7. stair hall -> upper floor: one straight, wide flight along the NW wall (circumferential),
-#    open to the hall with a slim timber balustrade; the lowest steps widen into seating steps.
-#    It arrives right at the door to the external stair (roof terrace). Stores under the high end.
+# 7. stair hall -> upper floor: one wide flight along the NW wall (circumferential), open to
+#    the hall. The lowest steps fan out softly into the hall as seating steps; a solid clay
+#    balustrade with a rounded top and an oak handrail; flush store doors underneath.
+#    It arrives right at the door to the external stair (roof terrace).
 # ---------------------------------------------------------------------------
 KS = P.STAIR_SLOT
 RZS = P.slot_center(KS) + 90          # cube x-axis along the face (t)
@@ -1879,67 +1880,114 @@ N1 = P.R_IN - 0.02
 T0 = P.STAIR_T0                       # first riser
 NT = P.STAIR_RISERS - 1               # treads
 T_TOP = T0 + NT * G_                  # last riser -> upper floor
-FH = P.face_half(P.R_IN) - 0.03
+N_FAN = 5                             # fanned seating steps at the bottom
 
 
 def box_nt(bm, n0, n1, t0, t1, z0, z1):
     cube(bm, FP(KS, (n0 + n1) / 2, (t0 + t1) / 2, (z0 + z1) / 2), (t1 - t0, n1 - n0, z1 - z0), rz=RZS)
 
 
-bm = bmesh.new()
-bmt = bmesh.new()
+def flare(i):
+    """How far tread i reaches out into the hall beyond the flight (fan at the bottom)."""
+    return 1.6 * max(0.0, 1 - (i - 1) / N_FAN) ** 1.6
+
+
+def tread_outline(i, grow=0.0):
+    ta, tb = T0 + (i - 1) * G_, T0 + i * G_
+    f = flare(i)
+    n_in = N0 - f
+    # rounded plan: soft corners on the hall side, the fanned steps also wrap back along t
+    ext_t = 0.9 * f
+    cx_n = (n_in + N1) / 2
+    cx_t = (ta - ext_t + tb) / 2 + 0.0
+    rn = (N1 - n_in) / 2 + grow
+    rt = (tb - ta + ext_t) / 2 + grow
+    pts = superellipse(cx_n, cx_t, rn, rt, n=4.0 if f < 0.05 else 3.0, N=48)
+    return [tuple(FP(KS, n, t))[:2] for n, t in pts]
+
+
 for i in range(1, NT + 1):
     zt = i * R_
-    ta, tb = T0 + (i - 1) * G_, T0 + i * G_
-    nin = N0 - (0.75 if i <= 3 else 0.0) * (1 - (i - 1) / 3) - (0.2 if i <= 3 else 0.0)   # seating steps
-    box_nt(bm, nin, N1, ta, tb + 0.02, max(0.0, zt - 0.34), zt - 0.04)
-    box_nt(bmt, nin - 0.02, N1, ta - 0.02, tb, zt - 0.04, zt)
-mk_obj('stair_body', bm, M_CLAY_HALL, 'structure')
-mk_obj('stair_treads', bmt, M_WOOD, 'structure')
-# sloped clay stringer on the hall side + store under the high end
+    body_z0 = 0.0 if i <= N_FAN + 2 else zt - 0.34
+    extrude_outline('stair_step_%02d' % i, tread_outline(i), body_z0, zt - 0.045, M_CLAY_HALL, None,
+                    coll_name='structure', bevel=0.04, seg=3)
+    extrude_outline('stair_tread_%02d' % i, tread_outline(i, 0.012), zt - 0.045, zt, M_WOOD, None,
+                    coll_name='structure', bevel=0.012, seg=2)
+# closed underside: sloped clay soffit + a smooth clay wall under the high end with flush doors
 bm = bmesh.new()
-a = FP(KS, N0 + 0.04, T0 + 3 * G_, 3 * R_ - 0.3)
-b = FP(KS, N0 + 0.04, T_TOP, P.FFL_UF - 0.3)
-d = b - a
-M = Matrix.Translation((a + b) / 2) @ Vector((1, 0, 0)).rotation_difference(d.normalized()).to_matrix().to_4x4() @ \
-    Matrix.Diagonal((d.length, 0.08, 0.36, 1))
-bmesh.ops.create_cube(bm, size=1.0, matrix=M)
-t_st = T0 + 12 * G_                                            # under-stair store from here (headroom > 2 m)
-box_nt(bm, N0, N0 + 0.08, t_st, T_TOP, 0.0, (12 * R_) - 0.3)
-mk_obj('stair_stringer', bm, M_CLAY_HALL, 'structure')
-# closed, sloped clay soffit under the flight (clean underside instead of a sawtooth)
-bm = bmesh.new()
-a2 = FP(KS, (N0 + N1) / 2, T0 + 3 * G_, 3 * R_ - 0.42)
+a2 = FP(KS, (N0 + N1) / 2, T0 + (N_FAN + 2) * G_, (N_FAN + 2) * R_ - 0.42)
 b2 = FP(KS, (N0 + N1) / 2, T_TOP, P.FFL_UF - 0.42)
 d2 = b2 - a2
 M2 = Matrix.Translation((a2 + b2) / 2) @ Vector((1, 0, 0)).rotation_difference(d2.normalized()).to_matrix().to_4x4() @ \
     Matrix.Diagonal((d2.length, N1 - N0, 0.22, 1))
 bmesh.ops.create_cube(bm, size=1.0, matrix=M2)
-mk_obj('stair_soffit', bm, M_CLAY_HALL, 'structure')
+# under-stair wall on the hall side, following the soffit (one sloped-top prism)
+t_w0 = T0 + (N_FAN + 2) * G_
+
+
+def sloped_prism(bm, n0, n1, t0, t1, zb0, zb1, zt0, zt1):
+    """Prism along t with bottom z (zb0->zb1) and top z (zt0->zt1) varying linearly."""
+    v = []
+    for (t, zb, zt) in ((t0, zb0, zt0), (t1, zb1, zt1)):
+        for n in (n0, n1):
+            v.append(bm.verts.new(FP(KS, n, t, zb)))
+            v.append(bm.verts.new(FP(KS, n, t, zt)))
+    # v: [t0n0b, t0n0t, t0n1b, t0n1t, t1n0b, t1n0t, t1n1b, t1n1t]
+    F = [(0, 2, 3, 1), (4, 5, 7, 6), (0, 1, 5, 4), (2, 6, 7, 3), (1, 3, 7, 5), (0, 4, 6, 2)]
+    for f in F:
+        bm.faces.new([v[k] for k in f])
+
+
+z_w0 = (t_w0 - T0) / G_ * R_ - 0.45
+z_w1 = (T_TOP - T0) / G_ * R_ - 0.45
+sloped_prism(bm, N0, N0 + 0.12, t_w0, T_TOP, 0.0, 0.0, z_w0, z_w1)
+mk_obj('stair_underside', bm, M_CLAY_HALL, 'structure')
+t_st = T0 + 12 * G_
 bm = bmesh.new()
-box_nt(bm, N0 - 0.02, N0, t_st + 0.4, t_st + 1.2, 0.02, 2.0)
-box_nt(bm, N0 - 0.02, N0, t_st + 1.35, T_TOP - 0.1, 0.02, 2.0)
+for (ta, tb) in ((t_st + 0.1, t_st + 0.95), (t_st + 1.05, t_st + 1.9)):
+    box_nt(bm, N0 - 0.012, N0, ta, tb, 0.03, 1.95)
 mk_obj('stair_store_doors', bm, M_WOOD, 'structure')
-# slim timber balustrade: vertical slats + handrail (hall side), handrail on the wall
+# solid clay balustrade on the hall side with a rounded top (from the end of the fan upwards)
 bm = bmesh.new()
-nb = int((T_TOP - (T0 + 3 * G_)) / 0.11)
-for i in range(nb):
-    t = T0 + 3 * G_ + (i + 0.5) * (T_TOP - T0 - 3 * G_) / nb
-    zs = (t - T0) / G_ * R_
-    box_nt(bm, N0 + 0.02, N0 + 0.05, t - 0.015, t + 0.015, zs, zs + 1.0)
-mk_obj('stair_balustrade', bm, M_WOOD, 'structure')
+t_b0 = T0 + (N_FAN + 1) * G_
+zb0 = (t_b0 - T0) / G_ * R_
+zb1 = (T_TOP - T0) / G_ * R_
+sloped_prism(bm, N0, N0 + 0.14, t_b0, T_TOP, zb0 - 0.3, zb1 - 0.3, zb0 + 0.92, zb1 + 0.92)
+bal = mk_obj('stair_balustrade', bm, M_CLAY_ROOM, 'structure', smooth=True)
+bv = bal.modifiers.new('bevel', 'BEVEL')
+bv.width = 0.06
+bv.segments = 5
+bv.limit_method = 'ANGLE'
+bv.angle_limit = rad(40)
+# oak handrails (on the balustrade and on the wall) with a warm LED line underneath (evening)
 cu = bpy.data.curves.new('stair_handrails', 'CURVE')
 cu.dimensions = '3D'
-cu.bevel_depth = 0.025
-for nn in (N0 + 0.035, N1 - 0.06):
+cu.bevel_depth = 0.03
+for nn, dz in ((N0 + 0.07, 0.97), (N1 - 0.06, 0.9)):
     sp = cu.splines.new('POLY')
+    pts_ = [(t_b0 - 0.2, None), (T_TOP + 0.3, None)]
     sp.points.add(1)
-    for n_, t in enumerate((T0 + 3 * G_ - 0.1, T_TOP + 0.3)):
-        zz = (t - T0) / G_ * R_ + 1.0
-        p_ = FP(KS, nn, t, min(zz, P.FFL_UF + 1.0))
+    for n_, (t, _) in enumerate(pts_):
+        zz = min((t - T0) / G_ * R_ + dz, P.FFL_UF + 1.0)
+        p_ = FP(KS, nn, t, zz)
         sp.points[n_].co = (p_.x, p_.y, p_.z, 1)
 cu.materials.append(M_WOOD)
 coll('structure').objects.link(bpy.data.objects.new('stair_handrails', cu))
+for j in range(6):
+    t = t_b0 + (T_TOP - t_b0) * (j + 0.5) / 6
+    zz = (t - T0) / G_ * R_ + 0.85
+    light('stair_led_%d' % j, 'POINT', FP(KS, N0 + 0.2, t, zz), 4.0, soft=0.05)
+# cushions on the fanned seating steps, a tree at the foot, a paper lantern above
+for i in range(1, N_FAN):
+    zt = i * R_
+    for s_ in range(2):
+        tt = T0 + (i - 0.5) * G_ - 0.45 * flare(i) - 0.6 * s_
+        nn = N0 - flare(i) + 0.35
+        cushion('stair_cushion_%d_%d' % (i, s_), None, tuple(FP(KS, nn, tt, zt + 0.07)), (0.5, 0.5, 0.14),
+                M_WOOL[['terracotta', 'ochre', 'olive', 'rose', 'sand', 'wine'][(i + s_) % 6]], rz=RZS + 15 * s_)
+c_ = FP(KS, N0 - 0.9, T0 - 1.1, 0)
+indoor_tree('stair_tree', c_.x, c_.y, 0.0, h=2.4, seed=91)
+paper_disc('stair_disc', tuple(FP(KS, N0 - 0.2, T0 + 9 * G_, 3.0)), 0.5, 0.24, cord=P.CEIL_GF, power=35.0)
 
 # upper floor: guard along the void, linen / laundry room, open landing with tea niche
 T_VOID = T0 + 7 * G_                     # void over the flight starts here (headroom)

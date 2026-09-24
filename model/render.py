@@ -59,8 +59,8 @@ VIEWS = {
         loc=pol(7.3, 198, P.TERRACE_Z + 1.7), tgt=pol(7.4, 280, P.TERRACE_Z + 0.9), lens=19,
         sun=(230, 42), mode='day', volume=0.0, exposure=0.0),
     '10_stair': dict(
-        loc=pol(2.2, 158, 1.6), tgt=pol(6.4, 136, 2.1), lens=20,
-        sun=(-60, 52), mode='day', volume=0.0, exposure=1.2),
+        loc=pol(2.6, 216, 1.6), tgt=Vector((-5.0, 6.2, 1.7)), lens=22,
+        sun=(-75, 45), mode='day', volume=0.0, exposure=1.1),
     '13_bathroom': dict(
         loc=room_local(0, 6.0, -0.95, UF + 1.6), tgt=room_local(0, 9.3, 0.7, UF + 0.95), lens=17,
         sun=(100, 40), mode='day', volume=0.0, exposure=1.8),

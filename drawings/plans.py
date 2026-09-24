@@ -206,7 +206,9 @@ def stair_plan(ax, level):
     cut = 7 if level == 'GF' else None
     for i in range(1, NT_S + 1):
         ta, tb = T0S + (i - 1) * G_T, T0S + i * G_T
-        nin = NS0 - (0.75 * (1 - (i - 1) / 3) + 0.2 if i <= 3 else 0.0)
+        f = 1.6 * max(0.0, 1 - (i - 1) / 5) ** 1.6
+        nin = NS0 - f
+        ta = ta - 0.9 * f
         above = level == 'GF' and i > cut
         below = level == 'UF' and i < 8
         if below:
@@ -567,8 +569,8 @@ def upper_floor():
              '• Skylight 1.40 × 1.10 m over the nest: walk-on frosted\n   glass in the terrace (light, no view in)\n'
              '• Acoustic partitions 160 mm, clay plaster\n\n'
              'Stairs\n'
-             '• Inside: one straight flight along the NW wall, open\n   to the hall, 22 × 188 mm, going 270 mm, 1.50 m wide;\n'
-             '   seating steps at the bottom, store under the top\n'
+             '• Inside: one flight along the NW wall, open to the hall,\n   22 × 188 mm, going 270 mm, 1.50 m wide; clay balustrade,\n'
+             '   soft seating steps fanning out at the bottom\n'
              '• Outside (NW face): ground -> upper floor -> roof\n   terrace; 2nd escape route and the only way up\n'
              '   to the terrace',
              fontsize=10, color=INK, va='top', linespacing=1.4)
