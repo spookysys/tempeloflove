@@ -330,3 +330,29 @@ def apply_joints(rig, j, keep_yaw=False):
         pb.matrix = Matrix.Translation(hd) @ q @ Matrix.Translation(-hd) @ pb.matrix
         update()
     return yaw0, j
+
+
+def spin_frames(name, k=3, window=40, gap=200):
+    """Moments at the end of the fastest turns (body heading rotating quickly for ~1/3 s) - for flying skirts."""
+    _, n = joints(name, 0)
+    yaws = []
+    for f in range(0, n, 4):
+        j, _ = joints(name, f)
+        yaws.append((f, yaw_of(j)))
+    sc = []
+    w = window // 4
+    for i in range(w, len(yaws)):
+        tot = 0.0
+        for a in range(i - w, i):
+            d = yaws[a + 1][1] - yaws[a][1]
+            d = (d + math.pi) % (2 * math.pi) - math.pi
+            tot += d
+        sc.append((abs(tot), yaws[i][0]))
+    sc.sort(reverse=True)
+    out = []
+    for s, f in sc:
+        if all(abs(f - g) > gap for g in out):
+            out.append(f)
+        if len(out) >= k:
+            break
+    return out
