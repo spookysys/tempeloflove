@@ -518,8 +518,12 @@ def front(rig):
 N_IK = [0]
 
 
-def reach_to(rig, side, target, chain=4):
-    """Put the hand (wrist bone) of `side` ('L'/'R') on a world point, IK over the arm."""
+def reach_to(rig, side, target, chain=4, max_reach=0.5):
+    """Put the hand (wrist bone) of `side` ('L'/'R') on a world point, IK over the arm -
+    only if it is within a comfortable, bent-arm reach of the shoulder (no stretched 'zombie' arms)."""
+    sh = bone_w(rig, 'upperarm01.' + side)
+    if (Vector(target) - sh).length > max_reach:
+        return None
     N_IK[0] += 1
     e = bpy.data.objects.new('ik_%s_%d' % (rig.name, N_IK[0]), None)
     e.location = target
@@ -750,8 +754,11 @@ def link_hands(ra, rb, maxd=0.45):
         pa, pb = bone_w(ra, 'wrist.' + sa), bone_w(rb, 'wrist.' + sb)
         m = (pa + pb) / 2
         u = (pb - pa).normalized() if (pb - pa).length > 1e-4 else Vector((1, 0, 0))
-        reach_to(ra, sa, m - u * 0.075)
-        reach_to(rb, sb, m + u * 0.075)
+        ta, tb = m - u * 0.075, m + u * 0.075
+        if (ta - bone_w(ra, 'upperarm01.' + sa)).length > 0.5 or (tb - bone_w(rb, 'upperarm01.' + sb)).length > 0.5:
+            return False                                   # too far apart to hold hands comfortably
+        reach_to(ra, sa, ta)
+        reach_to(rb, sb, tb)
         return True
     return False
 
@@ -1050,6 +1057,50 @@ head_on('callharvey3d_sittingnatural', v1, 'spine03', P.slot_center(k), 'side_r'
 p = room_pt(7, 8.45, 0.0)
 face_to_face(p.x, p.y, P.slot_center(7) + 90, NEST)
 print('rooms done', N[0])
+
+# ---------------------------------------------------------------------------
+# 10. physics: everyone lying, sitting or resting on others settles under gravity and contact
+#     (active ragdolls, see ragdoll.py); dancers keep their recorded movement
+# ---------------------------------------------------------------------------
+import ragdoll as RD  # noqa: E402
+
+
+def _keyed(r):
+    return bool(r.animation_data and r.animation_data.action)
+
+
+STILL = [o for o in CROWD.objects if o.type == 'ARMATURE' and not _keyed(o)]
+# clusters of people within 1.6 m of each other
+groups_, seen = [], set()
+for r in STILL:
+    if r.name in seen:
+        continue
+    todo, g = [r], []
+    seen.add(r.name)
+    while todo:
+        a = todo.pop()
+        g.append(a)
+        for b in STILL:
+            if b.name not in seen and (a.matrix_world.translation - b.matrix_world.translation).length < 1.6:
+                seen.add(b.name)
+                todo.append(b)
+    groups_.append(g)
+SURF = [o for o in _static_objects() if o.type == 'MESH' and CROWD not in o.users_collection]
+
+
+def _near(ob, pts, d=2.5):
+    bb = [ob.matrix_world @ Vector(c) for c in ob.bound_box]
+    lo = Vector((min(v.x for v in bb), min(v.y for v in bb), min(v.z for v in bb)))
+    hi = Vector((max(v.x for v in bb), max(v.y for v in bb), max(v.z for v in bb)))
+    return any(lo.x - d < p.x < hi.x + d and lo.y - d < p.y < hi.y + d and lo.z - d < p.z < hi.z + d for p in pts)
+
+
+for gi, g in enumerate(groups_):
+    pts = [r.matrix_world.translation for r in g]
+    cols = [o for o in SURF if _near(o, pts) and len(o.data.polygons) < 60000]
+    # dancers standing right next to the group are obstacles too (they stay as they are)
+    RD.settle([(r, body_of(r), False) for r in g], cols, frames=40)
+    print('settled group', gi + 1, '/', len(groups_), len(g), 'people', len(cols), 'surfaces')
 
 # clipboards for the organisers
 import bmesh  # noqa: E402
