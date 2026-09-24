@@ -233,6 +233,26 @@ def fabric(name, style, rnd):
         L(vo.outputs['Distance'], bump.inputs['Height'])
         L(bump.outputs[0], bs.inputs['Normal'])
         return m
+    if style == 'chiffon':                                # thin, light-through fabric in warm colours
+        col = _hex(rnd.choice(['#E3A23A', '#F0B45A', '#C8553D', '#D98C8C', '#F28C6B', '#8E2A3A', '#D4A548', '#F5C89A',
+                               '#B8402E', '#E9B7A1']))
+        bs.inputs['Base Color'].default_value = col
+        bs.inputs['Roughness'].default_value = 0.55
+        bs.inputs['Sheen Weight'].default_value = 0.8
+        bs.inputs['Sheen Tint'].default_value = col
+        bs.inputs['Transmission Weight'].default_value = 0.35
+        bs.inputs['Alpha'].default_value = 0.82
+        nz = nt.nodes.new('ShaderNodeTexNoise')           # faint weave / fold variation
+        nz.inputs['Scale'].default_value = 30
+        L(uv, nz.inputs['Vector'])
+        mx = nt.nodes.new('ShaderNodeMix')
+        mx.data_type = 'RGBA'
+        mx.blend_type = 'OVERLAY'
+        mx.inputs[0].default_value = 0.15
+        mx.inputs[6].default_value = col
+        L(nz.outputs['Color'], mx.inputs[7])
+        L(mx.outputs[2], bs.inputs['Base Color'])
+        return m
     if style == 'velvet':                                 # plain velvet in a strong colour
         bs.inputs['Base Color'].default_value = _hex(rnd.choice(['#6B1E5A', '#1F3F8C', '#0F6B5C', '#B3261E', '#E0A21A',
                                                                  '#2A1A3A', '#D25A8C', '#101010', '#F2E6D8']))
@@ -517,6 +537,11 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
         if pool is None:
             pool = FLOW_F if (sex < 0.5 or rnd.random() < 0.08) else FLOW_M
         outfit = rnd.choice(pool)
+        if kind == 'flow' and rnd.random() < 0.4:            # layered: a sheer over-layer
+            layer = rnd.choice(['mindfront_kimono', 'mindfront_cardigan_long_open_front'] +
+                               (['toigo_long_full_skirt'] if 'toigo_harem_pants' in outfit else []))
+            if layer not in outfit:
+                outfit = tuple(outfit) + (layer,)
         if kind in ('flow', 'undies', 'naked') and rnd.random() < 0.45:
             outfit = tuple(outfit) + (rnd.choice(JEWEL_F if sex < 0.5 else JEWEL_M),)
     if sex < 0.5:
@@ -550,6 +575,11 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
             fab[piece] = fabric('lungi_%s_%s' % (name, piece[:12]), rnd.choice(['check', 'check', 'batik', 'ikat']), rnd)
         elif piece in SPARKLE_PIECES and rnd.random() < (0.7 if kind == 'crazy' else 0.18):
             fab[piece] = fabric('sequin_%s_%s' % (name, piece[:12]), 'sequin', rnd)
+    FLOWY = ('goddess', 'halter', 'long_full_skirt', 'tiered', 'kimono', 'cardigan', 'sarong', 'handkerchief',
+             'camisole', 'peasant', 'off-shoulder', 'harem', 'elephant', 'midi', 'dress')
+    for piece in outfit:
+        if piece not in fab and kind in ('flow', 'mix') and any(k in piece for k in FLOWY) and rnd.random() < 0.5:
+            fab[piece] = fabric('chiffon_%s_%s' % (name, piece[:12]), 'chiffon', rnd)
     for piece in outfit:
         if piece in fab or kind == 'organiser' or any(k in piece for k in (
                 'shoe', 'boot', 'sandal', 'flat', 'ring', 'anklet', 'bracelet', 'bangle', 'necklace', 'choker',
