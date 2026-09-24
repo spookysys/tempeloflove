@@ -328,7 +328,7 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
     rnd = random.Random(1000 + N[0] if seed is None else seed)
     sex = rnd.choice([0.0, 0.05, 0.1, 0.9, 0.95, 1.0, 0.0, 1.0]) if sex is None else sex
     years = rnd.choice([21, 24, 27, 29, 31, 34, 37, 41, 45, 49, 53, 58, 63, 68, 72, 76]) if years is None else years
-    race = race or rnd.choice(['caucasian'] * 5 + ['african', 'african', 'asian', 'asian', 'mixed', 'mixed'])
+    race = race or rnd.choice(['caucasian'] * 7 + ['african', 'asian', 'mixed'])
     build = rnd.choice(['slim', 'average', 'full'])     # body diversity: slim / average / curvy, heavy, soft bellies
     if kind == 'flow':                       # everyone dresses how they feel: a balanced, individual mix
         w = {'flow': 0.30, 'mix': 0.25, 'lungi': 0.12 if sex < 0.5 else 0.07, 'crazy': 0.08,
