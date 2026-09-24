@@ -557,17 +557,17 @@ def mat_leaves(name):
     return m
 
 
-M_CLAY_HALL = mat_clay('clay_hall', '#B98A62', '#C79B72')
-M_CLAY_ROOM = mat_clay('clay_room', '#CDA67F', '#D8B892', scale=1.6)
+M_CLAY_HALL = mat_clay('clay_hall', '#D8BD98', '#E3CCAC')
+M_CLAY_ROOM = mat_clay('clay_room', '#E0C6A3', '#EAD5B8', scale=1.6)
 M_RENDER = mat_clay('lime_render_ext', '#B98F68', '#C49A72', scale=0.6)
 M_PLINTH = mat_clay('plinth_stone', '#6F665C', '#80776B', scale=3.0)
-M_FLOOR_HALL = mat_boards('floor_hall_oak', '#A8774A', '#B98755', '#4A3321', board_w=0.18,
+M_FLOOR_HALL = mat_boards('floor_hall_oak', '#C8A073', '#D6B086', '#6E5236', board_w=0.18,
                           board_l=2.6)
-M_FLOOR_WALK = mat_boards('floor_walkway_oak', '#A8774A', '#B98755', '#4A3321',
+M_FLOOR_WALK = mat_boards('floor_walkway_oak', '#C8A073', '#D6B086', '#6E5236',
                           board_w=0.14, board_l=1.8, polar=True)
-M_FLOOR_ROOM = mat_boards('floor_room_oak', '#B0804F', '#C08F5C', '#4A3321', board_w=0.16,
+M_FLOOR_ROOM = mat_boards('floor_room_oak', '#CCA276', '#D9B489', '#6E5236', board_w=0.16,
                           board_l=2.0)
-M_CEIL = mat_boards('ceiling_spruce', '#D2AE80', '#DDBA8C', '#6B5238', board_w=0.12,
+M_CEIL = mat_boards('ceiling_spruce', '#E2C9A2', '#EBD4B0', '#8A7156', board_w=0.12,
                     board_l=4.0, rough=0.6)
 M_WOOD = mat_wood('glulam_larch', '#B7874F', '#CFA06A')
 M_WOOD_R = mat_wood('glulam_larch_radial', '#B7874F', '#CFA06A', grain_axis='R')
@@ -1514,6 +1514,57 @@ def potted_plant(name, parent, x, y, z, h=1.1, seed=0):
     ob.parent = parent
 
 
+def indoor_tree(name, x, y, z=0.0, h=2.6, seed=0, coll_name='plants'):
+    """Large potted indoor tree (fig / olive-like) in a clay pot."""
+    r = random.Random(seed)
+    bm = bmesh.new()
+    cyl(bm, (x, y, z + 0.28), 0.34, 0.56, segs=32, r2=0.40)
+    mk_obj(name + '_pot', bm, M_TERRACOTTA, coll_name, smooth=True)
+    bm = bmesh.new()
+    bml = bmesh.new()
+    base = Vector((x, y, z + 0.5))
+    top = base + Vector((r.uniform(-0.15, 0.15), r.uniform(-0.15, 0.15), h * 0.45))
+    cyl(bm, (base + top) / 2, 0.04, (top - base).length, segs=8,
+        rot=Vector((0, 0, 1)).rotation_difference((top - base).normalized()).to_matrix().to_4x4())
+    for b_ in range(6):
+        a = r.uniform(0, 360)
+        tip = top + Vector((math.cos(rad(a)) * r.uniform(0.3, 0.7), math.sin(rad(a)) * r.uniform(0.3, 0.7),
+                            r.uniform(0.3, h * 0.5)))
+        d = tip - top
+        cyl(bm, (top + tip) / 2, 0.02, d.length, segs=6,
+            rot=Vector((0, 0, 1)).rotation_difference(d.normalized()).to_matrix().to_4x4())
+        for i in range(22):
+            c = tip + Vector((r.uniform(-0.45, 0.45), r.uniform(-0.45, 0.45), r.uniform(-0.4, 0.3)))
+            s_ = r.uniform(0.09, 0.15)
+            res = bmesh.ops.create_icosphere(bml, subdivisions=1, radius=1.0)
+            M = (Matrix.Translation(c) @ Matrix.Rotation(rad(r.uniform(0, 360)), 4, 'Z') @
+                 Matrix.Rotation(rad(r.uniform(-60, 60)), 4, 'X') @ Matrix.Diagonal((s_ * 0.6, s_, 0.01, 1)))
+            bmesh.ops.transform(bml, verts=res['verts'], matrix=M)
+    mk_obj(name + '_wood', bm, M_BARK, coll_name, smooth=True)
+    mk_obj(name + '_leaves', bml, M_PLANT, coll_name, smooth=True)
+
+
+def hanging_greens(name, center, length, seed=0, coll_name='plants', spread=0.35):
+    """Trailing plant (pothos / ivy-like) spilling down from a planter."""
+    r = random.Random(seed)
+    bml = bmesh.new()
+    for strand in range(4):
+        p = Vector(center) + Vector((r.uniform(-spread, spread), r.uniform(-spread, spread), 0))
+        L = length * r.uniform(0.5, 1.0)
+        z_ = 0.0
+        while z_ < L:
+            z_ += 0.07
+            q = p + Vector((0.04 * math.sin(z_ * 5 + strand), 0.04 * math.cos(z_ * 4 + strand), -z_))
+            for _ in range(2):
+                s_ = r.uniform(0.04, 0.07)
+                res = bmesh.ops.create_icosphere(bml, subdivisions=1, radius=1.0)
+                M = (Matrix.Translation(q + Vector((r.uniform(-0.06, 0.06), r.uniform(-0.06, 0.06), 0))) @
+                     Matrix.Rotation(rad(r.uniform(0, 360)), 4, 'Z') @ Matrix.Rotation(rad(r.uniform(40, 80)), 4, 'X') @
+                     Matrix.Diagonal((s_, s_ * 1.1, 0.008, 1)))
+                bmesh.ops.transform(bml, verts=res['verts'], matrix=M)
+    mk_obj(name, bml, M_PLANT, coll_name, smooth=True)
+
+
 # --- artificial light: paper disc pendants, indirect uplight ledge, clay wall shells ---------
 def light(name, kind, loc, power, rot=None, size=None, size_y=None, spot=None, soft=0.05):
     li = bpy.data.lights.new(name, kind)
@@ -2420,6 +2471,31 @@ for k in range(P.N_SLOTS):
         tt = -P.face_half(P.R_IN) + 0.6 if side > 0 else P.face_half(P.R_IN) - 0.6
         clay_sconce('hall_sconce_%d_%d' % (k, side), tuple(FP(kk % P.N_SLOTS, P.R_IN - 0.02, tt, 1.95)),
                     P.slot_center(kk % P.N_SLOTS) + 180)
+
+# --- indoor greenery ----------------------------------------------------------------------
+for k in range(P.N_SLOTS):
+    if k in (P.STAIR_SLOT, P.ENTRY_SLOT, P.BAR_FACE):
+        continue
+    for tt in (-3.25,) if k != P.GARDEN_SLOT else (-1.95, 1.95):
+        c_ = FP(k, P.R_IN - 0.75, tt if k != P.GARDEN_SLOT else tt, 0)
+        indoor_tree('hall_tree_%d_%d' % (k, int(tt * 10)), c_.x, c_.y, 0.0, h=2.5 + 0.2 * (k % 2), seed=40 + k)
+for k in range(P.N_SLOTS):
+    a_ = P.partition_angle(k)
+    if k in (P.STAIR_SLOT, P.STAIR_SLOT + 1):
+        continue
+    c_ = pol(RC - 0.25, a_ + 3.5)
+    potted_plant('walk_plant_%d' % k, None, c_.x, c_.y, P.FFL_UF, h=0.9, seed=70 + k)
+bm = bmesh.new()
+n_pl = 16
+for i in range(n_pl):
+    a_ = 360 * (i + 0.5) / n_pl
+    sector(bm, P.APOTHEM_FRONT - 0.05, P.APOTHEM_FRONT + 0.3, a_ - 5, a_ + 5, P.ROOF_Z_IN - 0.02, P.ROOF_Z_IN + 0.25,
+           step=2)
+mk_obj('dome_ring_planters', bm, M_TERRACOTTA, 'plants')
+for i in range(n_pl):
+    a_ = 360 * (i + 0.5) / n_pl
+    c_ = pol(P.APOTHEM_FRONT - 0.06, a_, P.ROOF_Z_IN + 0.2)
+    hanging_greens('dome_ring_greens_%d' % i, tuple(c_), 1.3 + 0.4 * (i % 3), seed=200 + i)
 
 # cove light on top of the fascia, lighting the dome ribs (night)
 for k in range(P.N_SLOTS):

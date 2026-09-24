@@ -36,7 +36,7 @@ VIEWS = {
         sun=(-100, 61), mode='day', volume=0.014, exposure=0.1),
     '02_hall_wide': dict(
         loc=pol(8.9, 292, 1.45), tgt=Vector((-1.2, 2.2, 1.45)), lens=17,
-        sun=(-80, 47), mode='day', volume=0.012, exposure=0.9),
+        sun=(-80, 47), mode='day', volume=0.012, exposure=1.1),
     '03_walkway': dict(
         loc=pol(4.95, 236, UF + 1.58), tgt=pol(4.75, 292, UF + 1.05), lens=18,
         sun=(-60, 50), mode='day', volume=0.0, exposure=0.5),

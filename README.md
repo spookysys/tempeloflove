@@ -31,6 +31,7 @@ Rebuild: `pip install bpy matplotlib pillow`, then
 |---|---|
 | Stairs | **Inside: a simple half-turn stair from the hall to the upper floor only.** It has 2 flights of 11 × 188 mm, 260 mm going, 1.20 m wide, and runs between clay walls. Beside and under it are stores for mats, cushions and blankets, and upstairs a linen / laundry room and a small tea & water niche. **The roof terrace is reached only by the external stair.** Going up there means going outside anyway, and the roof is cleaner without the stair house. The spiral stair, its glass drum and the stair house are gone |
 | Bathroom as a place for showering together (foreplay, aftercare, pairs or groups) | Redesigned as a **bathing room**. **Both WCs have their own doors** from the walkway, so nobody has to use a toilet in the middle of other people's intimacy. The walkway front is a clay wall with a frosted-glass sliding door. Inside: 3 wide **rain showers from the ceiling, right under the skylight**; a **heated tadelakt bench** under the window to sit on together; and an **aftercare nook** behind a low curved wall, with a heated daybed, towels, a blanket and candles |
+| Brighter + greener | Lighter materials to carry daylight deeper into the hall: pale sand clay plaster, light oiled oak floors, light spruce ceilings. Greenery inside: 7 large potted trees at the hall windows, plants in the walkway alcoves by the posts, and 16 planters on the dome ring with trailing greens hanging down over the walkway (you see them from the walkway, from the net and from below through the net) |
 | Heating | **Connected to ZEGG's wood-chip district heating** (from the ZEGG site pages) instead of a heat pump of its own. Underfloor heating stays |
 
 ### Fire safety with this layout (to be confirmed by the fire engineer)
@@ -127,31 +128,33 @@ including how the net and the gallery feel underfoot (vibration).
 
 ## German regulations: fire safety, windows (Brandenburg, BbgBO)
 
-You asked whether the design meets German rules. **v0.2 did not. v0.3 is designed to be approvable in principle**,
-but it needs a fire-safety concept (Brandschutzkonzept) by a specialist. Several points are exceptions (Abweichungen)
-that need compensating measures.
+The design is approvable in principle, but it needs a fire-safety concept (Brandschutzkonzept) by a specialist.
+Some points are exceptions (Abweichungen) that need compensating measures.
 
 **Classification**
 - Building class 3: the top floor with rooms is under 7 m, and the total area is over 400 m².
-- **With overnight stays and more than 12 beds, it is a special building (Sonderbau), specifically a Beherbergungsstätte.**
-  It also becomes a Sonderbau if a room is meant for more than 100 people. Above 200 visitors the assembly-building rule
-  (Versammlungsstättenverordnung) applies too.
+- **With overnight stays and more than 12 beds, it is a special building (Sonderbau), specifically a
+  Beherbergungsstätte.** It also becomes a Sonderbau if a room is meant for more than 100 people. Above 200 visitors the
+  assembly-building rule (Versammlungsstättenverordnung) applies too.
 
-**Two built escape routes from the upper floor and the terrace.** The Beherbergungsstätten rules require both routes to
-be structural; fire-brigade ladders do not count.
-1. The **spiral stair as the necessary stair**:
-   - Its going on the walking line is 264 mm, which meets the DIN 18065 minimum of 260 mm. It was enlarged for this.
-   - It stands in **its own enclosure**: a fire-rated glass drum. The doors are held open on magnets and close in a fire.
-   - It has an exit straight outside at the bottom and a smoke vent in the stair house at the top.
-   - Open point: whether the authority accepts a spiral stair as a necessary stair in a Beherbergungsstätte.
-2. The **external stair on the NW face** is the second route, from the terrace via the upper floor to the ground. The
-   wall behind it has no room windows, only the doors; it may need to be fire-rated.
+**Stairs and escape routes (current design: normal stair inside, external stair to the roof)**
+1. The **external stair on the NW face** (ground → upper floor → roof terrace) is the necessary stair. It is the escape
+   route from the upper floor and the only one from the roof terrace. The wall behind it has no room windows, only
+   the doors; it may need to be fire-rated.
+2. The **inside half-turn stair** (hall → upper floor, 188 mm risers, 260 mm going, which meets DIN 18065) is open to
+   the hall. That is fine as a second route while the house has **≤ 12 beds** (6 rooms × 2), with the room windows as
+   rescue openings.
+   - With **more than 12 beds** (a Beherbergungsstätte), both routes must be built. The inside stair would then need
+     an enclosure towards the hall (for example fire-rated glass with doors held open on magnets), or a second
+     external stair is added.
+3. The **roof terrace** has one escape route. That is normally accepted for a terrace of this size if the number of
+   people up there is limited.
 
 **Open void through the net.** Hall and upper floor are open to each other through the net, about 580 m² over two
 storeys. The standard allowance is 400 m² over two storeys, so this is an **exception** (Abweichung). Typical
 compensating measures:
 - a fire alarm system (Brandmeldeanlage),
-- smoke extraction through the dome crown and the stair house,
+- smoke extraction through the dome crown,
 - a flame-retardant net and textiles (class B-s1,d0 / B1),
 - emergency lighting.
 
