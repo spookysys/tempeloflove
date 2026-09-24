@@ -32,7 +32,7 @@ Rebuild: `pip install bpy matplotlib pillow`, then
 | Carved naked bodies: touch, embrace, being human among humans | **Not solved yet.** My first attempt stamped reliefs from the placeholder mannequins and looked bad, so it has been removed. The columns and the hall entrance are kept as plain timber, ready to be carved. See **Carvings** below |
 | Wheelchair access to the upper floor and terrace without a lift, if it fits in | Worked through, see **Step-free access** below and `drawings/05_step_free_access_options.pdf`. A ramp is possible, but not small |
 | This is the new Blue Saloon, used for erotic parties and overnight stays | A **tea / party bar** in the hall (curved clay counter on the windowless NE wall). The rooms are planned for overnight use (fire rules below). **Signal lanterns** at every sliding door: lit = come in / ask, dark = private. This carries the "I choose contact or withdrawal" principle of the doors into the evening |
-| ZEGG core values and awareness | An **awareness / retreat room** in the annex next to the foyer, for the awareness team and anyone who needs a quiet place. Carvings are inside only. The spaces are graded: open net and hall → walkway → rooms with open / half / closed doors |
+| ZEGG core values and awareness | An **awareness / retreat room** in the annex next to the foyer, for the awareness team and anyone who needs a quiet place. The spaces are graded: open net and hall → walkway → rooms with open / half / closed doors |
 | The annex was not asked for | That's right. I added it to hold the WCs, showers, changing and entrance from your open list, so the hall could stay a whole octagon. Options are listed under **Open questions** |
 
 ## What changed in v0.3
