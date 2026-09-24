@@ -434,6 +434,17 @@ def body_of(rig):
 
 def pose(rig, name):
     rig['pose'] = name
+    if name in ('standing01', 'standing02', 'standing03', 'standing04', 'standing05', 'standing06'):
+        # instead of a stiff photo pose: an ordinary moment of recorded movement (asymmetric, relaxed limbs)
+        import mocap as MC_
+        rg = random.Random(hash(rig.name) & 0xffff)
+        clip_ = rg.choice(['60_04', '61_04', '60_05', '61_05', '49_10', '49_16', '05_18', '55_02'])
+        _, n = MC_.joints(clip_, 0)
+        f = rg.randrange(int(n * 0.15), int(n * 0.85))
+        rig['pose'] = '%s@%d' % (clip_, f)
+        MC_.apply(rig, clip_, f)
+        bpy.context.view_layer.update()
+        return
     H.apply_pose(rig, name)
     bpy.context.view_layer.update()
 
@@ -571,8 +582,8 @@ def embrace_standing(x, y, face, z0=0.0, a_pose='standing02', b_pose='standing05
     f = Rz(face) @ Vector((1, 0, 0))
     s = Rz(face) @ Vector((0, 1, 0))
     d, l = (0.115, 0.025) if kiss else (0.13, 0.07)
-    a = standing(a_pose, *(c - f * d + s * l).xy, face, kinds[0], z0)
-    b = standing(b_pose, *(c + f * d - s * l).xy, face + 180, kinds[1], z0)
+    a = swayer(*(c - f * d + s * l).xy, face, kinds[0], z0)
+    b = swayer(*(c + f * d - s * l).xy, face + 180, kinds[1], z0)
     reach_to(a, 'L', on_back(b, 'spine02', 0.1))
     reach_to(a, 'R', on_back(b, 'spine04', -0.1, 0.12))
     reach_to(b, 'L', on_back(a, 'spine01', 0.12, 0.1))
@@ -693,6 +704,33 @@ def dancer(clip, i, x, y, face, kind='flow', z0=0.0, lean_deg=0.0, **kw):
     blur_move(r, mv, face)
     DANCERS.append(r)
     return r
+
+
+SWAY = ['60_04', '61_04', '60_05', '61_05', '60_06', '61_06', '60_07', '61_07', '60_08', '61_08']
+WALK = ['35_01', '35_02', '16_15', '16_16']
+
+
+def moving(clips, x, y, face, kind='flow', z0=0.0, seed=0, **kw):
+    """Someone upright in recorded motion at an ordinary moment (swaying, stepping, walking)."""
+    rg = random.Random(seed or int(x * 1000 + y * 77))
+    clip_ = rg.choice(clips)
+    _, n = MC.joints(clip_, 0)
+    f = rg.randrange(int(n * 0.15), int(n * 0.85))
+    r = new_person(kind, **kw)
+    r['pose'] = '%s@%d' % (clip_, f)
+    mv = MC.key_motion(r, clip_, f)
+    stand(r, x, y, face)
+    drop(r, z0)
+    blur_move(r, mv, face)
+    return r
+
+
+def swayer(x, y, face, kind='flow', z0=0.0, **kw):
+    return moving(SWAY, x, y, face, kind, z0, **kw)
+
+
+def walker(x, y, face, kind='flow', z0=0.0, **kw):
+    return moving(WALK, x, y, face, kind, z0, **kw)
 
 
 def hand_pos(r, side):
@@ -876,7 +914,7 @@ c = pol(5.0, 330)
 tri = []
 for i, pn in enumerate(('standing02', 'standing05', 'standing01')):
     q = c + Rz(120 * i + 30) @ Vector((0.21, 0, 0))
-    tri.append(standing(pn, q.x, q.y, 120 * i + 30 + 180))
+    tri.append(swayer(q.x, q.y, 120 * i + 30 + 180))
 for i in range(3):
     reach_to(tri[i], 'L', on_back(tri[(i + 1) % 3], 'spine03', 0.0, 0.12))
     reach_to(tri[i], 'R', on_back(tri[(i + 2) % 3], 'spine01', 0.0, 0.1))
@@ -943,9 +981,9 @@ def FP(k, n, t, z=0.0):
 
 ab = P.slot_center(P.BAR_FACE)
 bc = FP(P.BAR_FACE, P.R_IN - 2.2, 1.0)
-x1 = standing('mindfront_standing_holding_wine_glass', bc.x, bc.y, ab + 150, kind='crazy')
+x1 = swayer(bc.x, bc.y, ab + 150, kind='crazy')
 fb = Rz(ab + 150) @ Vector((1, 0, 0))
-x2 = standing('standing02', bc.x - fb.x * 0.2, bc.y - fb.y * 0.2, ab + 150)       # holding them from behind
+x2 = swayer(bc.x - fb.x * 0.2, bc.y - fb.y * 0.2, ab + 150)                     # holding them from behind
 reach_to(x2, 'L', bone_w(x1, 'spine04', (0.1, -0.12, 0)))
 reach_to(x2, 'R', bone_w(x1, 'spine04', (-0.1, -0.12, 0)))
 mc = FP(P.BAR_FACE, P.R_IN - 3.0, -2.4)
@@ -963,14 +1001,14 @@ DRUM = (drum_c, ab + 160)
 CLIP = []
 for i, (pos, face, z0) in enumerate(((FP(P.ENTRY_SLOT, P.R_IN - 1.6, 1.1), P.slot_center(P.ENTRY_SLOT) + 200, 0.0),
                                      (pol(5.0, 284), 284 + 180 - 30, P.FFL_UF))):
-    o = standing('callharvey3d_standingatease', pos.x, pos.y, face, kind='organiser', z0=z0)
+    o = walker(pos.x, pos.y, face, kind='organiser', z0=z0)
     cp = bone_w(o, 'spine02') + front(o) * 0.3 + Vector((0, 0, -0.1))
     reach_to(o, 'L', cp + Rz(face) @ Vector((0, 0.1, 0)))
     reach_to(o, 'R', cp + Rz(face) @ Vector((0, -0.1, 0.02)))
     CLIP.append((cp, face))
 # stair seating steps
 ks = P.STAIR_SLOT
-for i, (tr, dn) in enumerate(((3, -0.1),)):
+for i, (tr, dn) in enumerate(()):  # (no one on the stair tonight)
     sp = FP(ks, P.R_IN - P.STAIR_FLIGHT_W_T + dn, P.STAIR_T0 + (tr - 0.5) * P.STAIR_GOING_T)
     standing('callharvey3d_sittingdefault', sp.x, sp.y, P.slot_center(ks) + 180, z0=tr * P.STAIR_RISE - 0.45)
 # window seats
@@ -987,10 +1025,10 @@ UF = P.FFL_UF
 pad = P.RING_BEAM_TOP + P.PAD_T
 for i, a in enumerate((255, 330)):
     p = pol(4.12, a)
-    standing('callharvey3d_sittingdefault', p.x, p.y, a + 180, z0=pad - 0.45)          # on the pad, feet on the net
+    standing(['callharvey3d_lotus', 'wolgade_sit_on_ground_01'][i], p.x, p.y, a + 180, z0=pad)   # on the pad
 c = pol(4.75, 20)
-u1 = standing('callharvey3d_standingnatural', *(c + Rz(20) @ Vector((0, 0.3, 0))).xy, 200, z0=UF, kind='crazy')
-u2 = standing('standing04', *(c - Rz(20) @ Vector((0, 0.3, 0))).xy, 200, z0=UF)
+u1 = swayer(*(c + Rz(20) @ Vector((0, 0.3, 0))).xy, 200, z0=UF, kind='crazy')
+u2 = swayer(*(c - Rz(20) @ Vector((0, 0.3, 0))).xy, 200, z0=UF)
 reach_to(u1, 'R', on_back(u2, 'spine03', 0.12, 0.12))
 dancer('05_12', 0, *pol(5.0, 210).xy, 300, z0=UF)
 
