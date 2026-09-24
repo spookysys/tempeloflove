@@ -325,16 +325,17 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
     sex = rnd.choice([0.0, 0.05, 0.1, 0.9, 0.95, 1.0, 0.0, 1.0]) if sex is None else sex
     years = rnd.choice([24, 27, 29, 31, 34, 37, 41, 45, 49, 53, 58, 63, 68]) if years is None else years
     race = race or rnd.choice(['caucasian'] * 6 + ['african', 'asian', 'mixed', 'caucasian'])
-    if kind == 'flow':                       # everyone dresses how they feel: an individual mix
-        u = rnd.random()
-        if u < 0.35 * UNDRESS[0] + 0.12:
+    if kind == 'flow':                       # everyone dresses how they feel: a balanced, individual mix
+        w = {'flow': 0.30, 'mix': 0.25, 'lungi': 0.12 if sex < 0.5 else 0.07, 'crazy': 0.08,
+             'undress': 0.10 + 0.35 * UNDRESS[0]}
+        u = rnd.random() * sum(w.values())
+        for k_, v_ in w.items():
+            if u < v_:
+                kind = k_
+                break
+            u -= v_
+        if kind == 'undress':
             kind = 'lingerie' if (sex < 0.5 and rnd.random() < 0.5) else 'undies'
-        elif u > 0.93:
-            kind = 'crazy'
-        elif u > (0.30 if sex < 0.5 else 0.42) and u <= 0.55:
-            kind = 'lungi'
-        elif u > 0.55:
-            kind = 'mix'
     if outfit is None:
         if kind == 'mix':                    # own combination of a bottom, maybe a top, maybe a kimono over it
             bottom = rnd.choice(BOTTOMS)
