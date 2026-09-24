@@ -327,8 +327,9 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
     N[0] += 1
     rnd = random.Random(1000 + N[0] if seed is None else seed)
     sex = rnd.choice([0.0, 0.05, 0.1, 0.9, 0.95, 1.0, 0.0, 1.0]) if sex is None else sex
-    years = rnd.choice([24, 27, 29, 31, 34, 37, 41, 45, 49, 53, 58, 63, 68]) if years is None else years
-    race = race or rnd.choice(['caucasian'] * 6 + ['african', 'asian', 'mixed', 'caucasian'])
+    years = rnd.choice([21, 24, 27, 29, 31, 34, 37, 41, 45, 49, 53, 58, 63, 68, 72, 76]) if years is None else years
+    race = race or rnd.choice(['caucasian'] * 5 + ['african', 'african', 'asian', 'asian', 'mixed', 'mixed'])
+    build = rnd.choice(['slim', 'average', 'full'])     # body diversity: slim / average / curvy, heavy, soft bellies
     if kind == 'flow':                       # everyone dresses how they feel: a balanced, individual mix
         w = {'flow': 0.30, 'mix': 0.25, 'lungi': 0.12 if sex < 0.5 else 0.07, 'crazy': 0.08,
              'undress': 0.10 + 0.35 * UNDRESS[0]}
@@ -363,9 +364,10 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
         hair = rnd.choice(HAIR_F)
     else:
         hair = rnd.choice(HAIR_M)
-    ph = dict(gender=sex, age=0.5 + (years - 25) / 130.0, muscle=rnd.uniform(0.35, 0.65),
-              weight=rnd.uniform(0.35, 0.7), height=rnd.uniform(0.35, 0.65), proportions=rnd.uniform(0.4, 0.7),
-              cupsize=rnd.uniform(0.3, 0.7), firmness=rnd.uniform(0.3, 0.7), race=RACES[race])
+    wt = {'slim': rnd.uniform(0.12, 0.35), 'average': rnd.uniform(0.4, 0.6), 'full': rnd.uniform(0.68, 1.0)}[build]
+    ph = dict(gender=sex, age=0.5 + (years - 25) / 130.0, muscle=rnd.uniform(0.15, 0.85),
+              weight=wt, height=rnd.uniform(0.1, 0.9), proportions=rnd.uniform(0.15, 0.85),
+              cupsize=rnd.uniform(0.1, 0.95), firmness=rnd.uniform(0.15, 0.8), race=RACES[race])
     name = 'cr_%02d' % N[0]
     lc = bpy.context.view_layer.layer_collection.children['event'].children['crowd']
     bpy.context.view_layer.active_layer_collection = lc
@@ -379,6 +381,10 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
         if CROWD not in ob.users_collection:
             CROWD.objects.link(ob)
     rig['body'] = body.name
+    if years >= 55:                          # grey hair with age
+        for ob in rig.children:
+            if ob.name.endswith(hair) and ob.active_material and hair:
+                recolour(ob, 0.5, rnd.uniform(0.0, 0.25), rnd.uniform(1.2, 1.8))
     fab = {}
     for piece in outfit:
         if piece in LUNGI_PIECES and (kind == 'lungi' or rnd.random() < 0.3):
