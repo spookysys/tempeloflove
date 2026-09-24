@@ -1,7 +1,11 @@
-# Tempel – seminar building at ZEGG, concept v0.3
+# Tempel – a new Blue Saloon for ZEGG, concept v0.4
 
-A concept model, plans, a section and renderings for a two-storey seminar building for workshops on love, intimacy
-and sexuality at ZEGG in Bad Belzig, Brandenburg. The outside is octagonal and in timber. The inside is round, with
+A concept model, plans, a section and renderings for ZEGG's new temple of love (a successor to the Blue Saloon) in Bad
+Belzig, Brandenburg. It is for community members and guests alike:
+- seminars (Liebe Tanzen, temple retreats, the love school and young love school),
+- erotic parties and temples,
+- quiet sensual or sexual meetings, alone, in pairs or in groups,
+- overnight stays during seminars. The outside is octagonal and in timber. The inside is round, with
 a walkable net under a glass dome, a ring of small rooms, and a sun terrace on the roof.
 
 This is a concept for discussion only. The structure and the net need to be checked by a structural engineer and a
@@ -13,7 +17,8 @@ specialist net maker, and the fire strategy by a fire engineer (Brandschutzplane
 |---|---|
 | `model/tempel.blend` | Full model (Blender 5.0) with materials, lights, people; cameras are set by `render.py` |
 | `model/tempel.glb` | The same model as glTF (without the forest). Opens in Windows 3D Viewer, macOS Preview, SketchUp, Rhino, or https://gltf-viewer.donmccurdy.com. Flat colours only |
-| `drawings/*.pdf` | Ground floor, upper floor, roof terrace, section A–A: vector, 1:100 on A2 (PNG previews next to them) |
+| `drawings/*.pdf` | Ground floor, upper floor, roof terrace, section A–A (vector, 1:100 on A2), step-free access options; PNG previews next to them |
+| `model/carvings/*.png` | 16-bit height maps of the relief carvings, generated from the figures |
 | `renders/*.jpg` | Renderings (Cycles, 1600×900) |
 | `model/params.py` | **All dimensions in one place**; the model and the drawings are both generated from it |
 | `model/build_model.py`, `render.py`, `export_glb.py`, `drawings/plans.py` | Scripts to rebuild everything |
@@ -21,7 +26,17 @@ specialist net maker, and the fire strategy by a fire engineer (Brandschutzplane
 Rebuild: `pip install bpy matplotlib pillow`, then
 `cd model && python3 build_model.py && python3 export_glb.py && python3 render.py` and `python3 ../drawings/plans.py`.
 
-## What changed in v0.3 (your feedback)
+## What changed in v0.4
+
+| Feedback | Change |
+|---|---|
+| Carved naked bodies: touch, embrace, being human among humans, sexuality welcome without overdoing it | The **4 columns** carry low-relief carvings, three scenes each, winding round the shaft: a couple sitting in each other's lap, lovers lying entwined, an embrace, three friends arm in arm, a dancer, a figure reaching up. A **carved arch** frames the hall entrance: two figures rise up the jambs and a pair of lovers lies across the top. The figures are sculptural and abstract, not explicit. All carvings are **inside**, so nothing is visible from outside (which matters for child protection). Small ceiling spots give them grazing light in the evening. See `11_carved_column`, `12_entrance_arch` |
+| Wheelchair access to the upper floor and terrace without a lift, if it fits in | Worked through, see **Step-free access** below and `drawings/05_step_free_access_options.pdf`. A ramp is possible, but not small |
+| This is the new Blue Saloon, used for erotic parties and overnight stays | A **tea / party bar** in the hall (curved clay counter on the windowless NE wall). The rooms are planned for overnight use (fire rules below). **Signal lanterns** at every sliding door: lit = come in / ask, dark = private. This carries the "I choose contact or withdrawal" principle of the doors into the evening |
+| ZEGG core values and awareness | An **awareness / retreat room** in the annex next to the foyer, for the awareness team and anyone who needs a quiet place. Carvings are inside only. The spaces are graded: open net and hall → walkway → rooms with open / half / closed doors |
+| The annex was not asked for | That's right. I added it to hold the WCs, showers, changing and entrance from your open list, so the hall could stay a whole octagon. Options are listed under **Open questions** |
+
+## What changed in v0.3
 
 | Feedback | Change |
 |---|---|
@@ -120,6 +135,31 @@ parts and floors. The Sonderbau rules may ask for more.
 - an accessible WC (in the annex),
 - probably a lift or other step-free access to at least part of the upper floor. There is no lift yet.
 
+## Step-free access (ramp or lift?)
+
+DIN 18040-1 allows public ramps a maximum of 6 %, with a 1.50 m landing after every 6 m. That makes a ramp
+**≈ 84 m long to the upper floor (+3.96) and ≈ 150 m to the roof terrace (+7.10)**. There is no compact way round this.
+Three realistic options (drawn to scale in `drawings/05_step_free_access_options.pdf`):
+
+| | Option | Reaches | Verdict |
+|---|---|---|---|
+| A | Ramp gallery wrapped around the building | Upper floor after ≈ 1.2 laps; roof after ≈ 2.1 laps, stacked two storeys high | Becomes a veranda around the whole house, but runs in front of every window, clashes with the annex and the external stair, and is very large |
+| B | Planted earth hill with 12 switchback ramps and a bridge to the external-stair landing | Upper floor only (the roof needs another ≈ 66 m) | Could double as a garden amphitheatre, but only makes sense if the site already slopes |
+| **C** | **Vertical platform lift in the external stair tower** (1.6 × 1.9 m, no machine room or pit, clad in larch like the stair) | Garden, upper floor landing, terrace (via a short bridge) | **Recommended**: the smallest option, reaches all three levels, and is probably the cheapest (order of magnitude €40–70k, against easily €150k+ for a ramp) |
+
+**If there is a site at ZEGG with about 4 m of natural slope**, the upper floor could be reached step-free over a
+short bridge from higher ground, with no ramp or lift at all. That is worth checking before choosing.
+
+## Open questions for you
+
+1. **Annex or not?** (a) keep it; (b) put WCs, showers and changing inside the octagon, at the cost of part of the hall;
+   (c) use existing ZEGG buildings for changing and showers, and keep only WCs and a small foyer.
+2. **Step-free access:** option C (platform lift), or is there a sloping site?
+3. **Sanitary facilities for events and overnight guests:** the upper floor has only one WC + shower. For parties and
+   group use, a second one (and a small linen / laundry room) would help.
+4. **Carvings:** more of them (room door frames, the ring beam fascia, the bar front), or keep them to the columns and
+   the arch?
+
 ## Other decisions (unchanged from v0.2, please review)
 
 - **Net**: 16 radial ropes, 3 ring ropes, an edge rope, 45 mm fine mesh, and tensioners under the removable pad.
@@ -149,5 +189,7 @@ parts and floors. The Sonderbau rules may ask for more.
 | `06c_exterior_stair_side` | The north-west side: external stair and annex |
 | `09_roof_terrace` | The sun deck: daybeds, sails, privacy screen, dome |
 | `10_spiral_stair` | The spiral stair in its glass drum, seen from the hall |
+| `11_carved_column` | A carved column in the evening, grazing light, the bar behind |
+| `12_entrance_arch` | The carved arch at the hall entrance, evening |
 | `07_walkway_evening` | The walkway in the evening, lanterns glowing through the doors |
 | `08_variant_central_rope` | View 01 with the single central rope, for comparison |
