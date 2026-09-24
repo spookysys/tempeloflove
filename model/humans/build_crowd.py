@@ -1318,6 +1318,59 @@ face_to_face(p.x, p.y, P.slot_center(7) + 90, NEST)
 print('rooms done', N[0])
 
 # ---------------------------------------------------------------------------
+# 9b. roof terrace: the music only softly from below - people talk, stroll, hold hands, cuddle on the
+#     daybeds, make out standing (couples and a trio), hug in groups
+# ---------------------------------------------------------------------------
+UNDRESS[0] = 0.3
+TZ = P.TERRACE_Z
+# a group talking (the one place where people chat) - turned towards each other, swaying
+c = pol(7.3, 70, 0)
+for i in range(4):
+    q = c + Rz(90 * i + 20) @ Vector((0.55, 0, 0))
+    swayer(q.x, q.y, 90 * i + 20 + 180, z0=TZ)
+# strolling hand in hand along the terrace
+p = pol(7.0, 25)
+duet('22_08', '23_08', MC.contact_frames('22_08', '23_08', 1)[0], p.x, p.y, 25 + 90, z0=TZ)
+p = pol(7.2, 115)
+walker(p.x, p.y, 115 + 90, z0=TZ)
+# making out standing: a couple, and a trio
+p = pol(6.7, 165)
+embrace_standing(p.x, p.y, 40, z0=TZ, kiss=True)
+c = pol(7.4, 188)
+tri2 = []
+for i in range(3):
+    q = c + Rz(120 * i + 10) @ Vector((0.21, 0, 0))
+    tri2.append(swayer(q.x, q.y, 120 * i + 10 + 180, z0=TZ))
+for i in range(3):
+    reach_to(tri2[i], 'L', on_back(tri2[(i + 1) % 3], 'spine03', 0.0, 0.12))
+    reach_to(tri2[i], 'R', on_back(tri2[(i + 2) % 3], 'spine01', 0.0, 0.1))
+# a group hug of four
+c = pol(7.0, 350)
+hug = []
+for i in range(4):
+    q = c + Rz(90 * i) @ Vector((0.3, 0, 0))
+    hug.append(swayer(q.x, q.y, 90 * i + 180, z0=TZ))
+for i in range(4):
+    reach_to(hug[i], 'L', on_back(hug[(i + 1) % 4], 'spine02', 0.0, 0.12))
+    reach_to(hug[i], 'R', on_back(hug[(i + 3) % 4], 'spine02', 0.0, 0.12))
+# cuddling on the daybeds (south faces): couples, and three together on one
+DB = TZ + 0.51
+for j, (k, t) in enumerate(((3, -2.25), (4, 2.25), (5, -2.25))):
+    cpt = FP(k, 8.15, t)
+    if j == 1:
+        a_ = lying('standing02', cpt.x, cpt.y, P.slot_center(k), 'back', DB)
+        head_on('callharvey3d_sittingnatural', a_, 'spine03', P.slot_center(k) + 100, 'side_r', DB)
+        head_on('elvs_yoga_star_pose_1', a_, 'upperleg02.R', P.slot_center(k) - 60, 'back', DB)
+    elif j == 0:
+        face_to_face(cpt.x, cpt.y, P.slot_center(k) + 90, DB)
+    else:
+        spoon(cpt.x, cpt.y, P.slot_center(k) + 90, DB)
+# someone on the bench ring, leaning back against the dome, looking at the sky
+p = pol(P.DOME_RING_OUT + 0.3, 215)
+standing('callharvey3d_sittingfloorstretch2', p.x, p.y, 215, z0=TZ + 0.2)
+print('roof done', N[0])
+
+# ---------------------------------------------------------------------------
 # 10. physics: everyone lying, sitting or resting on others settles under gravity and contact
 #     (active ragdolls, see ragdoll.py); dancers keep their recorded movement
 # ---------------------------------------------------------------------------

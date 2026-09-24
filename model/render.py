@@ -83,6 +83,9 @@ VIEWS = {
     '17_event_walkway': dict(
         loc=pol(4.95, 236, UF + 1.58), tgt=pol(4.75, 292, UF + 1.05), lens=18,
         sun=(162, 11), mode='dusk', volume=0.0, exposure=0.9, event=True),
+    '19_event_roof': dict(
+        loc=pol(9.4, 262, P.TERRACE_Z + 1.75), tgt=pol(6.8, 160, P.TERRACE_Z + 0.9), lens=18,
+        sun=(162, 11), mode='dusk', volume=0.0, exposure=0.7, event=True),
     '18_event_under_net': dict(
         loc=pol(4.3, 205, 0.75), tgt=Vector((0.6, 0.4, 2.6)), lens=16,
         sun=(162, 11), mode='dusk', volume=0.006, exposure=0.9, event=True),
