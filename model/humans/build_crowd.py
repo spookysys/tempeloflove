@@ -1411,9 +1411,11 @@ for gi, g in enumerate(groups_):
     pts = [r.matrix_world.translation for r in g]
     cols = [o for o in SURF if _near(o, pts) and len(o.data.polygons) < 60000]
     # dancers standing right next to the group are obstacles too (they stay as they are)
-    RD.settle([(r, body_of(r), False) for r in g], cols + [body_of(o) for o in STILL if o not in g and
-               _near(body_of(o), pts, 0.8)], frames=30)
-    print('settled group', gi + 1, '/', len(groups_), len(g), 'people', len(cols), 'surfaces')
+    import time as _t
+    t0 = _t.time()
+    RD.settle([(r, body_of(r), False) for r in g], cols, frames=30)
+    print('settled group', gi + 1, '/', len(groups_), len(g), 'people', len(cols), 'surfaces',
+          round(_t.time() - t0, 1), 's', flush=True)
 
 # clipboards for the organisers
 import bmesh  # noqa: E402
