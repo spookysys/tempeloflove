@@ -503,12 +503,12 @@ jump = standing('callharvey3d_archer_leap', *pol(6.6, 20).xy, 110, kind='crazy')
 jump.location.z += 0.22
 standing('elvs_yoga_triangle_pose_1', *pol(8.0, 160).xy, 30, kind='undies')
 standing('sohh_posing4', *pol(6.9, 45).xy, 250, kind='naked')
-# a loose group hanging out on the floor, chatting
+# moving on the floor, carried by the ground and the music - rolling, stretching, resting on each other
 cc_ = pol(6.7, 3)
-h1 = standing('callharvey3d_sittinglegscrossed', *(cc_ + Vector((0.5, 0.3, 0))).xy, 200)
-h2 = standing('xhado84_sitting_floor_3', *(cc_ + Vector((-0.4, 0.55, 0))).xy, 280)
-h3 = standing('wolgade_sit_on_ground_01', *(cc_ + Vector((-0.2, -0.6, 0))).xy, 60)
-head_on('standing02', h1, 'upperleg02.R', 330, 'back', 0.0)
+h1 = standing('wolgade_sit_on_ground_01', *(cc_ + Vector((0.5, 0.3, 0))).xy, 200)
+h2 = lying('elvs_yoga_cobra_pose_1', *(cc_ + Vector((-0.5, 0.45, 0))).xy, 250, 'front', 0.0)
+h3 = lying('callharvey3d_sittingnatural', *(cc_ + Vector((-0.2, -0.6, 0))).xy, 60, 'side_r', 0.0)
+head_on('elvs_yoga_star_pose_1', h1, 'upperleg02.R', 330, 'back', 0.0)
 print('dance done', N[0])
 
 # ---------------------------------------------------------------------------
@@ -571,14 +571,22 @@ def FP(k, n, t, z=0.0):
 ab = P.slot_center(P.BAR_FACE)
 bc = FP(P.BAR_FACE, P.R_IN - 2.2, 1.0)
 x1 = standing('mindfront_standing_holding_wine_glass', bc.x, bc.y, ab + 150, kind='crazy')
-x2 = standing('punkduck_hand_on_shoulder_01', bc.x + 0.45, bc.y - 0.55, ab + 200)
-reach_to(x2, 'R', on_shoulder(x1, 'L'))
+fb = Rz(ab + 150) @ Vector((1, 0, 0))
+x2 = standing('standing02', bc.x - fb.x * 0.2, bc.y - fb.y * 0.2, ab + 150)       # holding them from behind
+reach_to(x2, 'L', bone_w(x1, 'spine04', (0.1, -0.12, 0)))
+reach_to(x2, 'R', bone_w(x1, 'spine04', (-0.1, -0.12, 0)))
 standing('jjones_leaning_on_counter_hands_folded', *FP(P.BAR_FACE, P.R_IN - 1.25, 0.2).xy, ab + 180)
 mc = FP(P.BAR_FACE, P.R_IN - 3.0, -2.4)
 mu = standing('callharvey3d_lotus', mc.x, mc.y, ab + 180, z0=0.0, sex=1.0, years=46)
 hp = Vector((mc.x + 0.3, mc.y - 0.3, 0.27))
 reach_to(mu, 'L', hp + Vector((0.08, 0.05, 0)))
 reach_to(mu, 'R', hp + Vector((-0.08, -0.05, 0)))
+dc = FP(P.BAR_FACE, P.R_IN - 2.9, -3.3)
+dr = standing('callharvey3d_sittinglegscrossed', dc.x, dc.y, ab + 160, z0=0.0)
+drum_c = bone_w(dr, 'spine03') + front(dr) * 0.3 + Vector((0, 0, -0.15))
+reach_to(dr, 'L', drum_c + Rz(ab + 160) @ Vector((0.0, 0.2, 0.05)))
+reach_to(dr, 'R', drum_c + Rz(ab + 160) @ Vector((0.0, -0.15, 0.1)))
+DRUM = (drum_c, ab + 160)
 # organisers in kimonos with clipboards
 CLIP = []
 for i, (pos, face, z0) in enumerate(((FP(P.ENTRY_SLOT, P.R_IN - 1.6, 1.1), P.slot_center(P.ENTRY_SLOT) + 200, 0.0),
@@ -653,6 +661,15 @@ for i, (cp, face) in enumerate(CLIP):
     ob.data.materials.append(M_CB)
     CROWD.objects.link(ob)
 
+# frame drum
+bm = bmesh.new()
+M = Matrix.Translation(DRUM[0]) @ Matrix.Rotation(rad(DRUM[1] + 90), 4, 'Z') @ Matrix.Rotation(rad(70), 4, 'X')
+bmesh.ops.create_cone(bm, cap_ends=True, segments=48, radius1=0.24, radius2=0.24, depth=0.07, matrix=M)
+me = bpy.data.meshes.new('frame_drum')
+bm.to_mesh(me)
+ob = bpy.data.objects.new('frame_drum', me)
+ob.data.materials.append(bpy.data.materials.get('shoji_linen'))
+CROWD.objects.link(ob)
 # event layer hidden by default, as in tempel.blend (render.py switches it on for the event views)
 EVC.hide_render = True
 EVC.hide_viewport = True
