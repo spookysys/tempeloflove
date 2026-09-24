@@ -298,12 +298,17 @@ def dress_up(rig, fabrics_by_asset):
                 ob.data.materials.append(mat)
 
 
-LUNGI_F = [('toigo_long_full_skirt', 'toigo_camisole_top'), ('toigo_long_full_skirt', None),
-           ('elvs_gored_midi_skirt', 'punkduck_tube_top'), ('elvs_sarong_cover_up',), ('elvs_halter_dress_long',),
-           ('elvs_gored_midi_skirt', 'toigo_camisole_top')]
+LUNGI_F = [('elvs_sarong_cover_up',), ('elvs_sarong_cover_up',),                 # chest wrap
+           ('elvs_halter_dress_long',), ('toigo_halter_dress_midi',),                 # tied at the neck
+           ('elvs_double_handkerchief_halter_dress',),                                # handkerchief tie
+           ('elvs_goddess_dress2',), ('elvs_goddess_dress5',),                        # one shoulder / toga tie
+           ('punkduck_tube_dress',), ('elvs_halter_dress_knee_length',),              # strapless / knee length
+           ('toigo_long_full_skirt', 'toigo_camisole_top'), ('elvs_gored_midi_skirt', 'punkduck_tube_top')]
 LUNGI_M = [('toigo_long_full_skirt',), ('elvs_gored_midi_skirt',), ('toigo_long_full_skirt', 'elvs_male_tankshirt1'),
            ('elvs_gored_midi_skirt', 'elvs_male_boho_top1')]
-LUNGI_PIECES = ('toigo_long_full_skirt', 'elvs_gored_midi_skirt', 'elvs_sarong_cover_up', 'elvs_halter_dress_long')
+LUNGI_PIECES = ('toigo_long_full_skirt', 'elvs_gored_midi_skirt', 'elvs_sarong_cover_up', 'elvs_halter_dress_long',
+                'toigo_halter_dress_midi', 'elvs_double_handkerchief_halter_dress', 'elvs_goddess_dress2',
+                'elvs_goddess_dress5', 'punkduck_tube_dress', 'elvs_halter_dress_knee_length')
 SPARKLE_PIECES = ('punkduck_tube_top', 'punkduck_sleeveless_crop_top', 'toigo_camisole_top', 'elvs_disco_top2',
                   'elvs_disco_top_1_butterfly', 'punkduck_figure_skating_dress', 'elvs_disco_mini_skirt',
                   'punkduck_black_mini_skirt', 'elvs_disco_pants_skinny', 'punkduck_tube_dress',
@@ -326,7 +331,7 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
             kind = 'lingerie' if (sex < 0.5 and rnd.random() < 0.5) else 'undies'
         elif u > 0.93:
             kind = 'crazy'
-        elif u > 0.40 and u <= 0.55:
+        elif u > (0.30 if sex < 0.5 else 0.42) and u <= 0.55:
             kind = 'lungi'
         elif u > 0.55:
             kind = 'mix'
@@ -368,7 +373,7 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
     rig['body'] = body.name
     fab = {}
     for piece in outfit:
-        if piece in LUNGI_PIECES and (kind == 'lungi' or rnd.random() < 0.5):
+        if piece in LUNGI_PIECES and (kind == 'lungi' or rnd.random() < 0.3):
             fab[piece] = fabric('lungi_%s_%s' % (name, piece[:12]), rnd.choice(['check', 'check', 'batik', 'ikat']), rnd)
         elif piece in SPARKLE_PIECES and rnd.random() < (0.7 if kind == 'crazy' else 0.18):
             fab[piece] = fabric('sequin_%s_%s' % (name, piece[:12]), 'sequin', rnd)
