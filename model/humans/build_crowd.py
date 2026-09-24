@@ -877,6 +877,28 @@ roll_duet(*pol(5.2, 200).xy, 20, 0.0, style=1)
 roll_duet(*pol(8.2, 128).xy, 250, 0.0, style=2)
 print('contact done', N[0])
 
+# -- dancing melting into cuddling (and back): standing and kissing -> sinking down -> lying together --
+UNDRESS[0] = 0.4
+p = pol(4.5, 300)
+embrace_standing(p.x, p.y, 20, kiss=True)
+p = pol(4.3, 272)
+duet('22_03', '23_03', 110, p.x, p.y, 272 + 90, z0=0.0)                 # sinking to the knees together
+# a standing trio making out, arms around each other
+c = pol(5.0, 330)
+tri = []
+for i, pn in enumerate(('standing02', 'standing05', 'standing01')):
+    q = c + Rz(120 * i + 30) @ Vector((0.21, 0, 0))
+    tri.append(standing(pn, q.x, q.y, 120 * i + 30 + 180))
+for i in range(3):
+    reach_to(tri[i], 'L', on_back(tri[(i + 1) % 3], 'spine03', 0.0, 0.12))
+    reach_to(tri[i], 'R', on_back(tri[(i + 2) % 3], 'spine01', 0.0, 0.1))
+# getting up again from a cuddle: one already dancing, one rising, one still lying
+c = pol(3.3, 20)
+lying('standing02', c.x, c.y, 200, 'back', MF_Z)
+standing('wolgade_sit_on_ground_01', c.x + 0.5, c.y + 0.6, 250, z0=MF_Z)
+dancer('49_12', 2, *(c + Vector((1.0, 0.9, 0))).xy, 230)
+UNDRESS[0] = 0.15
+
 # -- dancing at the edge of the mattress field, reaching down to the people lying there --
 for i, a in enumerate((35, 150, 330)):
     p = pol(4.05, a)
@@ -902,7 +924,11 @@ m0 = cc + R_ @ Vector((-0.72, -0.3, 0))
 m1 = cc + R_ @ Vector((0.72, -0.3, 0))
 m2 = cc + R_ @ Vector((0.0, 0.75, 0))
 face_to_face(m0.x, m0.y, iz + 90, 0.18)
-spoon(m1.x, m1.y, iz + 90, 0.18)
+# a trio making out: two kissing, the third close behind one of them, a hand on the other
+ta, tb = face_to_face(m1.x, m1.y, iz + 90, 0.18)
+fdir = Rz(iz + 90 - 90) @ Vector((1, 0, 0))
+tc = lying('callharvey3d_sittingnatural', m1.x - fdir.x * 0.42, m1.y - fdir.y * 0.42, iz + 94, 'side_r', 0.18)
+reach_to(tc, 'L', bone_w(tb, 'spine03', (0, 0.1, 0)))
 s1 = standing('callharvey3d_lotus', m2.x, m2.y, iz + 180, z0=0.18)
 s2 = head_on('standing01', s1, 'pelvis.L', iz - 90, 'back', 0.18)
 reach_to(s1, 'R', bone_w(s2, 'head', (0, 0, 0.08)))
