@@ -25,6 +25,23 @@ specialist net maker, and the fire strategy by a fire engineer (Brandschutzplane
 Rebuild: `pip install bpy matplotlib pillow`, then
 `cd model && python3 build_model.py && python3 export_glb.py && python3 render.py` and `python3 ../drawings/plans.py`.
 
+
+## Walk around on a laptop (light model)
+
+`model/tempel_lite.blend` (7 MB) is the building only: no people, thinned forest, simplified plants,
+real-time settings. Made with Blender 5.0 (Blender 4.5 LTS should open it too).
+Download: <https://github.com/spookysys/tempeloflove/raw/claude/round-seminar-building-3d-l5mecq/model/tempel_lite.blend>
+
+- **Walk:** Shift + \` (key left of 1) or *View > Navigation > Walk Navigation*; W A S D + mouse,
+  Q / E down / up, **Tab = gravity** (walk on floors and stairs, Space = jump), click = stay, Esc = back.
+- **Viewpoints:** collection `cameras` (all rendering viewpoints + `CAM_walk` at eye height by the entrance):
+  select one, Ctrl + Numpad 0, then Numpad 0 to look through it.
+- **Quality switch:** Text Editor > `quality_switch` > set `MODE` = `FAST` (EEVEE, day) / `EVENING`
+  (lanterns and indirect light) / `NICE` (Cycles CPU, 32 samples + denoiser) > Alt + P; F12 renders.
+- Instructions are also inside the file (Text Editor > `README_walk`). Rebuild with `python3 model/make_lite.py`.
+- On a weak machine: stay in *Material Preview* shading; on a Chromebook (Linux) enable GPU support for Linux
+  (`chrome://flags/#crostini-gpu-support`) - Blender needs OpenGL 4.3.
+
 ## What changed in v0.8
 
 | Topic | Change |
