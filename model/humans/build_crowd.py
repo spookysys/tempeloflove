@@ -627,10 +627,7 @@ r = standing('callharvey3d_lotus', 1.2, 0.95, 225, z0=MF_Z)
 reach_to(r, 'R', bone_w(a1, 'spine02', (0, -0.1, 0)))
 spoon(-1.6, -0.6, 250, MF_Z)
 face_to_face(0.9, -1.6, 15, MF_Z)
-b1 = lying('sohh_posing4', -2.2, 1.5, 110, 'back', MF_Z)                             # hand behind head, looking up
-b2 = lying('elvs_yoga_cobra_pose_1', -1.6, 1.95, 300, 'front', MF_Z)
-reach_to(b2, 'L', bone_w(b1, 'spine02', (0, -0.12, 0)))
-standing('callharvey3d_sittingfloorstretch2', 2.6, -0.4, 170, z0=MF_Z)              # leaning back, looking up
+lying('sohh_posing4', -2.2, 1.5, 110, 'back', MF_Z)                                  # hand behind head, looking up
 # lounging: one leaning back against the other, who holds them loosely
 g1 = standing('callharvey3d_sittingfloorstretch2', -0.45, -2.45, 20, z0=MF_Z)
 g2 = standing('callharvey3d_lotus', *(Vector((-0.45, -2.45, 0)) - Rz(20) @ Vector((0.42, 0, 0))).xy, 20, z0=MF_Z)
@@ -651,8 +648,6 @@ head_on('callharvey3d_sittingnatural', n1, 'spine04', 20, 'side_r', net_z(1.6, -
 n3 = lying('callharvey3d_sittingnatural', 1.75, -1.0, 200, 'side_l', net_z(1.75, -1.0))
 reach_to(n3, 'R', bone_w(n1, 'spine03', (0, -0.1, 0)))
 spoon(0.1, -2.3, 80, net_z(0.1, -2.3))
-standing('callharvey3d_lotus', -2.4, -1.0, 20, z0=net_z(-2.4, -1.0))
-lying('elvs_yoga_cobra_pose_1', -0.2, 2.5, 90, 'front', net_z(-0.2, 2.5))            # looking down through the mesh
 lying('elvs_yoga_star_pose_1', 2.4, 1.6, 30, 'back', net_z(2.4, 1.6), kind='naked')
 print('net done', N[0])
 
@@ -809,7 +804,7 @@ def group(cx, cy, n_up, n_floor, spread, seed, clips=None, kinds=None, duet_clip
 
 
 # -- one large flowing group near the musicians (north-east): ecstatic, connected --
-big = group(*pol(6.3, 55).xy, 9, 2, 2.4, 11, duet_clip=('60_01', '61_01', 0),
+big = group(*pol(6.3, 55).xy, 8, 1, 2.2, 11, duet_clip=('60_01', '61_01', 0),
             kinds=['flow', 'crazy', 'naked', 'flow', 'lungi', 'undies', 'flow', 'crazy'])
 # a couple dancing at the east side of it
 p = pol(6.8, 5)
@@ -839,7 +834,7 @@ def hand_circle(cx, cy, n, radius, clips, lean_out=9, seed=0):
     return ring
 
 
-hand_circle(*pol(7.7, 92).xy, 6, 0.95, ['49_10', '05_12', '49_16', '05_18', '55_02', '49_22'], seed=5)
+hand_circle(*pol(7.7, 95).xy, 5, 0.85, ['49_10', '05_12', '49_16', '05_18', '55_02', '49_22'], seed=5)
 
 # -- weight structure: one low on all fours, another propped on one hand with a foot on their back,
 #    beside them two leaning into each other and a third leaning into both --
@@ -850,28 +845,12 @@ pose(s2, 'elvs_pushups_1')
 stand(s2, c.x + 0.9, c.y + 0.5, 200)
 drop(s2, 0.0)
 foot_to(s2, 'R', bone_w(s1, 'spine03', (0, 0.12, 0)))
-c2 = pol(6.2, 222)
-f_ = Rz(40) @ Vector((1, 0, 0))
-l1 = standing('standing03', *(c2 - f_ * 0.4).xy, 40)
-l2 = standing('standing06', *(c2 + f_ * 0.4).xy, 220)
-for r_ in (l1, l2):
-    lean(r_, 13)
-    drop(r_, 0.0)
-for a_, b_ in ((l1, l2), (l2, l1)):
-    reach_to(a_, 'L', on_shoulder(b_, 'R'))
-    reach_to(a_, 'R', on_shoulder(b_, 'L'))
-side = Rz(40) @ Vector((0, 1, 0))
-l3 = standing('callharvey3d_standingnatural', *(c2 + side * 0.45).xy, 40 + 180 + 90)
-lean(l3, -12)
-drop(l3, 0.0)
-reach_to(l3, 'L', on_back(l1, 'spine02', 0.0, 0.12))
-reach_to(l3, 'R', on_back(l2, 'spine02', 0.0, 0.12))
 
 # -- contact improvisation: quartet, quintet, sextet, duets turning into trios, rolling on the floor --
 UNDRESS[0] = 0.35
-group(*pol(6.4, 118).xy, 3, 1, 1.0, 21)                                 # quartet
-q5 = group(*pol(6.9, 150).xy, 2, 1, 1.0, 22, duet_clip=('18_03', '19_03', 0))   # quintet around a counterbalance
-group(*pol(6.5, 186).xy, 3, 3, 1.4, 23)                                 # sextet, half of it on the floor
+p = pol(6.9, 150)
+duet('18_03', '19_03', 519, p.x, p.y, 150 + 90)                          # counterbalance, hands held
+group(*pol(6.5, 186).xy, 2, 2, 1.1, 23)                                 # a group half on the floor
 # a trio: one on hands and knees, one lying across their back, a third reaching in
 c = pol(4.9, 140)
 t1 = standing('drednicolson_prostrate', c.x, c.y, 250)
@@ -881,13 +860,9 @@ lie(t2, c.x, c.y, 340, 'back')
 drop(t2, 0.0, on=(t1,))
 t3 = dancer('49_12', 1, c.x + 0.7, c.y - 0.45, 120)
 reach_to(t3, 'R', bone_w(t2, 'wrist.L'))
-# kneeling floor duet
-p = pol(8.0, 170)
-duet('22_03', '23_03', 560, p.x, p.y, 170 + 60, z0=0.12)
 # rolling with each other on the floor
 roll_duet(*pol(8.0, 200).xy, 110, 0.0, style=0)
 roll_duet(*pol(5.2, 200).xy, 20, 0.0, style=1)
-roll_duet(*pol(8.2, 128).xy, 250, 0.0, style=2)
 print('contact done', N[0])
 
 # -- dancing melting into cuddling (and back): standing and kissing -> sinking down -> lying together --
@@ -913,7 +888,7 @@ dancer('49_12', 2, *(c + Vector((1.0, 0.9, 0))).xy, 230)
 UNDRESS[0] = 0.15
 
 # -- dancing at the edge of the mattress field, reaching down to the people lying there --
-for i, a in enumerate((35, 150, 330)):
+for i, a in enumerate((150,)):
     p = pol(4.05, a)
     dancer(['49_22', '05_12', '49_14'][i], i, p.x, p.y, a + 180 + (i - 1) * 30, kind='flow')
 
@@ -955,10 +930,6 @@ k1 = lying('standing02', c0.x, c0.y, cz + 100, 'back', 0.18)
 head_on('callharvey3d_sittingnatural', k1, 'spine03', cz - 30, 'side_r', 0.18)
 k3 = lying('callharvey3d_sittingnatural', *(c0 + Rz(cz) @ Vector((0.0, -0.45, 0))).xy, cz + 100, 'side_l', 0.18)
 reach_to(k3, 'R', bone_w(k1, 'spine02', (0, -0.1, 0)))
-c1 = pol(8.1, cz + 8)
-k4 = standing('callharvey3d_sittingfloorstretch2', c1.x, c1.y, cz + 180, z0=0.18)
-k5 = standing('callharvey3d_lotus', *(c1 + Rz(cz + 90) @ Vector((0.5, 0, 0))).xy, cz + 170, z0=0.18)
-reach_to(k5, 'L', on_back(k4, 'spine02', 0, 0.12))
 print('zones done', N[0])
 
 # ---------------------------------------------------------------------------
@@ -977,7 +948,6 @@ fb = Rz(ab + 150) @ Vector((1, 0, 0))
 x2 = standing('standing02', bc.x - fb.x * 0.2, bc.y - fb.y * 0.2, ab + 150)       # holding them from behind
 reach_to(x2, 'L', bone_w(x1, 'spine04', (0.1, -0.12, 0)))
 reach_to(x2, 'R', bone_w(x1, 'spine04', (-0.1, -0.12, 0)))
-standing('jjones_leaning_on_counter_hands_folded', *FP(P.BAR_FACE, P.R_IN - 1.25, 0.2).xy, ab + 180)
 mc = FP(P.BAR_FACE, P.R_IN - 3.0, -2.4)
 mu = standing('callharvey3d_lotus', mc.x, mc.y, ab + 180, z0=0.0, sex=1.0, years=46)
 hp = Vector((mc.x + 0.3, mc.y - 0.3, 0.27))
@@ -1000,11 +970,11 @@ for i, (pos, face, z0) in enumerate(((FP(P.ENTRY_SLOT, P.R_IN - 1.6, 1.1), P.slo
     CLIP.append((cp, face))
 # stair seating steps
 ks = P.STAIR_SLOT
-for i, (tr, dn) in enumerate(((2, -0.8), (3, -0.1))):
+for i, (tr, dn) in enumerate(((3, -0.1),)):
     sp = FP(ks, P.R_IN - P.STAIR_FLIGHT_W_T + dn, P.STAIR_T0 + (tr - 0.5) * P.STAIR_GOING_T)
     standing('callharvey3d_sittingdefault', sp.x, sp.y, P.slot_center(ks) + 180, z0=tr * P.STAIR_RISE - 0.45)
 # window seats
-for i, a in enumerate((200,)):
+for i, a in enumerate(()):
     p = pol(P.R_IN - 0.45, a)
     standing(['anrico_sitting02', 'callharvey3d_sittinglegscrossed', 'anrico_sitting04'][i], p.x, p.y, a + 180,
              z0=0.1)
@@ -1022,7 +992,7 @@ c = pol(4.75, 20)
 u1 = standing('callharvey3d_standingnatural', *(c + Rz(20) @ Vector((0, 0.3, 0))).xy, 200, z0=UF, kind='crazy')
 u2 = standing('standing04', *(c - Rz(20) @ Vector((0, 0.3, 0))).xy, 200, z0=UF)
 reach_to(u1, 'R', on_back(u2, 'spine03', 0.12, 0.12))
-standing('standing05', *pol(5.0, 210).xy, 300, z0=UF)
+dancer('05_12', 0, *pol(5.0, 210).xy, 300, z0=UF)
 
 # ---------------------------------------------------------------------------
 # 9. rooms upstairs (open / half-open doors) (9)
@@ -1033,18 +1003,12 @@ def room_pt(k, x, y):
 
 
 NEST = UF + 0.47
-k = 2
-a = P.slot_center(k)
-r1 = standing('callharvey3d_lotus', *room_pt(k, 8.3, -0.45).xy, a + 90, z0=NEST)
-r2 = standing('callharvey3d_sittinglegscrossed', *room_pt(k, 8.3, 0.45).xy, a - 90, z0=NEST)
-reach_to(r1, 'L', bone_w(r2, 'wrist.R'))
 p = room_pt(3, 8.45, 0.0)
 spoon(p.x, p.y, P.slot_center(3), NEST)
 k = 5
 p = room_pt(k, 8.45, 0.0)
 v1 = lying('standing02', p.x, p.y, P.slot_center(k) + 90, 'back', NEST)
 head_on('callharvey3d_sittingnatural', v1, 'spine03', P.slot_center(k), 'side_r', NEST)
-head_on('standing01', v1, 'upperleg02.L', P.slot_center(k) - 150, 'back', NEST)
 p = room_pt(7, 8.45, 0.0)
 face_to_face(p.x, p.y, P.slot_center(7) + 90, NEST)
 print('rooms done', N[0])
