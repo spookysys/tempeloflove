@@ -233,6 +233,43 @@ def fabric(name, style, rnd):
         L(vo.outputs['Distance'], bump.inputs['Height'])
         L(bump.outputs[0], bs.inputs['Normal'])
         return m
+    if style == 'snake':                                  # snake skin: scales with a slight sheen
+        pal = rnd.choice([('#C9B48A', '#5A4630'), ('#6E8B4A', '#1F2A14'), ('#B8B8B8', '#161616'), ('#8A2B3A', '#1A0B0E')])
+        mp = nt.nodes.new('ShaderNodeMapping')
+        mp.inputs['Scale'].default_value = (140, 90, 1)
+        L(uv, mp.inputs['Vector'])
+        vo = nt.nodes.new('ShaderNodeTexVoronoi')
+        vo.feature = 'DISTANCE_TO_EDGE'
+        L(mp.outputs[0], vo.inputs['Vector'])
+        nz = nt.nodes.new('ShaderNodeTexNoise')
+        nz.inputs['Scale'].default_value = 4
+        L(uv, nz.inputs['Vector'])
+        r_ = nt.nodes.new('ShaderNodeValToRGB')
+        cr = r_.color_ramp
+        cr.elements[0].position, cr.elements[0].color = 0.35, _hex(pal[1])
+        cr.elements[1].position, cr.elements[1].color = 0.65, _hex(pal[0])
+        L(nz.outputs['Fac'], r_.inputs['Fac'])
+        mx = nt.nodes.new('ShaderNodeMix')
+        mx.data_type = 'RGBA'
+        mx.blend_type = 'MULTIPLY'
+        mx.inputs[0].default_value = 0.6
+        L(r_.outputs[0], mx.inputs[6])
+        edge = nt.nodes.new('ShaderNodeValToRGB')
+        edge.color_ramp.elements[0].position = 0.0
+        edge.color_ramp.elements[0].color = (0.1, 0.1, 0.1, 1)
+        edge.color_ramp.elements[1].position = 0.08
+        L(vo.outputs['Distance'], edge.inputs['Fac'])
+        L(edge.outputs[0], mx.inputs[7])
+        L(mx.outputs[2], bs.inputs['Base Color'])
+        bs.inputs['Roughness'].default_value = 0.3
+        bs.inputs['Coat Weight'].default_value = 0.4
+        bump = nt.nodes.new('ShaderNodeBump')
+        bump.inputs['Strength'].default_value = 0.5
+        L(vo.outputs['Distance'], bump.inputs['Height'])
+        L(bump.outputs[0], bs.inputs['Normal'])
+        return m
+    furry = style.startswith('fur_')
+    style = style.replace('fur_', '')
     if style in ('leopard', 'zebra', 'tiger'):
         bs.inputs['Roughness'].default_value = 0.55
         bs.inputs['Sheen Weight'].default_value = 0.6
@@ -279,6 +316,18 @@ def fabric(name, style, rnd):
             cr.elements[1].position, cr.elements[1].color = 0.52 if style == 'zebra' else 0.7, base
             L(w_.outputs['Fac'], r_.inputs['Fac'])
         L(r_.outputs[0], bs.inputs['Base Color'])
+        if furry:                                         # plush faux fur: soft sheen + fine fibre bump
+            bs.inputs['Roughness'].default_value = 1.0
+            bs.inputs['Sheen Weight'].default_value = 1.0
+            bs.inputs['Sheen Roughness'].default_value = 0.6
+            fz = nt.nodes.new('ShaderNodeTexNoise')
+            fz.inputs['Scale'].default_value = 900
+            fz.inputs['Detail'].default_value = 8
+            L(uv, fz.inputs['Vector'])
+            fb = nt.nodes.new('ShaderNodeBump')
+            fb.inputs['Strength'].default_value = 0.8
+            L(fz.outputs['Fac'], fb.inputs['Height'])
+            L(fb.outputs[0], bs.inputs['Normal'])
         return m
     a, b, c = [_hex(h) for h in rnd.choice(LUNGI_PAL)]
     bs.inputs['Roughness'].default_value = 0.65
@@ -338,6 +387,33 @@ def fabric(name, style, rnd):
         L(n.outputs['Fac'], r_.inputs['Fac'])
         L(r_.outputs[0], bs.inputs['Base Color'])
     return m
+
+
+HEAD_HANDS = ('head', 'neck', 'jaw', 'eye', 'ear', 'nose', 'lip', 'mouth', 'cheek', 'brow', 'tongue', 'oris', 'temporalis',
+              'levator', 'orbicularis', 'risorius', 'wrist', 'finger', 'thumb', 'metacarpal', 'toe', 'foot', 'special')
+LEG_GROUPS = ('upperleg', 'lowerleg', 'pelvis')
+
+
+def body_paint(body, mat, part='full'):
+    """Skin-tight: a bodysuit (everything but head, hands, feet) or tights (legs) painted onto the body."""
+    names = {g.index: g.name for g in body.vertex_groups}
+    me = body.data
+    dom = []
+    for v in me.vertices:
+        best = max(((g.weight, names.get(g.group, '')) for g in v.groups
+                    if not names.get(g.group, '').startswith(('helper', 'joint', 'body', 'Left', 'Right', 'Mid'))),
+                   default=(0, ''))
+        dom.append(best[1])
+    me.materials.append(mat)
+    slot = len(me.materials) - 1
+    for poly in me.polygons:
+        gs = [dom[i] for i in poly.vertices]
+        if part == 'legs':
+            ok = all(any(g.startswith(k) for k in LEG_GROUPS) for g in gs)
+        else:
+            ok = all(g and not any(k in g for k in HEAD_HANDS) for g in gs)
+        if ok:
+            poly.material_index = slot
 
 
 def dress_up(rig, fabrics_by_asset):
@@ -459,6 +535,17 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
             fab[piece] = fabric('animal_%s_%s' % (name, piece[:12]), rnd.choice(['leopard', 'leopard', 'zebra', 'tiger']),
                                 rnd)
     dress_up(rig, fab)
+    # skin-tight looks: bodysuits for the wild / lingerie looks, animal-print tights under skirts and dresses
+    if kind in ('crazy', 'lingerie') and rnd.random() < 0.35:
+        body_paint(body, fabric('suit_' + name, rnd.choice(['snake', 'snake', 'leopard', 'zebra']), rnd), 'full')
+    elif kind in ('flow', 'mix') and sex < 0.5 and rnd.random() < 0.12:
+        body_paint(body, fabric('tights_' + name, rnd.choice(['leopard', 'snake', 'zebra', 'tiger']), rnd), 'legs')
+    # plush faux-fur leopard on some kimonos / cardigans / dresses
+    for ob in rig.children:
+        if ob.type == 'MESH' and any(k in ob.name for k in ('kimono', 'cardigan', 'goddess', 'fringe')) and \
+                kind != 'organiser' and rnd.random() < 0.15:
+            ob.data.materials.clear()
+            ob.data.materials.append(fabric('fur_' + name, 'fur_leopard', rnd))
     if kind in ('flow', 'mix') and rnd.random() < 0.45:  # colourful: shift the colours of the rest
         for ob in rig.children:
             if ob.type == 'MESH' and ob.active_material and not any(k in ob.name for k in (
