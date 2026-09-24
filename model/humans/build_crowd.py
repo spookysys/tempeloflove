@@ -184,6 +184,132 @@ def skin_for(sex, years, race, rnd):
     return rnd.choice(opts)
 
 
+# ---------------------------------------------------------------------------
+# fabrics: lungis (check, batik, ikat), sequins / glitter
+# ---------------------------------------------------------------------------
+def _hex(h):
+    h = h.lstrip('#')
+    c = [int(h[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+    return tuple([(x / 12.92 if x <= 0.04045 else ((x + 0.055) / 1.055) ** 2.4) for x in c] + [1.0])
+
+
+LUNGI_PAL = [('#1F2E6B', '#F2EEE3', '#B3202A'), ('#1D5B3A', '#E8C547', '#141414'), ('#6B1420', '#D9A441', '#F3E9D2'),
+             ('#1E8C8C', '#E75A8C', '#1A2340'), ('#D9661E', '#5B2A6E', '#E8B43A'), ('#3A2A1E', '#C9A77C', '#8C2F1E'),
+             ('#2B6CB0', '#F5F0E6', '#F2C14E'), ('#8E3B8E', '#F2B5D4', '#2E1A47')]
+SPARKLE_PAL = ['#D4AF37', '#C0C0C8', '#C2185B', '#1CA3A3', '#B87333', '#7B3FB5', '#E6C7A8']
+
+
+def fabric(name, style, rnd):
+    m = bpy.data.materials.new(name)
+    nt = m.node_tree
+    nt.nodes.clear()
+    out = nt.nodes.new('ShaderNodeOutputMaterial')
+    bs = nt.nodes.new('ShaderNodeBsdfPrincipled')
+    nt.links.new(bs.outputs[0], out.inputs[0])
+    uv = nt.nodes.new('ShaderNodeTexCoord').outputs['UV']
+    L = nt.links.new
+    if style == 'sequin':
+        col = _hex(rnd.choice(SPARKLE_PAL))
+        vo = nt.nodes.new('ShaderNodeTexVoronoi')
+        vo.inputs['Scale'].default_value = 520.0
+        L(uv, vo.inputs['Vector'])
+        hs = nt.nodes.new('ShaderNodeHueSaturation')
+        hs.inputs['Color'].default_value = col
+        L(vo.outputs['Color'], hs.inputs['Value'])          # each sequin catches the light differently
+        hs.inputs['Hue'].default_value = 0.5
+        mr = nt.nodes.new('ShaderNodeMapRange')
+        mr.inputs['To Min'].default_value = 0.55
+        mr.inputs['To Max'].default_value = 1.35
+        L(vo.outputs['Distance'], mr.inputs['Value'])
+        L(mr.outputs[0], hs.inputs['Value'])
+        L(hs.outputs[0], bs.inputs['Base Color'])
+        bs.inputs['Metallic'].default_value = 0.95
+        bs.inputs['Roughness'].default_value = 0.18
+        bump = nt.nodes.new('ShaderNodeBump')
+        bump.inputs['Strength'].default_value = 0.6
+        L(vo.outputs['Distance'], bump.inputs['Height'])
+        L(bump.outputs[0], bs.inputs['Normal'])
+        return m
+    a, b, c = [_hex(h) for h in rnd.choice(LUNGI_PAL)]
+    bs.inputs['Roughness'].default_value = 0.65
+    bs.inputs['Sheen Weight'].default_value = 0.5
+    mp = nt.nodes.new('ShaderNodeMapping')
+    L(uv, mp.inputs['Vector'])
+    if style == 'check':                                  # madras / lungi check
+        sc_ = rnd.uniform(9, 16)
+        mp.inputs['Scale'].default_value = (sc_, sc_, 1)
+        mix = None
+        cols = []
+        for ax in ('X', 'Y'):
+            w = nt.nodes.new('ShaderNodeTexWave')
+            w.wave_type = 'BANDS'
+            w.bands_direction = ax
+            w.inputs['Scale'].default_value = 1.0
+            L(mp.outputs[0], w.inputs['Vector'])
+            r_ = nt.nodes.new('ShaderNodeValToRGB')
+            r_.color_ramp.interpolation = 'CONSTANT'
+            r_.color_ramp.elements[0].position = 0.0
+            r_.color_ramp.elements[1].position = 0.62
+            L(w.outputs['Fac'], r_.inputs['Fac'])
+            cols.append(r_)
+        m1 = nt.nodes.new('ShaderNodeMix')
+        m1.data_type = 'RGBA'
+        L(cols[0].outputs[0], m1.inputs[0])
+        m1.inputs[6].default_value = a
+        m1.inputs[7].default_value = b
+        m2 = nt.nodes.new('ShaderNodeMix')
+        m2.data_type = 'RGBA'
+        m2.blend_type = 'MULTIPLY'
+        m2.inputs[0].default_value = 0.55
+        L(m1.outputs[2], m2.inputs[6])
+        mx = nt.nodes.new('ShaderNodeMix')
+        mx.data_type = 'RGBA'
+        L(cols[1].outputs[0], mx.inputs[0])
+        mx.inputs[6].default_value = (1, 1, 1, 1)
+        mx.inputs[7].default_value = c
+        L(mx.outputs[2], m2.inputs[7])
+        L(m2.outputs[2], bs.inputs['Base Color'])
+    else:                                                 # batik / ikat
+        if style == 'ikat':
+            mp.inputs['Scale'].default_value = (3.0, 28.0, 1)
+        else:
+            mp.inputs['Scale'].default_value = (7.0, 7.0, 1)
+        n = nt.nodes.new('ShaderNodeTexNoise')
+        n.inputs['Scale'].default_value = 2.5 if style == 'ikat' else 1.5
+        n.inputs['Detail'].default_value = 6
+        n.inputs['Distortion'].default_value = 1.5 if style == 'batik' else 0.3
+        L(mp.outputs[0], n.inputs['Vector'])
+        r_ = nt.nodes.new('ShaderNodeValToRGB')
+        cr = r_.color_ramp
+        cr.elements[0].position, cr.elements[0].color = 0.35, a
+        cr.elements[1].position, cr.elements[1].color = 0.5, b
+        e = cr.elements.new(0.62)
+        e.color = c
+        L(n.outputs['Fac'], r_.inputs['Fac'])
+        L(r_.outputs[0], bs.inputs['Base Color'])
+    return m
+
+
+def dress_up(rig, fabrics_by_asset):
+    for ob in rig.children:
+        for asset, mat in fabrics_by_asset.items():
+            if ob.name.endswith('.' + asset) or ob.name.endswith(asset):
+                ob.data.materials.clear()
+                ob.data.materials.append(mat)
+
+
+LUNGI_F = [('toigo_long_full_skirt', 'toigo_camisole_top'), ('toigo_long_full_skirt', None),
+           ('elvs_gored_midi_skirt', 'punkduck_tube_top'), ('elvs_sarong_cover_up',), ('elvs_halter_dress_long',),
+           ('elvs_gored_midi_skirt', 'toigo_camisole_top')]
+LUNGI_M = [('toigo_long_full_skirt',), ('elvs_gored_midi_skirt',), ('toigo_long_full_skirt', 'elvs_male_tankshirt1'),
+           ('elvs_gored_midi_skirt', 'elvs_male_boho_top1')]
+LUNGI_PIECES = ('toigo_long_full_skirt', 'elvs_gored_midi_skirt', 'elvs_sarong_cover_up', 'elvs_halter_dress_long')
+SPARKLE_PIECES = ('punkduck_tube_top', 'punkduck_sleeveless_crop_top', 'toigo_camisole_top', 'elvs_disco_top2',
+                  'elvs_disco_top_1_butterfly', 'punkduck_figure_skating_dress', 'elvs_disco_mini_skirt',
+                  'punkduck_black_mini_skirt', 'elvs_disco_pants_skinny', 'punkduck_tube_dress',
+                  'elvs_goddess_dress1', 'elvs_goddess_dress3', 'toigo_bodice-style_top', 'elvs_halter_dress_tiered',
+                  'punkduck_evening_gown', 'elvs_disco_pants_double_ruffles', 'elvs_disco_pants_single_ruffles')
+
 N = [0]
 
 
@@ -200,6 +326,8 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
             kind = 'lingerie' if (sex < 0.5 and rnd.random() < 0.5) else 'undies'
         elif u > 0.93:
             kind = 'crazy'
+        elif u > 0.40 and u <= 0.55:
+            kind = 'lungi'
         elif u > 0.55:
             kind = 'mix'
     if outfit is None:
@@ -208,6 +336,8 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
             top = rnd.choice(TOPS_F if sex < 0.5 else TOPS_M)
             outfit = tuple(x for x in (bottom, top, 'mindfront_kimono' if rnd.random() < 0.25 else None) if x)
             kind = 'flow'
+        if kind == 'lungi':                  # lungis / sarongs tied in different ways
+            outfit = tuple(x for x in rnd.choice(LUNGI_F if sex < 0.5 else LUNGI_M) if x)
         pool = {'crazy': CRAZY, 'organiser': [KIMONO], 'naked': [()],
                 'undies': UNDIES_F if sex < 0.5 else UNDIES_M, 'lingerie': LINGERIE_F}.get(kind)
         if pool is None:
@@ -235,6 +365,19 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
         if CROWD not in ob.users_collection:
             CROWD.objects.link(ob)
     rig['body'] = body.name
+    fab = {}
+    for piece in outfit:
+        if piece in LUNGI_PIECES and (kind == 'lungi' or rnd.random() < 0.5):
+            fab[piece] = fabric('lungi_%s_%s' % (name, piece[:12]), rnd.choice(['check', 'check', 'batik', 'ikat']), rnd)
+        elif piece in SPARKLE_PIECES and rnd.random() < (0.7 if kind == 'crazy' else 0.18):
+            fab[piece] = fabric('sequin_%s_%s' % (name, piece[:12]), 'sequin', rnd)
+    dress_up(rig, fab)
+    if kind in ('flow', 'mix') and rnd.random() < 0.45:  # colourful: shift the colours of the rest
+        for ob in rig.children:
+            if ob.type == 'MESH' and ob.active_material and not any(k in ob.name for k in (
+                    'body', 'hair', 'eyebrow', 'eyelash', 'high-poly', 'kimono')) and \
+                    not any(ob.name.endswith(k) for k in fab):
+                recolour(ob, rnd.random(), rnd.uniform(1.0, 1.5), rnd.uniform(0.9, 1.2))
     if kind == 'lingerie':                   # deep lingerie tones
         tone = rnd.choice(LINGERIE_TONES)
         for ob in rig.children:
@@ -480,82 +623,159 @@ lying('elvs_yoga_star_pose_1', 2.4, 1.6, 30, 'back', net_z(2.4, 1.6), kind='nake
 print('net done', N[0])
 
 # ---------------------------------------------------------------------------
-UNDRESS[0] = 0.15
-# 3. dance floor, north half of the hall (contact improvisation, solos, close dancing) (18)
+# 3. the dance: one field, from ecstatic dance near the musicians (north-east) through contact
+#    improvisation (north-west / west) into slow closeness (canopy, cuddle corner) and stillness
+#    under the net. Recorded dance movement (CMU motion capture), each person caught mid-movement
+#    (motion blur); people drift counter-clockwise; hands find hands across groups.
 # ---------------------------------------------------------------------------
+UNDRESS[0] = 0.15
+import mocap as MC  # noqa: E402
+SC.frame_set(10)
+DANCERS = []
+FR_CACHE = {}
+
+
+def frames_of(clip, k=4):
+    if clip not in FR_CACHE:
+        FR_CACHE[clip] = MC.best_frames(clip, k)
+    return FR_CACHE[clip]
+
+
+def blur_move(r, mv, face):
+    """Key the rig's own travel between the two posed moments (for motion blur)."""
+    d = Rz(face + 90) @ Vector((mv.x, mv.y, 0.0))
+    loc = r.location.copy()
+    r.keyframe_insert('location', frame=10)
+    r.location = loc - d
+    r.keyframe_insert('location', frame=9)
+    r.location = loc
+
+
+def dancer(clip, i, x, y, face, kind='flow', z0=0.0, **kw):
+    fs = frames_of(clip)
+    f = fs[i % len(fs)]
+    r = new_person(kind, **kw)
+    r['pose'] = '%s@%d' % (clip, f)
+    mv = MC.key_motion(r, clip, f)
+    stand(r, x, y, face)
+    drop(r, z0)
+    blur_move(r, mv, face)
+    DANCERS.append(r)
+    return r
+
+
+def hand_pos(r, side):
+    return bone_w(r, 'wrist.' + side) + (bone_w(r, 'wrist.' + side) - bone_w(r, 'lowerarm02.' + side)).normalized() * 0.07
+
+
+def link_hands(ra, rb, maxd=0.45):
+    """If a hand of A and a hand of B are near, let them meet (holding hands)."""
+    best = None
+    for sa in 'LR':
+        for sb in 'LR':
+            d = (hand_pos(ra, sa) - hand_pos(rb, sb)).length
+            if best is None or d < best[0]:
+                best = (d, sa, sb)
+    if best and best[0] < maxd:
+        d, sa, sb = best
+        pa, pb = bone_w(ra, 'wrist.' + sa), bone_w(rb, 'wrist.' + sb)
+        m = (pa + pb) / 2
+        u = (pb - pa).normalized() if (pb - pa).length > 1e-4 else Vector((1, 0, 0))
+        reach_to(ra, sa, m - u * 0.075)
+        reach_to(rb, sb, m + u * 0.075)
+        return True
+    return False
+
+
+def duet(a, b, f, x, y, face, kinds=('flow', 'flow'), z0=0.0):
+    ra, rb = new_person(kinds[0]), new_person(kinds[1])
+    ra['pose'], rb['pose'] = '%s@%d' % (a, f), '%s@%d' % (b, f)
+    off, ma, mb = MC.key_duet(ra, rb, a, b, f)
+    o = Rz(face + 90) @ Vector((off.x, off.y, 0))
+    stand(ra, x - o.x / 2, y - o.y / 2, face)
+    stand(rb, x + o.x / 2, y + o.y / 2, face)
+    drop(ra, z0)
+    drop(rb, z0)
+    blur_move(ra, ma, face)
+    blur_move(rb, mb, face)
+    link_hands(ra, rb, 0.35)
+    DANCERS.extend((ra, rb))
+    return ra, rb
+
+
+def drift(a):
+    """Facing for someone drifting counter-clockwise at polar angle a (+ a little of their own)."""
+    return a + 90 + random.Random(int(a * 7)).uniform(-50, 50)
+
+
+SOLO = ['05_02', '05_03', '05_04', '05_06', '05_08', '05_11', '05_12', '05_18', '49_09', '49_12', '49_14',
+        '49_22', '55_01', '55_02', '111_05', '113_04', '141_12', '49_18', '05_13', '05_16']
+
+# -- ecstatic dance near the musicians (NE, around the bar and the drums) --
+eco = [(5.0, 18), (6.4, 28), (7.9, 22), (5.6, 55), (7.2, 62), (8.3, 75), (6.0, 88), (4.9, 102), (7.6, 100)]
+kinds = ['flow', 'crazy', 'flow', 'naked', 'flow', 'undies', 'flow', 'flow', 'crazy', 'flow', 'naked']
+for i, ((rr, a), kd) in enumerate(zip(eco, kinds)):
+    p = pol(rr, a)
+    dancer(SOLO[i % len(SOLO)], i // len(SOLO) + i % 2, p.x, p.y, drift(a), kind=kd)
+# partners turning together (recorded couple), hands held
+for (a_, b_, rr, ang, k) in (('60_01', '61_01', 6.6, 45, 0), ('60_03', '61_03', 5.4, 125, 1),
+                             ('60_02', '61_02', 7.6, 132, 0)):
+    p = pol(rr, ang)
+    duet(a_, b_, MC.contact_frames(a_, b_, 3)[k], p.x, p.y, drift(ang))
+# walking hand in hand through the room, swinging arms
+p = pol(4.6, 70)
+duet('22_08', '23_08', MC.contact_frames('22_08', '23_08', 1)[0], p.x, p.y, 70 + 90)
+print('ecstatic done', N[0])
+
+# -- contact improvisation (NW / W): weight, counterbalance, floor, a trio --
+UNDRESS[0] = 0.35
+# counterbalance: pulling away from each other, hands held
+p = pol(6.6, 150)
+duet('18_03', '19_03', 519, p.x, p.y, 150 + 90)
+# kneeling floor duet
+p = pol(7.2, 175)
+duet('22_03', '23_03', 560, p.x, p.y, 175 + 60, z0=0.12)
 # trio: one on hands and knees, one lying across their back, a third reaching in
-c = pol(6.0, 70)
-t1 = standing('drednicolson_prostrate', c.x, c.y, 160)
+c = pol(5.9, 160)
+t1 = standing('drednicolson_prostrate', c.x, c.y, 250)
 t2 = new_person()
 pose(t2, 'elvs_yoga_star_pose_1')
-lie(t2, c.x, c.y, 250, 'back')
+lie(t2, c.x, c.y, 340, 'back')
 drop(t2, 0.0, on=(t1,))
-t3 = standing('punkduck_hand_on_shoulder_02', c.x - 0.75, c.y - 0.5, 40)
+t3 = dancer('49_12', 1, c.x + 0.7, c.y - 0.45, 120)
 reach_to(t3, 'R', bone_w(t2, 'wrist.L'))
-# counterbalance pair: leaning into each other's shoulders
-c = pol(5.6, 105)
-f = Rz(20) @ Vector((1, 0, 0))
-p1 = standing('standing03', *(c - f * 0.42).xy, 20)
-p2 = standing('standing06', *(c + f * 0.42).xy, 200)
-lean(p1, 14)
-lean(p2, 14)
-drop(p1, 0.0)
-drop(p2, 0.0)
-for a_, b_ in ((p1, p2), (p2, p1)):
-    reach_to(a_, 'L', on_shoulder(b_, 'R'))
-    reach_to(a_, 'R', on_shoulder(b_, 'L'))
-# back to back, leaning on each other
-c = pol(7.0, 130)
-q1 = standing('callharvey3d_standingnatural', *(c + Rz(40) @ Vector((0.17, 0, 0))).xy, 40)
-q2 = standing('elvs_epic_haute_couture_1', *(c - Rz(40) @ Vector((0.17, 0, 0))).xy, 220)
-lean(q1, -6)
-lean(q2, -6)
-drop(q1, 0.0)
-drop(q2, 0.0)
-# close dancing couples
-embrace_standing(*pol(5.2, 40).xy, 130, kiss=True)
-embrace_standing(*pol(7.4, 95).xy, 300, a_pose='standing04', b_pose='standing01')
-# group hug of three
-c = pol(6.3, 150)
-g = []
-for i, pn in enumerate(('standing01', 'standing02', 'standing05')):
-    p = c + Rz(120 * i) @ Vector((0.32, 0, 0))
-    g.append(standing(pn, p.x, p.y, 120 * i + 180))
-for i in range(3):
-    reach_to(g[i], 'L', on_back(g[(i + 1) % 3], 'spine02', 0.0, 0.12))
-    reach_to(g[i], 'R', on_back(g[(i + 2) % 3], 'spine02', 0.0, 0.12))
-# solos
-standing('spreadcore_arms_up_pose_001', *pol(4.9, 75).xy, 240, kind='naked')
-standing('sohh_posing5', *pol(7.8, 60).xy, 200, kind='crazy')
-standing('anrico_standing11', *pol(4.8, 140).xy, 320, kind='naked')
-jump = standing('callharvey3d_archer_leap', *pol(6.6, 20).xy, 110, kind='crazy')
-jump.location.z += 0.22
-standing('elvs_yoga_triangle_pose_1', *pol(8.0, 160).xy, 30, kind='undies')
-standing('sohh_posing4', *pol(6.9, 45).xy, 250, kind='naked')
-# moving on the floor, carried by the ground and the music - rolling, stretching, resting on each other
-cc_ = pol(6.7, 3)
-h1 = standing('wolgade_sit_on_ground_01', *(cc_ + Vector((0.5, 0.3, 0))).xy, 200)
-h2 = lying('elvs_yoga_cobra_pose_1', *(cc_ + Vector((-0.5, 0.45, 0))).xy, 250, 'front', 0.0)
-h3 = lying('callharvey3d_sittingnatural', *(cc_ + Vector((-0.2, -0.6, 0))).xy, 60, 'side_r', 0.0)
-head_on('elvs_yoga_star_pose_1', h1, 'upperleg02.R', 330, 'back', 0.0)
-print('dance done', N[0])
+# rolling and spiralling on the floor
+for i, (rr, a) in enumerate(((7.8, 195), (5.3, 190))):
+    r = new_person()
+    pose(r, ['elvs_gymnastic_pose_1', 'wolgade_sit_on_ground_01'][i])
+    stand(r, *pol(rr, a).xy, a + 120)
+    drop(r, 0.12 if i == 0 else 0.0)
+# someone lying across another who rolls on the floor (resting weight)
+c = pol(6.3, 205)
+w1 = lying('callharvey3d_sittingnatural', c.x, c.y, 120, 'side_l', 0.0)
+w2 = new_person()
+pose(w2, 'standing01')
+lie(w2, c.x + 0.1, c.y, 30, 'back')
+drop(w2, 0.0, on=(w1,))
+# slow solos between the groups, dancing with eyes half closed
+for i, (rr, a) in enumerate(((7.3, 140), (8.2, 165))):
+    p = pol(rr, a)
+    dancer(['49_10', '49_16', '05_18'][i], i, p.x, p.y, drift(a))
+print('contact done', N[0])
 
-# ---------------------------------------------------------------------------
-# 4. wrestling mats (west) (4)
-UNDRESS[0] = 0.5
-# ---------------------------------------------------------------------------
-wz = 178
-c = pol(7.2, wz - 3)
-w1 = standing('sweetan008_sitting-pose', c.x, c.y - 0.4, 90, z0=0.12)
-w2 = standing('sweetan008_sitting-pose', c.x, c.y + 0.4, 270, z0=0.12)
-for a_, b_ in ((w1, w2), (w2, w1)):
-    reach_to(a_, 'L', on_shoulder(b_, 'R'))
-    reach_to(a_, 'R', on_shoulder(b_, 'L'))
-c = pol(6.9, wz + 7)
-w3 = lying('elvs_yoga_cobra_pose_1', c.x, c.y, 90, 'front', 0.12)
-w4 = standing('xhado84_sitting_floor_3', c.x + 0.55, c.y - 0.1, 180, z0=0.12)
-reach_to(w4, 'R', on_back(w3, 'spine03', 0, 0.12))
-reach_to(w4, 'L', on_back(w3, 'spine05', 0.05, 0.12))
+# -- dancing at the edge of the mattress field, reaching down to the people lying there --
+for i, a in enumerate((35, 150, 330)):
+    p = pol(4.05, a)
+    dancer(['49_22', '05_12', '49_14'][i], i, p.x, p.y, a + 180 + (i - 1) * 30, kind='flow')
+
+# hands find hands: neighbours from different groups link up
+DANCERS_ = [d for d in DANCERS if d.get('pose')]
+rnd_ = random.Random(27)
+for i, a_ in enumerate(DANCERS_):
+    for b_ in DANCERS_[i + 1:]:
+        if (a_.location - b_.location).length < 1.25 and rnd_.random() < 0.7:
+            link_hands(a_, b_, 0.5)
+print('dance done', N[0])
 
 # ---------------------------------------------------------------------------
 # 5. intimate zone under the linen canopy (south-west) (6)
@@ -631,7 +851,7 @@ for i, (tr, dn) in enumerate(((2, -0.8), (3, -0.1))):
     sp = FP(ks, P.R_IN - P.STAIR_FLIGHT_W_T + dn, P.STAIR_T0 + (tr - 0.5) * P.STAIR_GOING_T)
     standing('callharvey3d_sittingdefault', sp.x, sp.y, P.slot_center(ks) + 180, z0=tr * P.STAIR_RISE - 0.45)
 # window seats
-for i, a in enumerate((200, 235, 20)):
+for i, a in enumerate((200,)):
     p = pol(P.R_IN - 0.45, a)
     standing(['anrico_sitting02', 'callharvey3d_sittinglegscrossed', 'anrico_sitting04'][i], p.x, p.y, a + 180,
              z0=0.1)

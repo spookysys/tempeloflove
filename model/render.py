@@ -243,6 +243,9 @@ def render(name, v, res, samples, quick):
     sc.render.use_simplify = ev
     sc.render.simplify_subdivision_render = 0 if ev else 6
     sc.cycles.texture_limit_render = ('1024' if quick else '2048') if ev else 'OFF'
+    sc.render.use_motion_blur = ev        # dancers are caught mid-movement (poses keyed at frames 9 and 10)
+    sc.render.motion_blur_shutter = 0.5
+    sc.frame_set(10)
     camera(v)
     path = os.path.join(OUT, ('quick_' if quick else '') + name + '.png')
     sc.render.filepath = path
