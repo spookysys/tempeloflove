@@ -2171,12 +2171,12 @@ for k in SUN_FACES:
 mk_obj('terrace_sun_sails', bm, M_SAIL, 'terrace', smooth=True, recalc=False)
 mk_obj('terrace_sail_masts', bmm, M_STEEL, 'terrace', smooth=True)
 # shady side: two big floor mattresses with cushions for lying together (north faces)
-for i, (k, t) in enumerate(((0, 1.8), (7, -0.6))):
+for i, (k, t) in enumerate(((0, 0.0), (7, 0.0))):      # mid-face, between the planters
     rz = P.slot_center(k) + 90
     bm = bmesh.new()
-    cube(bm, FP(k, 8.35, t, P.TERRACE_Z + 0.11), (2.3, 2.4, 0.22), rz=rz)
+    cube(bm, FP(k, 8.55, t, P.TERRACE_Z + 0.11), (2.3, 2.3, 0.22), rz=rz)
     rounded(mk_obj('roof_floor_mattress_%d' % i, bm, M_WOOL[['cream', 'sand'][i]], 'terrace'), 0.08, 4, 1)
-    for j, (tt, nn) in enumerate(((-0.7, 9.3), (0.1, 9.35), (0.8, 9.3), (-0.9, 7.5))):
+    for j, (tt, nn) in enumerate(((-0.7, 9.5), (0.1, 9.55), (0.8, 9.5), (-0.8, 7.7))):
         cushion('roof_mattress_cushion_%d_%d' % (i, j), None, tuple(FP(k, nn, t + tt, P.TERRACE_Z + 0.36)),
                 (0.6, 0.22, 0.45) if nn > 9 else (0.5, 0.5, 0.16),
                 M_WOOL[['terracotta', 'rose', 'ochre', 'olive', 'wine'][(i + j) % 5]], rz=rz)

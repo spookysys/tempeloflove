@@ -135,6 +135,24 @@ def dim(ax, p0, p1, text, size=7):
             bbox=dict(fc='white', ec='none', pad=0.6, alpha=0.9))
 
 
+def fdim(ax, k, n0, t0, n1, t1, text, size=6.5, ext=None):
+    """dimension in face-local coords; ext = (n or None, t or None) extension-line origin per end"""
+    p0, p1 = FP(k, n0, t0), FP(k, n1, t1)
+    if ext:
+        for (n, t) in ((n0, t0), (n1, t1)):
+            q = FP(k, ext[0] if ext[0] is not None else n, ext[1] if ext[1] is not None else t)
+            ax.plot(*zip(q, FP(k, n, t)), color=INK, lw=0.3, zorder=11)
+    dim(ax, p0, p1, text, size=size)
+
+
+def chain(ax, k, t, stations, texts, size=6, ext_t=None):
+    """radial dimension chain along face k at offset t through the n-stations"""
+    for i in range(len(stations) - 1):
+        dim(ax, FP(k, stations[i], t), FP(k, stations[i + 1], t), texts[i], size=size)
+    for n in stations:
+        ax.plot(*zip(FP(k, n, t - 0.18), FP(k, n, t + 0.18)), color=INK, lw=0.5, zorder=11)
+
+
 def legend(fig, tx, y0, items):
     fig.text(tx, y0, 'Legend', fontsize=11, weight='bold', color=INK)
     for i, (t, st) in enumerate(items):
@@ -204,18 +222,26 @@ T_VOID = T0S + 7 * G_T
 
 def stair_plan(ax, level):
     cut = 7 if level == 'GF' else None
+    N_FAN = 5
+    T_FAN = T0S + N_FAN * G_T
     for i in range(1, NT_S + 1):
         ta, tb = T0S + (i - 1) * G_T, T0S + i * G_T
-        f = 1.6 * max(0.0, 1 - (i - 1) / 5) ** 1.6
-        nin = NS0 - f
-        ta = ta - 0.9 * f
+        f = 1.6 * max(0.0, 1 - (i - 1) / N_FAN) ** 1.6
         above = level == 'GF' and i > cut
-        below = level == 'UF' and i < 8
-        if below:
+        if level == 'UF' and i < 8:
             continue
-        rect_face(ax, KS, nin, NS1, ta, tb, fc='none' if above else '#F4EADC',
-                  ec='#9C8E80' if (above or below) else INK, lw=0.4, z=3,
-                  ls=(0, (2, 2)) if above else '-')
+        if i <= N_FAN:                       # seating terraces: nested outlines reaching to the end of the fan
+            if level == 'GF':
+                rect_face(ax, KS, NS0 - f, NS1, ta - 0.9 * f, T_FAN, fc='#F1E6D6' if i % 2 else '#EADCC8',
+                          ec=INK, lw=0.4, z=3 + i * 0.01)
+            continue
+        rect_face(ax, KS, NS0 + 0.02, NS1, ta, tb, fc='none' if above else WOOD,
+                  ec='#9C8E80' if above else INK, lw=0.4, z=3.2, ls=(0, (2, 2)) if above else '-')
+    if level == 'GF':
+        # low clay bench under the floating flight, rope-net balustrade on the hall side
+        rect_face(ax, KS, NS0 + 0.25, NS1, T_FAN, T_TOPS - 0.2, fc='#E6D6BF', ec=INK, lw=0.4, z=3.1)
+        ax.plot(*zip(FP(KS, NS0 + 0.05, T_FAN + 0.13), FP(KS, NS0 + 0.05, T0S + cut * G_T)), color=NETC, lw=1.4,
+                zorder=5)
     if level == 'GF':
         tc = T0S + cut * G_T
         ax.plot(*zip(FP(KS, NS0, tc), FP(KS, (NS0 + NS1) / 2, tc + 0.2), FP(KS, NS1, tc - 0.1)), color=INK,
@@ -223,10 +249,11 @@ def stair_plan(ax, level):
         ax.annotate('', xy=FP(KS, (NS0 + NS1) / 2, T0S + 4 * G_T), xytext=FP(KS, (NS0 + NS1) / 2, T0S + 0.1),
                     arrowprops=dict(arrowstyle='-|>', lw=0.8, color=INK), zorder=6)
         p = FP(KS, NS0 - 0.55, T0S + 0.4)
-        label(ax, p[0], p[1], 'seating\nsteps', 5.5)
+        label(ax, p[0], p[1], 'seating\nterraces', 5.5)
+        p = FP(KS, NS0 + 0.95, T0S + 9.5 * G_T)
+        label(ax, p[0], p[1], 'bench', 5.5)
         p = FP(KS, NS0 + 0.7, T0S + 1.2)
         label(ax, p[0], p[1], 'UP', 6.5, weight='bold')
-        rect_face(ax, KS, NS0, NS1, T0S + 12 * G_T, T_TOPS, fc='none', ec=INK, lw=0.4, z=4, ls=(0, (1, 1)))
     else:
         ax.annotate('', xy=FP(KS, (NS0 + NS1) / 2, T_VOID + 0.2), xytext=FP(KS, (NS0 + NS1) / 2, T_TOPS - 0.1),
                     arrowprops=dict(arrowstyle='-|>', lw=0.8, color=INK), zorder=6)
@@ -387,8 +414,6 @@ def ground_floor():
     label(ax, 0, -2.0, 'open floor under the net · oak boards', 7)
     p = FP(3, P.R_IN - 1.2, 0)
     label(ax, p[0], p[1], 'window seats', 6.5, rotation=-45)
-    p = FP(4, P.R_IN - 1.3, 0)
-    label(ax, p[0], p[1], 'garden doors', 6.5)
     p = pol(3.4, 250)
     label(ax, p[0], p[1], 'column', 6.5)
     rect_face(ax, 4, P.R_OUT + 0.6, P.R_OUT + 4.35, -3.4, 3.8, fc='#EFE5D6', lw=0.4, z=1)
@@ -400,6 +425,22 @@ def ground_floor():
     for x in (-P.R_OUT, P.R_OUT):
         ax.plot([x, x], [-11.6, -1], color=INK, lw=0.3)
     dim(ax, (0, 0), pol(P.R_PILLAR, 337.5), 'columns on Ø 8.80', size=6.5)
+    # dimensions: east face (windows, face), garden doors, entrance, annex, hall inside
+    fh = P.face_half(P.R_OUT)
+    ts = [-fh, -3.0, -0.9, 0.9, 3.0, fh]
+    for i in range(len(ts) - 1):
+        fdim(ax, 6, P.R_OUT + 0.4, ts[i], P.R_OUT + 0.4, ts[i + 1], '%.2f' % (ts[i + 1] - ts[i]), 6,
+             ext=(P.R_OUT, None))
+    fdim(ax, 6, P.R_OUT + 1.1, -fh, P.R_OUT + 1.1, fh, '%.2f face' % (2 * fh), 6.5, ext=(P.R_OUT + 0.4, None))
+    p = FP(6, P.R_OUT + 0.75, 0)
+    label(ax, p[0], p[1], 'windows, sill 0.40, head 3.20', 5.5, rotation=90)
+    fdim(ax, 4, P.R_IN - 0.75, -1.5, P.R_IN - 0.75, 1.5, '3.00 garden doors', 6)
+    fdim(ax, KE, P.R_OUT + 0.35, -0.9, P.R_OUT + 0.35, 0.9, '1.80', 6)
+    fha = P.face_half(AO)
+    fdim(ax, KE, AO + 0.4, -fha, AO + 0.4, fha, '%.2f annex' % (2 * fha), 6, ext=(AO, None))
+    fdim(ax, KE, P.R_OUT, -fha - 0.6, AO, -fha - 0.6, '%.2f' % P.ANNEX_D, 6.5)
+    dim(ax, (-P.R_IN, 3.6), (P.R_IN, 3.6), '%.2f inside, across the flats' % (2 * P.R_IN), 6.5)
+    chain(ax, 2, -3.55, [P.R_IN, P.R_OUT], ['%.2f' % P.WALL_T], 5.5)
     north_arrow(ax, 15.0, 15.8)
     scale_bar(ax, -12.8, -11.8)
     ax.plot([0.05, 0.05], [-11.9, -10.6], color=INK, lw=1.4)
@@ -555,6 +596,19 @@ def upper_floor():
     p = FP(KS, 6.9, 1.2)
     label(ax, p[0], p[1], 'tea', 5.5)
     dim(ax, (0, 0), pol(P.R_NET, 322), 'Ø 7.80 usable', size=6.5)
+    # dimensions through R3 (south): radial chain, door front, window, face
+    ht = math.tan(rad(P.SLOT_DEG / 2))
+    e = P.PART_T / 2 / math.cos(rad(P.SLOT_DEG / 2))
+    fr = P.APOTHEM_FRONT + P.FRONT_T
+    chain(ax, 4, -2.1, [P.R_NET, P.R_PAD_OUT, P.APOTHEM_FRONT, P.R_IN, P.R_OUT],
+          ['%.2f' % (P.R_PAD_OUT - P.R_NET), '%.2f' % (P.APOTHEM_FRONT - P.R_PAD_OUT),
+           '%.2f (clear %.2f)' % (P.R_IN - P.APOTHEM_FRONT, P.R_IN - fr), '%.2f' % P.WALL_T], 5.5)
+    wf = fr * ht - e
+    fdim(ax, 4, fr + 0.3, -wf, fr + 0.3, wf, '%.2f door front' % (2 * wf), 6)
+    fh = P.face_half(P.R_OUT)
+    ww = P.UF_WINDOW['w'] / 2
+    for (t0, t1) in ((-fh, -ww), (-ww, ww), (ww, fh)):
+        fdim(ax, 4, P.R_OUT + 0.45, t0, P.R_OUT + 0.45, t1, '%.2f' % (t1 - t0), 6, ext=(P.R_OUT, None))
     ax.annotate('', xy=(-P.R_OUT, -11.8), xytext=(P.R_OUT, -11.8),
                 arrowprops=dict(arrowstyle='<|-|>', lw=0.5, color=INK, mutation_scale=6))
     label(ax, 0, -11.5, '20.00 across the flats', 7.5)
@@ -569,8 +623,8 @@ def upper_floor():
              '• Skylight 1.40 × 1.10 m over the nest: walk-on frosted\n   glass in the terrace (light, no view in)\n'
              '• Acoustic partitions 160 mm, clay plaster\n\n'
              'Stairs\n'
-             '• Inside: one flight along the NW wall, open to the hall,\n   22 × 188 mm, going 270 mm, 1.50 m wide; clay balustrade,\n'
-             '   soft seating steps fanning out at the bottom\n'
+             '• Inside: one flight along the NW wall, open to the hall,\n   22 × 188 mm, going 270 mm, 1.50 m wide; floating oak\n'
+             '   treads, rope-net balustrade, seating terraces at the\n   bottom, a long clay bench under the flight\n'
              '• Outside (NW face): ground -> upper floor -> roof\n   terrace; 2nd escape route and the only way up\n'
              '   to the terrace',
              fontsize=10, color=INK, va='top', linespacing=1.4)
@@ -583,7 +637,8 @@ def roof_plan():
                         'around the dome, deck at +7.28\n'
                         '• South side (SW–S–SE): 6 daybeds, sun sails,\n'
                         '   1.80 m slatted privacy screen\n'
-                        '• West / east: loungers; north: planters, grasses\n'
+                        '• West / east: loungers; north / north-east: big floor\n'
+                        '   mattresses in the shade, planters, grasses\n'
                         '• Dome on a 45 cm upstand = bench ring\n'
                         '• Frosted walk-on skylights over each room\n'
                         '• Reached by the external stair only: going up\n'
@@ -626,6 +681,10 @@ def roof_plan():
     for k in (2, 6):
         for t in (-2.7, -1.0):
             rect_face(ax, k, 7.3, 8.7, t - 0.35, t + 0.35, fc='#E8D9C0', lw=0.4, z=5)
+    for k in (0, 7):                                     # floor mattresses on the shady side
+        rect_face(ax, k, 7.4, 9.7, -1.15, 1.15, fc='#EFE2CC', lw=0.5, z=5)
+        p = FP(k, 8.55, 0)
+        label(ax, p[0], p[1], 'floor\nmattress', 5.5)
     for k in (0, 2, 6, 7):
         for t0, t1 in ((-3.6, -1.2), (1.2, 3.6)):
             rect_face(ax, k, P.R_OUT - 0.68, P.R_OUT - 0.12, t0, t1, fc=GREEN, lw=0.4, z=4)
@@ -637,9 +696,24 @@ def roof_plan():
     p = FP(2, 7.0, -1.85)
     label(ax, p[0], p[1], 'loungers', 6.5, rotation=90)
     p = FP(0, 8.0, 0)
-    label(ax, p[0], p[1], 'planters · grasses', 6.5)
+    label(ax, p[0], p[1], '', 6.5)
     p = FP(4, 10.7, 0)
     label(ax, p[0], p[1], 'privacy screen 1.80 m (SW–S–SE) · railing 1.20 m elsewhere', 6.5)
+    # dimensions
+    chain(ax, 6, 1.05, [P.R_DOME, P.DOME_RING_OUT + 0.47, P.R_OUT - 0.10],
+          ['%.2f bench' % (P.DOME_RING_OUT + 0.47 - P.R_DOME), '%.2f deck' % (P.R_OUT - 0.10 - P.DOME_RING_OUT - 0.47)],
+          5.5)
+    for k in (0,):
+        fdim(ax, k, 7.15, -1.15, 7.15, 1.15, '2.30', 5.5)
+        fdim(ax, k, 7.4, 1.4, 9.7, 1.4, '2.30', 5.5)
+    t = P.DAYBED_T[1]
+    fdim(ax, 4, 6.85, t - 1.02, 6.85, t + 1.02, '%.2f' % 2.04, 5.5)
+    fdim(ax, 4, 8.15 - 1.05, t + 1.3, 8.15 + 1.05, t + 1.3, '2.10', 5.5)
+    fdim(ax, 5, P.R_OUT + 0.45, -P.face_half(P.R_OUT), P.R_OUT + 0.45, P.face_half(P.R_OUT),
+         '%.2f face' % (2 * P.face_half(P.R_OUT)), 6, ext=(P.R_OUT, None))
+    ax.annotate('', xy=(-P.R_OUT, -11.8), xytext=(P.R_OUT, -11.8),
+                arrowprops=dict(arrowstyle='<|-|>', lw=0.5, color=INK, mutation_scale=6))
+    label(ax, 0, -11.5, '20.00 across the flats', 7.5)
     north_arrow(ax, 14.0, 10.6)
     scale_bar(ax, -12.8, -12.1)
     fig.text(tx, 0.56, 'Notes\n'
@@ -652,8 +726,167 @@ def roof_plan():
 
 
 # ---------------------------------------------------------------------------
+# a single room, 1:25 (room R2, south-west, door half open)
+# ---------------------------------------------------------------------------
+def room_detail(k=3):
+    S25 = 25.0
+    fig = plt.figure(figsize=A2)
+    L = lambda n, t: (-t, n)                                    # noqa: E731  local (n, t) -> plan, window on top
+    xmin, xmax, ymin, ymax = -4.6, 4.6, 5.0, 10.9
+    w_in = (xmax - xmin) * 1000 / S25 / 25.4
+    h_in = (ymax - ymin) * 1000 / S25 / 25.4
+    ax = fig.add_axes([0.8 / A2[0], (A2[1] - h_in) / 2 / A2[1], w_in / A2[0], h_in / A2[1]])
+    ax.set_xlim(xmin, xmax)
+    ax.set_ylim(ymin, ymax)
+    ax.set_aspect('equal')
+    ax.axis('off')
+    ht = math.tan(rad(P.SLOT_DEG / 2))
+    e = P.PART_T / 2 / math.cos(rad(P.SLOT_DEG / 2))
+    fr = P.APOTHEM_FRONT + P.FRONT_T
+    R = P.R_IN
+
+    def Lp(pts):
+        return [L(n, t) for n, t in pts]
+
+    def se(cx, cy, rx, ry, n=2.4, rot=0.0, N=72):
+        out = []
+        cr, sr = math.cos(rad(rot)), math.sin(rad(rot))
+        for i in range(N):
+            t_ = 2 * math.pi * i / N
+            c, s_ = math.cos(t_), math.sin(t_)
+            x = rx * math.copysign(abs(c) ** (2 / n), c)
+            y = ry * math.copysign(abs(s_) ** (2 / n), s_)
+            out.append(L(cx + x * cr - y * sr, cy + x * sr + y * cr))
+        return out
+    # floor (oak) and walls
+    poly(ax, Lp([(fr, fr * ht - e), (R, R * ht - e), (R, -(R * ht - e)), (fr, -(fr * ht - e))]), fc='#F6EEE2',
+         lw=0.0, z=1)
+    fh = P.face_half(P.R_OUT)
+    ww = P.UF_WINDOW['w'] / 2
+    for t0, t1 in ((-fh, -ww), (ww, fh)):
+        poly(ax, Lp([(R, t0), (P.R_OUT, t0), (P.R_OUT, t1), (R, t1)]), fc=POCHE, lw=0.6, z=5)
+    poly(ax, Lp([(R + 0.18, -ww), (R + 0.24, -ww), (R + 0.24, ww), (R + 0.18, ww)]), fc='#DCE8EC', ec=GLASS,
+         lw=0.6, z=5)
+    poly(ax, Lp([(P.R_OUT + 0.02, -ww - 0.05), (P.R_OUT + 0.07, -ww - 0.05), (P.R_OUT + 0.07, ww + 0.05),
+                 (P.R_OUT + 0.02, ww + 0.05)]), fc='#B08D69', lw=0.3, z=5)
+    for sgn in (-1, 1):                                       # partitions (160 mm, clay plaster)
+        pts = [(P.APOTHEM_FRONT, sgn * (P.APOTHEM_FRONT * ht - e)), (R, sgn * (R * ht - e)),
+               (R, sgn * (R * ht + e)), (P.APOTHEM_FRONT, sgn * (P.APOTHEM_FRONT * ht + e))]
+        poly(ax, Lp(pts), fc=POCHE, lw=0.6, z=5)
+        c = L(P.APOTHEM_FRONT - 0.02, sgn * P.APOTHEM_FRONT * ht)
+        ax.add_patch(Rectangle((c[0] - P.POST / 2, c[1] - P.POST / 2), P.POST, P.POST, fc=WOOD, ec=INK, lw=0.5,
+                               zorder=6))
+    # front: 3 sliding shoji panels (oak + linen), here half open; signal lantern
+    half = P.APOTHEM_FRONT * ht - P.POST / 2 - 0.01
+    Lw = 2 * half
+    pw = Lw / 3 + 0.03
+    for i, (slot, off) in enumerate([(-1, 0.0), (-1, -0.045), (0, -0.09)]):
+        yc = slot * Lw / 3
+        xc = P.APOTHEM_FRONT + P.FRONT_T / 2 + off + 0.045
+        poly(ax, Lp([(xc - 0.02, yc - pw / 2), (xc + 0.02, yc - pw / 2), (xc + 0.02, yc + pw / 2),
+                     (xc - 0.02, yc + pw / 2)]), fc=WOOD if i == 0 else '#F3E6CC', lw=0.5, z=6)
+    ax.add_patch(Circle(L(P.APOTHEM_FRONT - 0.15, Lw / 2 - 0.2), 0.075, fc=LIGHT, ec=INK, lw=0.4, zorder=7))
+    # sleeping nest under the window: earthen plinth + mattress, sheepskin
+    poly(ax, se(8.55, 0, 1.2, 1.6), fc='#E6D6BF', lw=0.6, z=3)
+    poly(ax, se(8.55, 0, 1.07, 1.46, n=2.6), fc='#FBF6EE', lw=0.5, z=3.1)
+    poly(ax, se(8.1, -0.85, 0.45, 0.62, n=2.0, rot=20), fc='#EFE7DA', lw=0.3, z=3.2, ls=(0, (1, 1)))
+    for yy in (-0.9, -0.3, 0.3, 0.9):                          # cushions against the wall
+        poly(ax, se(9.25 - 0.05 * abs(yy), yy, 0.14, 0.26, n=2.4), fc='#D9A58A', lw=0.3, z=3.3)
+    # cob bench with a curved back along the side wall
+    wa = -P.SLOT_DEG / 2
+    wd = (math.cos(rad(wa)), math.sin(rad(wa)))
+    wn = (math.sin(rad(-wa)), math.cos(rad(-wa)))
+    c0 = (wd[0] * 7.0 + wn[0] * (e + 0.34), wd[1] * 7.0 + wn[1] * (e + 0.34))
+    cb = (wd[0] * 7.0 + wn[0] * (e + 0.07), wd[1] * 7.0 + wn[1] * (e + 0.07))
+    poly(ax, se(c0[0], c0[1], 0.95, 0.30, n=2.2, rot=wa), fc='#E6D6BF', lw=0.5, z=3)
+    poly(ax, se(cb[0], cb[1], 1.05, 0.09, n=2.0, rot=wa), fc='#D6C3A8', lw=0.4, z=3)
+    # rug, tea tray, floor lantern, plant, pendant, curtain, sconces
+    poly(ax, se(6.95, 0.55, 1.15, 1.0, n=2.0), fc='#EAD2BE', lw=0.3, z=2)
+    ax.add_patch(Circle(L(7.25, -0.45), 0.27, fc=WOOD, ec=INK, lw=0.4, zorder=3))
+    ax.add_patch(Circle(L(6.15, -1.65 if k % 2 else 1.65), 0.2, fc='#F7EBD2', ec=INK, lw=0.4, zorder=3))
+    ax.add_patch(Circle(L(9.05, 3.05), 0.28, fc=GREEN, ec=INK, lw=0.4, zorder=3))
+    ax.add_patch(Circle(L(7.0, 0.9), 0.3, fc='none', ec=LIGHT, lw=0.8, ls=(0, (2, 2)), zorder=6))
+    ax.plot(*zip(L(R - 0.1, -ww - 0.05), L(R - 0.1, -ww + 0.5)), color='#C9B99E', lw=3, zorder=4)
+    for sgn in (-1, 1):
+        p0 = (8.3, sgn * (8.3 * ht - e - 0.05))
+        ax.add_patch(Circle(L(*p0), 0.09, fc=LIGHT, ec=INK, lw=0.4, zorder=7))
+    s0, s1 = P.SKYLIGHT['u'] - P.SKYLIGHT['d'] / 2, P.SKYLIGHT['u'] + P.SKYLIGHT['d'] / 2
+    w = P.SKYLIGHT['w'] / 2
+    poly(ax, Lp([(s0, -w), (s1, -w), (s1, w), (s0, w)]), fc='none', ec=GLASS, lw=0.8, z=8, ls=(0, (5, 3)))
+    # walkway strip in front
+    poly(ax, Lp([(5.0, -2.6), (P.APOTHEM_FRONT, -2.3), (P.APOTHEM_FRONT, 2.3), (5.0, 2.6)]), fc='#EFE5D6', lw=0.0,
+         z=0.5)
+    # labels
+    for (n_, t_, txt, sz) in ((8.55, 0.2, 'sleeping nest 2.40 × 3.20\nclay plinth 0.30 high\nmattress 1.40 × 2.10', 7),
+                              (7.0, -2.25, 'cob bench\nwith curved back', 6.5), (6.8, 0.6, 'rug', 6.5),
+                              (7.25, -0.45, 'tea', 5.5), (9.05, 3.05, 'plant', 5), (6.15, -1.65, 'lamp', 4.5),
+                              (5.25, 0.0, 'walkway', 7), (9.85, 0.0, 'window 2.60 × 1.65', 6.5),
+                              (P.SKYLIGHT['u'] - 0.72, 1.35, 'skylight above\n1.40 × 1.10', 6)):
+        x_, y_ = L(n_, t_)
+        label(ax, x_, y_, txt, sz)
+    x_, y_ = L(7.7, 1.9)
+    label(ax, x_, y_, 'R2', 16, weight='bold')
+    x_, y_ = L(5.45, -1.95)
+    label(ax, x_, y_, 'signal lantern', 5.5)
+    # dimensions
+    wf = fr * ht - e
+    wr = R * ht - e
+    dim(ax, L(fr - 0.3, wf), L(fr - 0.3, -wf), '%.2f  (door front)' % (2 * wf), size=7.5)
+    nO = P.R_OUT + 0.7
+    dim(ax, L(nO, wr), L(nO, -wr), '%.2f  (outer wall, inside)' % (2 * wr), size=7.5)
+    for sg in (-1, 1):
+        ax.plot(*zip(L(R, sg * wr), L(nO + 0.05, sg * wr)), color=INK, lw=0.3, zorder=11)
+        ax.plot(*zip(L(P.R_OUT, sg * ww), L(P.R_OUT + 0.3, sg * ww)), color=INK, lw=0.3, zorder=11)
+        ax.plot(*zip(L(fr, sg * wf), L(fr - 0.35, sg * wf)), color=INK, lw=0.3, zorder=11)
+    dim(ax, L(fr, 4.25), L(R, 4.25), '%.2f clear depth' % (R - fr), size=7.5)
+    for n_ in (fr, R):
+        ax.plot(*zip(L(n_, n_ * ht - e), L(n_, 4.35)), color=INK, lw=0.3, zorder=11)
+    dim(ax, L(P.R_OUT + 0.25, ww), L(P.R_OUT + 0.25, -ww), '%.2f window' % (2 * ww), size=7)
+    dim(ax, L(R, 3.2), L(P.R_OUT, 3.2), '%.2f' % P.WALL_T, size=6)
+    x_, y_ = L(6.4, 6.4 * ht - e - 0.55)
+    label(ax, x_, y_, 'partition 0.16', 5.5)
+    area = ht * (R ** 2 - fr ** 2) - 2 * e * (R - fr)
+    # scale bar 1 m
+    for i in range(4):
+        ax.add_patch(Rectangle((xmin + 0.2 + i * 0.25, ymin + 0.2), 0.25, 0.06, fc=INK if i % 2 == 0 else 'white',
+                               ec=INK, lw=0.5))
+    ax.text(xmin + 0.2, ymin + 0.14, '0', fontsize=7, ha='center', va='top')
+    ax.text(xmin + 1.2, ymin + 0.14, '1 m', fontsize=7, ha='center', va='top')
+    tx = 0.8 / A2[0] + w_in / A2[0] + 0.03
+    fig.text(tx, 0.93, 'A small room – R2', fontsize=24, color=INK, weight='bold', va='top')
+    fig.text(tx, 0.885,
+             'Upper floor, south-west segment · scale 1:25 on A2\n'
+             'Floor area ≈ %.1f m² · clear height 2.60 m\n'
+             'For 1–3 people, to withdraw, rest, make love, sleep\n\n'
+             'Front to the walkway\n'
+             '• 3 sliding shoji panels (oak frame, linen / paper infill):\n'
+             '   closed / half (as drawn, 1.4 m) / fully open (2.9 m)\n'
+             '• Signal lantern by the door: lit = welcome / ask,\n   dark = private\n\n'
+             'Inside\n'
+             '• Sleeping nest under the window: earthen plinth\n'
+             '   0.30 m, natural-latex mattress, sheepskin, cushions\n'
+             '• Cob bench with a curved back along the side wall\n'
+             '• Round wool rug, low tea tray, floor lantern, plant\n'
+             '• Paper pendant, two clay wall sconces (dimmable)\n'
+             '• Linen curtain at the window\n\n'
+             'Light and air\n'
+             '• Window 2.60 × 1.65 m, sill 0.45 m; fixed safety glass\n'
+             '   up to 0.90 m, opening part = rescue window\n'
+             '• Sliding larch shutters outside\n'
+             '• Skylight 1.40 × 1.10 m over the nest (walk-on\n'
+             '   frosted glass in the terrace above)\n\n'
+             'Build\n'
+             '• Partitions 160 mm timber frame + clay plaster,\n'
+             '   acoustic infill; oak floor on the slab' % area,
+             fontsize=11, color=INK, va='top', linespacing=1.5)
+    fig.text(tx, 0.045, 'Tempel – seminar building at ZEGG, Bad Belzig · concept\n'
+             'Scale 1:25 on A2 · dimensions in metres', fontsize=9, color='#6B5E55', va='bottom', linespacing=1.5)
+    return fig
+
+
+# ---------------------------------------------------------------------------
 def section():
-    fig, ax, tx = sheet(-12.5, 17.5, -1.5, 12.5, 'Section A–A', 'North–south through the centre\n(looking east)')
+    fig, ax, tx = sheet(-14.6, 17.8, -1.5, 12.5, 'Section A–A', 'North–south through the centre\n(looking east)')
     rs, zc = P.dome_sphere()
     ax.plot([-15, 17.5], [-0.05, -0.05], color=INK, lw=1.0)
     ax.add_patch(Rectangle((-15, -1.0), 32.5, 0.95, fc='#EFE8DC', ec='none', zorder=0))
@@ -776,11 +1009,26 @@ def section():
               (P.DOME_BASE_Z, '+%.2f dome base' % P.DOME_BASE_Z, 0.12),
               (P.TERRACE_Z + P.RAIL_H, '+%.2f railing' % (P.TERRACE_Z + P.RAIL_H), 0.1),
               (P.DOME_BASE_Z + P.DOME_RISE, '+%.2f dome top' % (P.DOME_BASE_Z + P.DOME_RISE), 0.1)]
-    for (z, t, dz) in levels:
-        x = -12.3
+    ly = -9.0
+    for (z, t, dz) in sorted(levels):
+        x = -14.4
         ax.plot([x, x + 0.6], [z, z], color=INK, lw=0.5)
         ax.add_patch(Polygon([(x + 0.3, z), (x + 0.15, z + 0.18), (x + 0.45, z + 0.18)], fc=INK, ec=INK, lw=0.3))
-        label(ax, x + 0.7, z + dz, t, 6.5, ha='left')
+        ly = max(z + 0.1, ly + 0.36)
+        if ly - z > 0.15:
+            ax.plot([x + 0.6, x + 0.85], [z, ly], color=INK, lw=0.3)
+        label(ax, x + 0.9, ly, t, 6.5, ha='left')
+    # height dimensions: storeys (outside, north) and clear heights (inside)
+    xs = 16.4
+    zs = [0.0, P.FFL_UF, P.TERRACE_Z, P.DOME_BASE_Z + P.DOME_RISE]
+    for i in range(len(zs) - 1):
+        dim(ax, (xs, zs[i]), (xs, zs[i + 1]), '%.2f' % (zs[i + 1] - zs[i]), size=6.5)
+    for z in zs:
+        ax.plot([xs - 0.2, xs + 0.2], [z, z], color=INK, lw=0.5)
+    dim(ax, (xs + 0.8, 0.0), (xs + 0.8, zs[-1]), '%.2f overall' % zs[-1], size=6.5)
+    dim(ax, (7.3, 0.0), (7.3, P.CEIL_GF), '%.2f clear' % P.CEIL_GF, size=6.5)
+    dim(ax, (-7.6, P.FFL_UF), (-7.6, P.CEIL_UF), '%.2f clear' % (P.CEIL_UF - P.FFL_UF), size=6.5)
+    dim(ax, (-P.R_OUT, -0.9), (P.R_OUT, -0.9), '20.00', size=6.5)
     scale_bar(ax, 12.0, -1.2)
     fig.text(tx, 0.80, 'Net and structure (concept, to be verified)\n'
              '• Closed steel box ring beam (≈ 500 × 300, timber-clad)\n   on 4 columns takes the inward pull of the net\n'
@@ -795,7 +1043,8 @@ def section():
 
 if __name__ == '__main__':
     for name, fn in (('01_ground_floor_plan', ground_floor), ('02_upper_floor_plan', upper_floor),
-                     ('03_roof_terrace_plan', roof_plan), ('04_section_AA', section)):
+                     ('03_roof_terrace_plan', roof_plan), ('04_section_AA', section),
+                     ('05_room_R2_1-25', room_detail)):
         f = fn()
         f.savefig(os.path.join(HERE, name + '.pdf'))
         f.savefig(os.path.join(HERE, name + '.png'), dpi=110)

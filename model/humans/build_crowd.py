@@ -1368,9 +1368,9 @@ for j, (k, t) in enumerate(((3, -2.25), (4, 2.25), (5, -2.25))):
         spoon(cpt.x, cpt.y, P.slot_center(k) + 90, DB)
 # on the floor mattresses of the shady side: a couple spooning, three lying together
 FM = TZ + 0.22
-p = FP(0, 8.35, 1.8)
+p = FP(0, 8.55, 0.0)
 spoon(p.x, p.y, P.slot_center(0) + 90, FM)
-p = FP(7, 8.35, -0.6)
+p = FP(7, 8.55, 0.0)
 b_ = lying('standing02', p.x, p.y, P.slot_center(7) + 90, 'back', FM)
 head_on('callharvey3d_sittingnatural', b_, 'spine03', P.slot_center(7) + 10, 'side_r', FM)
 head_on('elvs_yoga_star_pose_1', b_, 'upperleg02.R', P.slot_center(7) - 170, 'back', FM)
