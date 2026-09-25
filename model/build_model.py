@@ -1494,7 +1494,7 @@ def drape(name, parent, x_edge, y0, y1, x_in, z_top, z_bottom, mat, seed=0):
     return ob
 
 
-def potted_plant(name, parent, x, y, z, h=1.1, seed=0):
+def potted_plant(name, parent, x, y, z, h=1.1, seed=0, reach=None):
     r = random.Random(seed)
     bm = bmesh.new()
     cyl(bm, (x, y, z + 0.21), 0.26, 0.42, segs=32, r2=0.30)
@@ -1505,12 +1505,14 @@ def potted_plant(name, parent, x, y, z, h=1.1, seed=0):
         a = r.uniform(0, 360)
         el = r.uniform(25, 70)
         L = h * r.uniform(0.5, 1.0)
+        s = r.uniform(0.16, 0.26)
+        if reach:                                   # keep the leaves within `reach` of the pot axis (walls, fronts)
+            L = min(L, max(0.15, (reach - 1.8 * s) / math.cos(rad(el))))
         base = Vector((x, y, z + 0.4))
         d = Vector((math.cos(rad(a)) * math.cos(rad(el)), math.sin(rad(a)) * math.cos(rad(el)), math.sin(rad(el))))
         tip = base + d * L
         rot = Vector((0, 0, 1)).rotation_difference(d).to_matrix().to_4x4()
         cyl(bm, (base + tip) / 2, 0.008, L, segs=5, rot=rot)
-        s = r.uniform(0.16, 0.26)
         res = bmesh.ops.create_icosphere(bm, subdivisions=2, radius=1.0)
         lrot = (Matrix.Rotation(rad(a), 4, 'Z') @ Matrix.Rotation(rad(-r.uniform(10, 40)), 4, 'Y'))
         bmesh.ops.transform(bm, verts=res['verts'], matrix=Matrix.Translation(tip + d * s * 0.8) @ lrot @
@@ -1735,7 +1737,7 @@ def bathroom_fixtures(k, parent, yw, x0, xb, z):
     for yy in (2.0, 2.3, 2.6):
         cyl(bm, (9.45, yy, z + 1.3), 0.03, 0.08, segs=12)
     put('bath_candles_%d' % k, bm, M_CANDLE, smooth=True)
-    potted_plant('bath_plant_%d' % k, parent, 7.75, -2.6, z, h=1.1, seed=5)
+    potted_plant('bath_plant_%d' % k, parent, 7.75, -2.55, z, h=1.1, seed=5, reach=0.5)
     lantern('bath_pendant_%d' % k, (8.9, 2.3, P.CEIL_UF - 0.75), 0.24, 0.38, parent=parent, cord=P.CEIL_UF)
     clay_sconce('bath_sconce_%d' % k, (8.2, -yw(8.2) + 0.03, z + 1.8), 67.5, parent=parent, power=6.0)
 
@@ -1791,52 +1793,53 @@ def room(k, bath=False):
         return parent
     pal = PALETTES[(k * 3) % len(PALETTES)]
     seed = 11 * k
+    NEST_N = P.R_IN - 0.06 - 1.2
     # sleeping nest: earthen plinth with soft edges under the window, mattress, skins, cushions
-    nest = superellipse(8.55, 0.0, 1.2, 1.6, n=2.4, jitter=0.03, seed=seed)
+    nest = superellipse(NEST_N, 0.0, 1.2, 1.6, n=2.4, jitter=0.03, seed=seed)
     extrude_outline('room_nest_base_%d' % k, nest, z - 0.01, z + 0.30, M_CLAY_ROOM, parent, bevel=0.07)
-    mat_ = superellipse(8.55, 0.0, 1.07, 1.46, n=2.6, seed=seed)
+    mat_ = superellipse(NEST_N, 0.0, 1.07, 1.46, n=2.6, seed=seed)
     extrude_outline('room_nest_mattress_%d' % k, mat_, z + 0.30, z + 0.49, M_MATTRESS, parent, bevel=0.08,
                     seg=5)
-    fur = superellipse(8.1, -0.85, 0.45, 0.62, n=2.0, jitter=0.12, seed=seed + 1, rot=20)
+    fur = superellipse(NEST_N - 0.45, -0.85, 0.45, 0.62, n=2.0, jitter=0.12, seed=seed + 1, rot=20)
     extrude_outline('room_sheepskin_%d' % k, fur, z + 0.48, z + 0.54, M_FUR, parent, bevel=0.025, seg=3)
-    drape('room_blanket_%d' % k, parent, 7.5, 0.1, 1.25, 8.6, z + 0.50, z + 0.06, M_WOOL[pal[0]], seed=seed)
+    drape('room_blanket_%d' % k, parent, NEST_N - 1.05, 0.1, 1.25, NEST_N + 0.05, z + 0.50, z + 0.06, M_WOOL[pal[0]], seed=seed)
     for i, yy in enumerate((-1.05, -0.38, 0.32, 1.0)):
-        cushion('room_cushion_%d_%d' % (k, i), parent, (9.25 - 0.05 * abs(yy), yy, z + 0.75),
+        cushion('room_cushion_%d_%d' % (k, i), parent, (NEST_N + 0.7 - 0.05 * abs(yy), yy, z + 0.75),
                 (0.6, 0.22, 0.52), M_WOOL[pal[i % 3]], rz=yy * 10, rx=-12, squish=0.3)
-    cushion('room_bolster_%d' % k, parent, (7.75, 1.05, z + 0.58), (0.25, 0.6, 0.2), M_WOOL[pal[1]], rz=15,
+    cushion('room_bolster_%d' % k, parent, (NEST_N - 0.8, 1.05, z + 0.58), (0.25, 0.6, 0.2), M_WOOL[pal[1]], rz=15,
             squish=0.6)
     # cob bench along one side wall with a curved back
     wa = -P.SLOT_DEG / 2
     wd = Vector((math.cos(rad(wa)), math.sin(rad(wa)), 0))
     wn = Vector((math.sin(rad(-wa)), math.cos(rad(-wa)), 0))
-    c0 = wd * 7.0 + wn * (e + 0.34)
+    c0 = wd * 7.25 + wn * (e + 0.34)
     seat = superellipse(c0.x, c0.y, 0.95, 0.30, n=2.2, rot=wa, seed=seed + 2)
     extrude_outline('room_cob_bench_%d' % k, seat, z - 0.01, z + 0.42, M_CLAY_ROOM, parent, bevel=0.09, seg=5)
-    cb = wd * 7.0 + wn * (e + 0.07)
+    cb = wd * 7.25 + wn * (e + 0.07)
     back = superellipse(cb.x, cb.y, 1.05, 0.09, n=2.0, rot=wa, seed=seed + 3)
     extrude_outline('room_cob_back_%d' % k, back, z - 0.01, z + 0.95, M_CLAY_ROOM, parent, bevel=0.07, seg=5)
     for i, s in enumerate((-0.45, 0.4)):
-        p = wd * (7.0 + s) + wn * (e + 0.36)
+        p = wd * (7.25 + s) + wn * (e + 0.36)
         cushion('room_bench_cushion_%d_%d' % (k, i), parent, (p.x, p.y, z + 0.49), (0.55, 0.5, 0.12),
                 M_WOOL[pal[(i + 1) % 3]], rz=wa + 5 * s)
     # soft round rug, tray with candles and tea, plant, curtain
     rug = superellipse(6.95, 0.55, 1.15, 1.0, n=2.0, jitter=0.05, seed=seed + 4)
     extrude_outline('room_rug_%d' % k, rug, z, z + 0.015, M_WOOL[pal[1]], parent, bevel=0.006, seg=2)
     bm = bmesh.new()
-    cyl(bm, (7.25, -0.45, z + 0.03), 0.27, 0.035, segs=40)
+    cyl(bm, (6.8, -0.45, z + 0.03), 0.27, 0.035, segs=40)
     ob = mk_obj('room_tray_%d' % k, bm, M_WOOD_DARK, 'furnishing', smooth=True)
     ob.parent = parent
     bm = bmesh.new()
-    for (cx, cy, h) in ((7.18, -0.52, 0.12), (7.33, -0.38, 0.08), (7.3, -0.56, 0.05)):
+    for (cx, cy, h) in ((6.73, -0.52, 0.12), (6.88, -0.38, 0.08), (6.85, -0.56, 0.05)):
         cyl(bm, (cx, cy, z + 0.05 + h / 2), 0.035, h, segs=16)
     ob = mk_obj('room_candles_%d' % k, bm, M_CANDLE, 'furnishing', smooth=True)
     ob.parent = parent
     bm = bmesh.new()
     res = bmesh.ops.create_uvsphere(bm, u_segments=20, v_segments=12, radius=0.075,
-                                    matrix=Matrix.Translation((7.12, -0.33, z + 0.13)))
+                                    matrix=Matrix.Translation((6.67, -0.33, z + 0.13)))
     ob = mk_obj('room_teapot_%d' % k, bm, M_TERRACOTTA, 'furnishing', smooth=True)
     ob.parent = parent
-    potted_plant('room_plant_%d' % k, parent, 9.05, 3.05, z, h=1.2, seed=seed)
+    potted_plant('room_plant_%d' % k, parent, 8.8, 2.55, z, h=1.2, seed=seed, reach=0.55)
     bm = bmesh.new()
     prev = None
     for i in range(22):
@@ -1857,7 +1860,7 @@ def room(k, bath=False):
             Vector((-math.sin(rad(wa_)), math.cos(rad(wa_)), 0)) * (-side) * (e + 0.02)
         clay_sconce('room_sconce_%d_%d' % (k, side), (pnt.x, pnt.y, z + 1.75), wa_ - side * 90, parent=parent,
                     power=6.0)
-    lantern('room_floorlamp_%d' % k, (6.15, -1.65 if k % 2 else 1.65, z + 0.45), 0.2, 0.8, parent=parent)
+    lantern('room_floorlamp_%d' % k, (6.2, 1.55, z + 0.45), 0.2, 0.8, parent=parent)
     return parent
 
 
@@ -1969,17 +1972,19 @@ def flight_z(t):
     return max(0.0, (t - T0) / G_ * R_)
 
 
-# balustrade on the hall side: rope net (like the big net) between slender oak posts, oak handrail
+# balustrade on the hall side: rope net (like the big net) between slender oak posts, oak handrail;
+# it ends where the stairwell lining / upper-floor parapet takes over (T_VOID)
+T_VOID = T0 + 7 * G_                     # void over the flight starts here (headroom)
 bm = bmesh.new()
 uvl = bm.loops.layers.uv.new('UVMap')
 su = 0.7071 / P.NET_MESH
 NS_ = 24
 row_b, row_t = [], []
 for j in range(NS_ + 1):
-    t = t_b0 + (T_TOP + 0.3 - t_b0) * j / NS_
+    t = t_b0 + (T_VOID - 0.03 - t_b0) * j / NS_
     zb = flight_z(t) + 0.02
-    row_b.append((bm.verts.new(FP(KS, N0 + 0.05, t, zb)), t, zb))
-    row_t.append((bm.verts.new(FP(KS, N0 + 0.05, t, min(zb + 0.93, P.FFL_UF + 1.0))), t, min(zb + 0.93, P.FFL_UF + 1.0)))
+    row_b.append((bm.verts.new(FP(KS, N0 - 0.01, t, zb)), t, zb))
+    row_t.append((bm.verts.new(FP(KS, N0 - 0.01, t, min(zb + 0.93, P.FFL_UF + 1.0))), t, min(zb + 0.93, P.FFL_UF + 1.0)))
 for j in range(NS_):
     f = bm.faces.new((row_b[j][0], row_b[j + 1][0], row_t[j + 1][0], row_t[j][0]))
     for lp, (v, t, z) in zip(f.loops, (row_b[j], row_b[j + 1], row_t[j + 1], row_t[j])):
@@ -1988,7 +1993,7 @@ mk_obj('stair_net_balustrade', bm, M_NET, 'structure', recalc=False)
 bm = bmesh.new()
 npost = 5
 for j in range(npost + 1):
-    t = t_b0 + (T_TOP + 0.3 - t_b0) * j / npost
+    t = t_b0 + (T_VOID - 0.05 - t_b0) * j / npost
     zb = flight_z(t)
     cyl(bm, FP(KS, N0 + 0.05, t, zb + 0.47), 0.022, 0.96, segs=12)
 mk_obj('stair_posts', bm, M_WOOD, 'structure', smooth=True)
@@ -1996,9 +2001,9 @@ cu = bpy.data.curves.new('stair_handrails', 'CURVE')
 cu.dimensions = '3D'
 cu.bevel_depth = 0.028
 cu.bevel_resolution = 3
-for nn, dz, t_from in ((N0 + 0.05, 0.96, t_b0), (N1 - 0.06, 0.9, T0 + 2 * G_)):
+for nn, dz, t_from, t_to in ((N0 + 0.05, 0.96, t_b0, T_VOID - 0.05), (N1 - 0.06, 0.9, T0 + 2 * G_, T_TOP + 0.3)):
     sp = cu.splines.new('POLY')
-    ts_ = [t_from, T_TOP + 0.3]
+    ts_ = [t_from, t_to]
     sp.points.add(1)
     for n_, t in enumerate(ts_):
         p_ = FP(KS, nn, t, min(flight_z(t) + dz, P.FFL_UF + 1.0))
@@ -2025,7 +2030,6 @@ indoor_tree('stair_tree', c_.x, c_.y, 0.0, h=2.4, seed=91)
 paper_disc('stair_disc', tuple(FP(KS, N0 - 2.2, T0 + 2 * G_, 3.1)), 0.5, 0.24, cord=P.CEIL_GF, power=35.0)
 
 # upper floor: guard along the void, linen / laundry room, open landing with tea niche
-T_VOID = T0 + 7 * G_                     # void over the flight starts here (headroom)
 bm = bmesh.new()
 box_nt(bm, N0 - 0.12, N0, T_VOID, T_TOP, P.FFL_UF, P.FFL_UF + 1.05)                # parapet along the void
 box_nt(bm, N0 - 0.12, N1, T_VOID - 0.12, T_VOID, P.FFL_UF, P.CEIL_UF)              # linen room side wall
@@ -2491,10 +2495,10 @@ for k in range(P.N_SLOTS):
             cushion('hall_window_cushion_%d_%d' % (i, j), None, tuple(FP(k, P.R_IN - 0.12, tc + dt, 0.7)),
                     (0.5, 0.18, 0.45), M_WOOL[cols[(i + j) % 8]], rz=rz, rx=-10)
         i += 1
-# stacked floor mats + blankets against the (windowless) annex side
+# stacked floor mats + blankets against the windowless bar wall, between the corner lantern and the bar
 for j in range(5):
     bm = bmesh.new()
-    cube(bm, FP(6, P.R_IN - 0.45, -2.9, 0.05 + j * 0.09), (1.9, 0.75, 0.08), rz=P.slot_center(6) + 90)
+    cube(bm, FP(7, P.R_IN - 0.45, -2.45, 0.05 + j * 0.09), (1.8, 0.75, 0.08), rz=P.slot_center(7) + 90)
     rounded(mk_obj('hall_mat_stack_%d' % j, bm, M_WOOL[cols[j]], 'furnishing'), 0.03, 2, 1)
 # tea / party bar on the windowless NE wall: curved clay counter with a timber top, back shelf
 bar_pts = [tuple(FP(7, P.R_IN - 1.25 + y, x + 0.6))[:2] for x, y in superellipse(0, 0, 1.9, 0.38, n=2.2, N=64)]
@@ -2573,19 +2577,19 @@ for k in range(P.N_SLOTS):
     a_ = P.partition_angle(k)
     if k in (P.STAIR_SLOT, P.STAIR_SLOT + 1):
         continue
-    c_ = pol(RC - 0.25, a_ + 3.5)
-    potted_plant('walk_plant_%d' % k, None, c_.x, c_.y, P.FFL_UF, h=0.9, seed=70 + k)
+    c_ = pol(RC - 0.6, a_ + 3.5)
+    potted_plant('walk_plant_%d' % k, None, c_.x, c_.y, P.FFL_UF, h=0.9, seed=70 + k, reach=0.4)
 bm = bmesh.new()
 n_pl = 16
 for i in range(n_pl):
     a_ = 360 * (i + 0.5) / n_pl
-    sector(bm, P.APOTHEM_FRONT - 0.05, P.APOTHEM_FRONT + 0.3, a_ - 5, a_ + 5, P.ROOF_Z_IN - 0.02, P.ROOF_Z_IN + 0.25,
+    sector(bm, P.APOTHEM_FRONT - 0.55, P.APOTHEM_FRONT - 0.06, a_ - 5, a_ + 5, P.ROOF_Z_IN - 0.02, P.ROOF_Z_IN + 0.25,
            step=2)
 mk_obj('dome_ring_planters', bm, M_TERRACOTTA, 'plants')
 for i in range(n_pl):
     a_ = 360 * (i + 0.5) / n_pl
-    c_ = pol(P.APOTHEM_FRONT - 0.06, a_, P.ROOF_Z_IN + 0.2)
-    hanging_greens('dome_ring_greens_%d' % i, tuple(c_), 0.6 + 0.25 * (i % 3), seed=200 + i)   # above head height
+    c_ = pol(P.APOTHEM_FRONT - 0.42, a_, P.ROOF_Z_IN + 0.2)
+    hanging_greens('dome_ring_greens_%d' % i, tuple(c_), 0.6 + 0.25 * (i % 3), seed=200 + i, spread=0.15)   # above head height
 
 # cove light on top of the fascia, lighting the dome ribs (night)
 for k in range(P.N_SLOTS):

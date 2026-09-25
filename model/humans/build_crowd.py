@@ -1356,7 +1356,7 @@ for i in range(4):
     reach_to(hug[i], 'R', on_back(hug[(i + 3) % 4], 'spine02', 0.0, 0.12))
 # cuddling on the daybeds (south faces): couples, and three together on one
 DB = TZ + 0.51
-for j, (k, t) in enumerate(((3, -2.25), (4, 2.25), (5, -2.25))):
+for j, (k, t) in enumerate(((3, P.DAYBED_T[0]), (4, P.DAYBED_T[1]), (5, P.DAYBED_T[0]))):
     cpt = FP(k, 8.15, t)
     if j == 1:
         a_ = lying('standing02', cpt.x, cpt.y, P.slot_center(k), 'back', DB)

@@ -66,7 +66,9 @@ WAY = [
     # up the stair (flight along the NW wall, t increasing = up)
     (FP(KS, 8.75, -3.4, tread_z(-3.4) + 1.65), FP(KS, 8.75, 0.5, tread_z(0.5) + 1.5), 0.9, 20),
     (FP(KS, 8.75, -1.0, tread_z(-1.0) + 1.65), FP(KS, 8.6, 2.5, UF + 1.5), 0.9, 20),
-    (FP(KS, 8.7, 1.4, tread_z(1.4) + 1.65), FP(KS, 5.0, 0.2, UF + 1.2), 0.9, 20),
+    (FP(KS, 8.7, 1.4, tread_z(1.4) + 1.65), FP(KS, 8.0, 4.0, UF + 1.4), 0.9, 20),
+    # top of the flight, past the parapet end, then turn towards the net
+    (FP(KS, 8.5, 2.55, UF + 1.65), FP(KS, 5.0, 1.8, UF + 1.2), 0.8, 20),
     # onto the walkway, then a slow loop around the net (counter-clockwise: net on the left)
     (FP(KS, 7.1, 0.35, UF + 1.7), FP(KS, 3.0, -1.0, UF + 0.6), 0.9, 20),
 ]
@@ -81,11 +83,11 @@ WAY += [
     # back at the stair: across the landing to the door of the external stair
     (FP(KS, 7.0, 0.6, UF + 1.7), FP(KS, 10.5, 2.8, UF + 1.6), 0.9, 20),
     (FP(KS, 8.6, 2.3, UF + 1.62), FP(KS, 12, 2.8, UF + 1.6), 0.8, 20),
-    (FP(KS, 10.0, 2.8, UF + 1.6), FP(KS, 12, 1.0, UF + 2.2), 0.8, 20),
-    # outside on the landing, turning onto the flight up to the terrace (outer lane, t decreasing)
-    (FP(KS, 11.6, 2.2, UF + 1.7), FP(KS, 11.8, -2.0, TZ + 1.0), 0.8, 22),
-    (FP(KS, 11.85, 0.2, UF + 1.7 + 0.6 * (TZ - UF)), FP(KS, 11.8, -3.0, TZ + 1.5), 0.9, 22),
-    (FP(KS, 11.7, -2.0, TZ + 1.75), FP(KS, 7.5, -3.5, TZ + 1.0), 0.9, 22),
+    (FP(KS, 10.0, 2.8, UF + 1.6), FP(KS, 13.5, 2.6, UF + 1.9), 0.8, 20),
+    # out of the door and clear of the external stair (its posts filled the frame), rising beside it
+    (FP(KS, 12.9, 2.0, UF + 2.1), FP(KS, 10.8, -1.5, TZ + 0.3), 0.8, 22),
+    (FP(KS, 13.3, -0.6, UF + 2.1 + 0.6 * (TZ - UF)), FP(KS, 9.5, -3.0, TZ + 1.2), 0.9, 22),
+    (FP(KS, 12.2, -2.4, TZ + 1.9), FP(KS, 7.5, -3.5, TZ + 1.0), 0.9, 22),
     # over the railing onto the terrace
     (FP(KS, 9.3, -2.9, TZ + 1.8), pol(6.5, 165, TZ + 0.9), 0.9, 20),
     # around the dome (counter-clockwise, dome on the left), below the sun sails
@@ -185,6 +187,29 @@ def clearance(pos, step=6):
                     best = (dist, ob.name)
         if best[0] < 0.3:
             bad.append((f / FPS, round(best[0], 2), best[1]))
+    return bad
+
+
+def blocked_view(pos, dirs, lens, step=6, near=1.2):
+    """Frames where something close fills a large part of the view (a 5x3 grid of rays over the frame)."""
+    sc = bpy.context.scene
+    dg = bpy.context.evaluated_depsgraph_get()
+    bad = []
+    for f in range(0, len(pos), step):
+        fwd = dirs[f].normalized()
+        right = fwd.cross(Vector((0, 0, 1))).normalized()
+        up = right.cross(fwd)
+        hw = 18.0 / lens[f]                                  # half sensor width / focal length
+        hits, names = 0, set()
+        for i in (-0.9, -0.45, 0, 0.45, 0.9):
+            for j in (-0.5, 0, 0.5):
+                d = (fwd + right * hw * i + up * hw * 0.5625 * j).normalized()
+                hit, loc, nrm, idx, ob, mw = sc.ray_cast(dg, pos[f], d, distance=near)
+                if hit:
+                    hits += 1
+                    names.add(ob.name)
+        if hits >= 4:
+            bad.append((f / FPS, hits, sorted(names)))
     return bad
 
 
@@ -308,6 +333,8 @@ def main():
         bpy.context.view_layer.update()
         for t, d, ob in clearance(pos):
             print('CLEAR %.1fs %.2fm %s' % (t, d, ob))
+        for t, n, obs in blocked_view(pos, dirs, lens):
+            print('BLOCKED %.1fs %d/15 rays within 1.2 m: %s' % (t, n, ', '.join(obs)))
         print('NEAR people', people_near_path(pos))
         return
     if mode == 'video':

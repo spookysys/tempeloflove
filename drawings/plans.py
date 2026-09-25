@@ -491,15 +491,15 @@ def room_furniture(ax, k):
             y = ry * math.copysign(abs(s) ** (2 / n), s)
             pts.append(to_world(a, cx + x * cr - y * sr, cy + x * sr + y * cr))
         return pts
-    poly(ax, se(8.55, 0, 1.2, 1.6), fc='#E6D6BF', lw=0.5, z=3)
-    poly(ax, se(8.55, 0, 1.07, 1.46, n=2.6), fc='#F4EDE2', lw=0.4, z=3)
+    poly(ax, se(P.R_IN - 1.26, 0, 1.2, 1.6), fc='#E6D6BF', lw=0.5, z=3)
+    poly(ax, se(P.R_IN - 1.26, 0, 1.07, 1.46, n=2.6), fc='#F4EDE2', lw=0.4, z=3)
     wa = -P.SLOT_DEG / 2
     e = P.PART_T / 2 / math.cos(rad(P.SLOT_DEG / 2))
     wd = (math.cos(rad(wa)), math.sin(rad(wa)))
     wn = (math.sin(rad(-wa)), math.cos(rad(-wa)))
-    c0 = (wd[0] * 7.0 + wn[0] * (e + 0.34), wd[1] * 7.0 + wn[1] * (e + 0.34))
+    c0 = (wd[0] * 7.25 + wn[0] * (e + 0.34), wd[1] * 7.25 + wn[1] * (e + 0.34))
     poly(ax, se(c0[0], c0[1], 0.95, 0.30, n=2.2, rot=wa), fc='#E6D6BF', lw=0.5, z=3)
-    ax.add_patch(Circle(to_world(a, 9.05, 3.05), 0.28, fc=GREEN, ec=INK, lw=0.4, zorder=3))
+    ax.add_patch(Circle(to_world(a, 8.8, 2.55), 0.28, fc=GREEN, ec=INK, lw=0.4, zorder=3))
     s0, s1 = P.SKYLIGHT['u'] - P.SKYLIGHT['d'] / 2, P.SKYLIGHT['u'] + P.SKYLIGHT['d'] / 2
     w = P.SKYLIGHT['w'] / 2
     poly(ax, [to_world(a, s0, -w), to_world(a, s1, -w), to_world(a, s1, w), to_world(a, s0, w)], fc='none',
@@ -805,24 +805,24 @@ def room_detail(k=3):
                      (xc - 0.02, yc + pw / 2)]), fc=WOOD if i == 0 else '#F3E6CC', lw=0.5, z=6)
     ax.add_patch(Circle(L(P.APOTHEM_FRONT - 0.15, Lw / 2 - 0.2), 0.075, fc=LIGHT, ec=INK, lw=0.4, zorder=7))
     # sleeping nest under the window: earthen plinth + mattress, sheepskin
-    poly(ax, se(8.55, 0, 1.2, 1.6), fc='#E6D6BF', lw=0.6, z=3)
-    poly(ax, se(8.55, 0, 1.07, 1.46, n=2.6), fc='#FBF6EE', lw=0.5, z=3.1)
-    poly(ax, se(8.1, -0.85, 0.45, 0.62, n=2.0, rot=20), fc='#EFE7DA', lw=0.3, z=3.2, ls=(0, (1, 1)))
+    poly(ax, se(P.R_IN - 1.26, 0, 1.2, 1.6), fc='#E6D6BF', lw=0.6, z=3)
+    poly(ax, se(P.R_IN - 1.26, 0, 1.07, 1.46, n=2.6), fc='#FBF6EE', lw=0.5, z=3.1)
+    poly(ax, se(P.R_IN - 1.71, -0.85, 0.45, 0.62, n=2.0, rot=20), fc='#EFE7DA', lw=0.3, z=3.2, ls=(0, (1, 1)))
     for yy in (-0.9, -0.3, 0.3, 0.9):                          # cushions against the wall
-        poly(ax, se(9.25 - 0.05 * abs(yy), yy, 0.14, 0.26, n=2.4), fc='#D9A58A', lw=0.3, z=3.3)
+        poly(ax, se(P.R_IN - 0.56 - 0.05 * abs(yy), yy, 0.14, 0.26, n=2.4), fc='#D9A58A', lw=0.3, z=3.3)
     # cob bench with a curved back along the side wall
     wa = -P.SLOT_DEG / 2
     wd = (math.cos(rad(wa)), math.sin(rad(wa)))
     wn = (math.sin(rad(-wa)), math.cos(rad(-wa)))
-    c0 = (wd[0] * 7.0 + wn[0] * (e + 0.34), wd[1] * 7.0 + wn[1] * (e + 0.34))
-    cb = (wd[0] * 7.0 + wn[0] * (e + 0.07), wd[1] * 7.0 + wn[1] * (e + 0.07))
+    c0 = (wd[0] * 7.25 + wn[0] * (e + 0.34), wd[1] * 7.25 + wn[1] * (e + 0.34))
+    cb = (wd[0] * 7.25 + wn[0] * (e + 0.07), wd[1] * 7.25 + wn[1] * (e + 0.07))
     poly(ax, se(c0[0], c0[1], 0.95, 0.30, n=2.2, rot=wa), fc='#E6D6BF', lw=0.5, z=3)
     poly(ax, se(cb[0], cb[1], 1.05, 0.09, n=2.0, rot=wa), fc='#D6C3A8', lw=0.4, z=3)
     # rug, tea tray, floor lantern, plant, pendant, curtain, sconces
     poly(ax, se(6.95, 0.55, 1.15, 1.0, n=2.0), fc='#EAD2BE', lw=0.3, z=2)
-    ax.add_patch(Circle(L(7.25, -0.45), 0.27, fc=WOOD, ec=INK, lw=0.4, zorder=3))
-    ax.add_patch(Circle(L(6.15, -1.65 if k % 2 else 1.65), 0.2, fc='#F7EBD2', ec=INK, lw=0.4, zorder=3))
-    ax.add_patch(Circle(L(9.05, 3.05), 0.28, fc=GREEN, ec=INK, lw=0.4, zorder=3))
+    ax.add_patch(Circle(L(6.8, -0.45), 0.27, fc=WOOD, ec=INK, lw=0.4, zorder=3))
+    ax.add_patch(Circle(L(6.2, 1.55), 0.2, fc='#F7EBD2', ec=INK, lw=0.4, zorder=3))
+    ax.add_patch(Circle(L(8.8, 2.55), 0.28, fc=GREEN, ec=INK, lw=0.4, zorder=3))
     ax.add_patch(Circle(L(7.0, 0.9), 0.3, fc='none', ec=LIGHT, lw=0.8, ls=(0, (2, 2)), zorder=6))
     ax.plot(*zip(L(R - 0.1, -ww - 0.05), L(R - 0.1, -ww + 0.5)), color='#C9B99E', lw=3, zorder=4)
     for sgn in (-1, 1):
@@ -835,9 +835,9 @@ def room_detail(k=3):
     poly(ax, Lp([(5.0, -2.6), (P.APOTHEM_FRONT, -2.3), (P.APOTHEM_FRONT, 2.3), (5.0, 2.6)]), fc='#EFE5D6', lw=0.0,
          z=0.5)
     # labels
-    for (n_, t_, txt, sz) in ((8.55, 0.2, 'sleeping nest 2.40 × 3.20\nclay plinth 0.30 high\nmattress 1.40 × 2.10', 7),
-                              (7.0, -2.25, 'cob bench\nwith curved back', 6.5), (6.8, 0.6, 'rug', 6.5),
-                              (7.25, -0.45, 'tea', 5.5), (9.05, 3.05, 'plant', 5), (6.15, -1.65, 'lamp', 4.5),
+    for (n_, t_, txt, sz) in ((P.R_IN - 1.26, 0.2, 'sleeping nest 2.40 × 3.20\nclay plinth 0.30 high\nmattress 1.40 × 2.10', 7),
+                              (7.25, -2.3, 'cob bench\nwith curved back', 6.5), (6.8, 0.6, 'rug', 6.5),
+                              (6.8, -0.45, 'tea', 5.5), (8.8, 2.55, 'plant', 5), (6.2, 1.55, 'lamp', 4.5),
                               (5.25, 0.0, 'walkway', 7), (9.85, 0.0, 'window 2.60 × 1.65', 6.5),
                               (P.SKYLIGHT['u'] - 0.72, 1.35, 'skylight above\n1.40 × 1.10', 6)):
         x_, y_ = L(n_, t_)
@@ -950,8 +950,8 @@ def section():
         R(s * (P.R_OUT - 0.07), P.TERRACE_Z, s * (P.R_OUT - 0.02), P.TERRACE_Z + hh, fc='#8C6E50', lw=0.4)
         R(s * (P.R_OUT - 0.1), P.TERRACE_Z + hh, s * (P.R_OUT + 0.02), P.TERRACE_Z + hh + 0.05, fc=WOOD, lw=0.4)
         if s < 0:
-            rbox(s * 7.35, P.FFL_UF, s * 9.55, P.FFL_UF + 0.30, CLAY, 0.12)
-            rbox(s * 7.48, P.FFL_UF + 0.30, s * 9.55, P.FFL_UF + 0.49, '#F4EDE2', 0.08)
+            rbox(s * 7.09, P.FFL_UF, s * 9.49, P.FFL_UF + 0.30, CLAY, 0.12)
+            rbox(s * 7.22, P.FFL_UF + 0.30, s * 9.49, P.FFL_UF + 0.49, '#F4EDE2', 0.08)
         else:
             rbox(9.1, P.FFL_UF, 9.5, P.FFL_UF + 0.45, CLAY, 0.05)
             rbox(7.73, P.FFL_UF, 7.97, P.FFL_UF + 1.35, CLAY, 0.05)

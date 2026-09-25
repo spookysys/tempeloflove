@@ -190,6 +190,6 @@ def face_openings():
 
 EXT_T_LAND = 2.10                 # external stair: upper-floor landing from here to the face end
 TERRACE_GATE = (-3.55, -2.30)     # gate in the terrace railing to the external stair (face t range)
-DAYBED_T = (-2.25, 2.25)          # daybed positions on each SUN_FACE (t), centred at n = 8.15
+DAYBED_T = (-1.9, 1.9)            # daybed positions on each SUN_FACE (t), centred at n = 8.15
 
 DOME_RING_OUT = R_DOME + 0.10    # outer edge of the dome upstand / start of the terrace deck
