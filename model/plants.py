@@ -362,6 +362,21 @@ def build_forest(seed=11):
                 if ob:
                     bpy.data.objects.remove(ob)
             n += 1
+    # the three old procedural birches near the building -> scanned pines as well
+    for o in list(bpy.data.objects):
+        if o.name.startswith('birch_') and o.type == 'MESH':
+            bb = [o.matrix_world @ Vector(c_) for c_ in o.bound_box]
+            key = o.name.rsplit('_', 1)[0]
+            if not bpy.data.objects.get('scan_' + key):
+                inst = bpy.data.objects.new('scan_' + key, None)
+                inst.instance_type = 'COLLECTION'
+                inst.instance_collection = rng.choice(protos)
+                inst.location = (sum(v.x for v in bb) / 8, sum(v.y for v in bb) / 8, 0)
+                inst.rotation_euler = (0, 0, rng.uniform(0, 6.283))
+                inst.scale = [0.75] * 3
+                col.objects.link(inst)
+                n += 1
+            bpy.data.objects.remove(o)
     print('forest:', n, 'scanned pines')
 
 

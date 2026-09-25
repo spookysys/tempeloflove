@@ -115,6 +115,11 @@ def cut_box(ob, center, size, rz):
     dg = bpy.context.evaluated_depsgraph_get()
     new = bpy.data.meshes.new_from_object(ob.evaluated_get(dg))
     ob.modifiers.remove(mod)
+    bm_ = bmesh.new()                      # thin slabs can come out of the boolean with flipped faces
+    bm_.from_mesh(new)
+    bmesh.ops.recalc_face_normals(bm_, faces=bm_.faces[:])
+    bm_.to_mesh(new)
+    bm_.free()
     ob.data = new
     bpy.data.objects.remove(cutter)
 
@@ -1099,7 +1104,7 @@ for i in range(P.N_BEAMS):
     a = i * 360 / P.N_BEAMS + 360 / P.N_BEAMS / 2
     seg_box(bm, pol(P.RING_BEAM_OUT - 0.02, a), pol(P.octo_r(a, P.R_IN) + 0.05, a), P.BEAM_W,
             P.CEIL_GF - P.BEAM_D, P.CEIL_GF + 0.01)
-mk_obj('radial_beams', bm, M_WOOD, 'structure')
+beams_ob = mk_obj('radial_beams', bm, M_WOOD, 'structure')
 
 s_a0 = P.partition_angle(P.STAIR_SLOT)
 s_a1 = P.partition_angle(P.STAIR_SLOT + 1)
@@ -1112,7 +1117,7 @@ sector(bm, P.R_PAD_OUT - 0.02, P.RING_BEAM_OUT, 0, 360, P.RING_BEAM_TOP, P.FFL_U
 mk_obj('upper_slab_edge', bm, M_WOOD, 'structure')
 # floor finish of the stair segment on the upper floor
 bm = bmesh.new()
-ring_prism(bm, P.APOTHEM_FRONT - 0.05, OCT(P.R_IN), P.FFL_UF - 0.012, P.FFL_UF, a0=s_a0, a1=s_a1, step=0.5)
+ring_prism(bm, P.APOTHEM_FRONT - 0.05, OCT(P.R_IN), P.FFL_UF - 0.012, P.FFL_UF - 0.0015, a0=s_a0, a1=s_a1, step=0.5)  # just under the walkway floor where they overlap
 plat = mk_obj('stair_platform_floor', bm, M_FLOOR_ROOM, 'structure')
 
 # walkway floor finish (circle inside, octagon of room fronts outside)
@@ -2000,7 +2005,7 @@ for j in range(4):
             (0.55, 0.5, 0.13), M_WOOL[['sand', 'rose', 'ochre', 'olive'][j]], rz=RZS)
 c_ = FP(KS, N0 - 0.9, T0 - 1.1, 0)
 indoor_tree('stair_tree', c_.x, c_.y, 0.0, h=2.4, seed=91)
-paper_disc('stair_disc', tuple(FP(KS, N0 - 0.2, T0 + 9 * G_, 3.0)), 0.5, 0.24, cord=P.CEIL_GF, power=35.0)
+paper_disc('stair_disc', tuple(FP(KS, N0 - 2.2, T0 + 2 * G_, 3.1)), 0.5, 0.24, cord=P.CEIL_GF, power=35.0)
 
 # upper floor: guard along the void, linen / laundry room, open landing with tea niche
 T_VOID = T0 + 7 * G_                     # void over the flight starts here (headroom)
@@ -2030,8 +2035,13 @@ mk_obj('tea_niche_pots', bm, M_TERRACOTTA, 'furnishing', smooth=True)
 
 # void in the upper slab + floor finish over the flight
 c_ = FP(KS, (N0 + N1) / 2, (T_VOID + T_TOP) / 2, (P.CEIL_GF + P.FFL_UF) / 2)
-for ob_ in (slab, plat):
+for ob_ in (slab, plat, beams_ob):          # the radial beam over the flight is cut back too (headroom)
     cut_box(ob_, c_, (T_TOP - T_VOID, N1 - N0 + 0.04, 1.4), RZS)
+# clay lining where the stairwell meets the outer wall (closes the slab / wall joint)
+bm = bmesh.new()
+box_nt(bm, N1 - 0.03, P.R_IN + 0.03, T_VOID - 0.02, T_TOP + 0.02, P.CEIL_GF - 0.3, P.FFL_UF + 0.02)
+box_nt(bm, N0 - 0.03, N1, T_VOID - 0.03, T_VOID + 0.02, P.CEIL_GF - 0.3, P.FFL_UF + 0.02)
+mk_obj('stairwell_lining', bm, M_CLAY_HALL, 'structure')
 lantern('stair_pendant', tuple(FP(KS, 8.2, 0.0, P.CEIL_UF - 0.9)), 0.3, 0.45, cord=P.CEIL_UF)
 
 # ---------------------------------------------------------------------------
@@ -2557,7 +2567,7 @@ mk_obj('dome_ring_planters', bm, M_TERRACOTTA, 'plants')
 for i in range(n_pl):
     a_ = 360 * (i + 0.5) / n_pl
     c_ = pol(P.APOTHEM_FRONT - 0.06, a_, P.ROOF_Z_IN + 0.2)
-    hanging_greens('dome_ring_greens_%d' % i, tuple(c_), 1.3 + 0.4 * (i % 3), seed=200 + i)
+    hanging_greens('dome_ring_greens_%d' % i, tuple(c_), 0.6 + 0.25 * (i % 3), seed=200 + i)   # above head height
 
 # cove light on top of the fascia, lighting the dome ribs (night)
 for k in range(P.N_SLOTS):

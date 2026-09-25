@@ -62,7 +62,7 @@ WAY = [
     (Vector((-0.6, 1.2, 2.3)), pol(6.5, 120, 1.3), 0.9, 18),
     # towards the contact-improvisation groups and the stair
     (pol(3.6, 145, 2.3), pol(8, 165, 1.1), 1.0, 20),
-    (FP(KS, 7.25, -4.0, 2.0), FP(KS, 8.8, -1.5, 1.9), 1.0, 20),
+    (FP(KS, 6.6, -3.6, 1.75), FP(KS, 8.8, -1.5, 1.9), 1.0, 20),
     # up the stair (flight along the NW wall, t increasing = up)
     (FP(KS, 8.75, -3.4, tread_z(-3.4) + 1.65), FP(KS, 8.75, 0.5, tread_z(0.5) + 1.5), 0.9, 20),
     (FP(KS, 8.75, -1.0, tread_z(-1.0) + 1.65), FP(KS, 8.6, 2.5, UF + 1.5), 0.9, 20),
@@ -212,9 +212,27 @@ def people_near_path(pos, r=0.45):
     return sorted(set(near))
 
 
+def summer_evening():
+    """Garden door and the door to the external stair stand open; trailing plants over the walkway
+    are kept above head height."""
+    import bmesh
+    for o in bpy.data.objects:
+        if o.name.startswith(('glass_4_door_garden', 'glass_1_door_ext_stair')):
+            o.hide_render = True
+            o.hide_viewport = True
+        if o.name.startswith('dome_ring_greens') and o.type == 'MESH':
+            bm = bmesh.new()
+            bm.from_mesh(o.data)
+            mw = o.matrix_world
+            bmesh.ops.delete(bm, geom=[v for v in bm.verts if (mw @ v.co).z < UF + 2.2], context='VERTS')
+            bm.to_mesh(o.data)
+            bm.free()
+
+
 def setup(render_quality='video'):
-    bpy.ops.wm.open_mainfile(filepath=os.path.join(HERE, 'tempel_event.blend'))
+    bpy.ops.wm.open_mainfile(filepath=os.path.join(HERE, os.environ.get('FLY_BLEND', 'tempel_event.blend')))
     sc = bpy.context.scene
+    summer_evening()
     v = dict(R.VIEWS['15_event_hall'])
     R.setup_world('dusk', *v['sun'])
     R.setup_volume(0.0)
@@ -277,8 +295,10 @@ def main():
     if mode == 'check':
         pos, dirs, lens, T = build_path()
         diagnostics(pos, dirs)
-        bpy.ops.wm.open_mainfile(filepath=os.path.join(HERE, 'tempel_event.blend'))
+        blend = sys.argv[2] if len(sys.argv) > 2 else 'tempel_event.blend'
+        bpy.ops.wm.open_mainfile(filepath=os.path.join(HERE, blend))
         R.set_event(True)
+        summer_evening()
         bpy.context.view_layer.update()
         for t, d, ob in clearance(pos):
             print('CLEAR %.1fs %.2fm %s' % (t, d, ob))
