@@ -3765,10 +3765,10 @@ wall_sign('sign_dance', P.BAR_FACE, -2.3, 'Tanz', 'tanzen · ohne Worte', 'indig
 # Spielwiese (mattress field): hung from the ring beam on the north side, facing the garden door
 zone_sign('sign_field', pol(P.RING_BEAM_IN - 0.08, 90, 2.95), 270, 'Spielwiese', 'alles kann · nichts muss',
           'teal', w=1.8, h=0.8, nail=P.RING_BEAM_BOT - 2.95 - 0.4, seed=5)
-# Eros (intimacy zone): hung from the canopy ring in its opening, facing the hall
+# Blind (under the canopy, blindfolded): hung from the canopy ring in its opening, facing the hall
 iz_, rc_, Rc_ = P.INT_CANOPY
-zone_sign('sign_intimacy', pol(rc_, iz_) + pol(Rc_ - 0.05, iz_ + 180, 2.72), iz_ + 180, 'Eros',
-          'leise bitte · erst fragen', 'wine', w=1.3, h=0.7, nail=3.3 - 2.72 - 0.35, seed=6)
+zone_sign('sign_intimacy', pol(rc_, iz_) + pol(Rc_ - 0.05, iz_ + 180, 2.72), iz_ + 180, 'Blind',
+          'erst fragen', 'wine', w=1.3, h=0.7, nail=3.3 - 2.72 - 0.35, seed=6)
 
 # remove temp collection
 tmp = COLLS.get('tmp')

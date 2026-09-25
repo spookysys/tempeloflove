@@ -16,6 +16,7 @@ import sys
 
 import bpy
 from mathutils import Euler, Matrix, Vector
+import bmesh
 from mathutils.bvhtree import BVHTree
 
 HUM = os.path.dirname(os.path.abspath(__file__))
@@ -1213,7 +1214,7 @@ UNDRESS[0] = 0.7
 iz = P.INT_CANOPY[0]
 # three mattresses side by side, long sides radial (params.mat_group): one couple / trio on each
 m0, m1, m2 = [Vector((x, y, 0)) for x, y in P.mat_group('intimate')[0]]
-face_to_face(m0.x, m0.y, iz, 0.18)
+BLIND = list(face_to_face(m0.x, m0.y, iz, 0.18))           # the 'Blind' zone: everyone here wears a blindfold
 # a trio making out: two kissing, the third close behind one of them, a hand on the other
 ta, tb = face_to_face(m1.x, m1.y, iz, 0.18)
 fdir = Rz(iz + 90) @ Vector((1, 0, 0))
@@ -1222,6 +1223,7 @@ reach_to(tc, 'L', bone_w(tb, 'spine03', (0, 0.1, 0)))
 s1 = standing('callharvey3d_lotus', m2.x, m2.y, iz + 90, z0=0.18)
 s2 = head_on('standing01', s1, 'pelvis.L', iz - 180, 'back', 0.18)
 reach_to(s1, 'R', bone_w(s2, 'head', (0, 0, 0.08)))
+BLIND += [ta, tb, tc, s1, s2]
 
 # ---------------------------------------------------------------------------
 # 6. cuddle puddle (south-east) (5)
@@ -1381,6 +1383,75 @@ print('roof done', N[0])
 #     (active ragdolls, see ragdoll.py); dancers keep their recorded movement
 # ---------------------------------------------------------------------------
 import ragdoll as RD  # noqa: E402
+
+# blindfolds for everyone in the 'Blind' zone: a band of dark silk fitted round each head at eye level
+def blindfold(rig, mat):
+    body = next(c for c in rig.children_recursive if c.name.endswith('.body'))
+    bpy.context.view_layer.update()
+    dg = bpy.context.evaluated_depsgraph_get()
+    e = body.evaluated_get(dg)
+    me = e.to_mesh()
+    pts = [e.matrix_world @ v.co for v in me.vertices]
+    e.to_mesh_clear()
+    hm = rig.matrix_world @ rig.pose.bones['head'].matrix
+    up = (hm.to_3x3() @ Vector((0, 1, 0))).normalized()
+    if 'eye.L' in rig.pose.bones and 'eye.R' in rig.pose.bones:
+        eye = (bone_w(rig, 'eye.L') + bone_w(rig, 'eye.R')) / 2
+    else:
+        eye = hm.translation + up * 0.09
+    base = hm.translation
+    c = base + up * (eye - base).dot(up)                     # head axis at eye level
+    fwd = (eye - c)
+    fwd = (fwd - up * fwd.dot(up)).normalized() if fwd.length > 1e-4 else front(rig)
+    side = up.cross(fwd).normalized()
+    near = [p for p in pts if abs((p - c).dot(up)) < 0.03 and (p - c).length < 0.16]
+    N_, rings = 48, []
+    for i in range(N_):
+        a = 2 * math.pi * i / N_
+        d = fwd * math.cos(a) + side * math.sin(a)
+        best = 0.07
+        for p in near:
+            q = p - c - up * (p - c).dot(up)
+            if q.length > 1e-4 and q.normalized().dot(d) > 0.995:
+                best = max(best, q.length)
+        rings.append((d, best + (0.009 if math.cos(a) > 0.3 else 0.006)))
+    bm = bmesh.new()
+    rows = []
+    for dz, dr in ((-0.021, 0.0), (0.021, 0.0), (0.021, -0.004), (-0.021, -0.004)):
+        rows.append([bm.verts.new(c + d * (r + dr) + up * dz) for d, r in rings])
+    for j in range(4):
+        A, B = rows[j], rows[(j + 1) % 4]
+        for i in range(N_):
+            bm.faces.new((A[i], A[(i + 1) % N_], B[(i + 1) % N_], B[i]))
+    me2 = bpy.data.meshes.new(rig.name + '.blindfold')
+    bm.to_mesh(me2)
+    bm.free()
+    for f in me2.polygons:
+        f.use_smooth = True
+    me2.materials.append(mat)
+    ob = bpy.data.objects.new(rig.name + '.blindfold', me2)
+    for col in rig.users_collection:
+        col.objects.link(ob)
+    ob.parent = rig
+    ob.parent_type = 'BONE'
+    ob.parent_bone = 'head'
+    ob.matrix_world = Matrix.Identity(4)
+    return ob
+
+
+M_BLINDFOLD = bpy.data.materials.new('blindfold_silk')
+M_BLINDFOLD.use_nodes = True
+_bsdf = M_BLINDFOLD.node_tree.nodes.get('Principled BSDF')
+_bsdf.inputs['Base Color'].default_value = (0.02, 0.012, 0.018, 1)
+_bsdf.inputs['Roughness'].default_value = 0.35
+_bsdf.inputs['Sheen Weight'].default_value = 0.8
+for r_ in BLIND:
+    try:
+        blindfold(r_, M_BLINDFOLD)
+    except Exception:                                   # never lose a long crowd build over an accessory
+        import traceback
+        traceback.print_exc()
+print('blindfolds', len(BLIND), flush=True)
 
 # checkpoint before the (slow) physics: the crowd as placed
 EVC.hide_render = True
