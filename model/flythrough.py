@@ -360,8 +360,10 @@ def main():
         n = int(sys.argv[2]) if len(sys.argv) > 2 else 24
         d = os.path.join(OUT, os.environ.get('FLY_TEST', 'fly_test'))
         os.makedirs(d, exist_ok=True)
-        for i in range(n):
-            f = int(i * (len(pos) - 1) / (n - 1))
+        at = os.environ.get('FLY_AT')                 # comma-separated seconds instead of N evenly spread
+        fs = [min(len(pos) - 1, int(float(x) * FPS)) for x in at.split(',')] if at else \
+            [int(i * (len(pos) - 1) / (n - 1)) for i in range(n)]
+        for f in fs:
             place(cam, pos, dirs, lens, f)
             sc.frame_set(100 + f)
             sc.render.filepath = os.path.join(d, 'fly_%05d_%05.1fs.png' % (f, f / FPS))

@@ -3541,11 +3541,12 @@ for i, (dr, da, rz, pose) in enumerate(((0.2, -4, 90, pose_lie_side()), (-0.3, -
     c = pol(7.2 + dr, cz + da)
     person('ev_cuddle_%d' % i, pose, (c.x, c.y, 0.18), rz=cz + rz, seed=50 + i)
 # mattress field under the net: people below can look up at the people on the net
-MF = [(0, 0, 0)] + [(1.45 * math.cos(rad(a)), 1.45 * math.sin(rad(a)), a + 90) for a in range(0, 360, 60)] + \
-     [(2.75 * math.cos(rad(a)), 2.75 * math.sin(rad(a)), a) for a in range(30, 360, 60)]
-for i, (x, y, rz) in enumerate(MF):
-    mattress('ev_field_mat_%02d' % i, (x, y), rz, mat=[M_MATTRESS, M_WOOL['cream'], M_WOOL['sand']][i % 3],
-             size=(1.4, 1.9, 0.15 + 0.012 * (i % 3)))
+# (Matratzenwiese): standard 1.40 x 2.00 mattresses laid flush in a grid, corners left out -> a
+# 'pixelated' circle of 3 + 5 + 3, about 7 m across, under the net and clear of the columns
+MF = [(i * 1.4, j * 2.0) for j in (-1, 0, 1) for i in (range(-2, 3) if j == 0 else range(-1, 2))]
+for i, (x, y) in enumerate(MF):
+    mattress('ev_field_mat_%02d' % i, (x, y), 0, mat=[M_MATTRESS, M_WOOL['cream'], M_WOOL['sand']][i % 3],
+             size=(1.4, 2.0, 0.16))
 # intimacy zone (south-west) under a round linen canopy, half open towards the hall
 iz = 235
 cc = pol(7.0, iz)

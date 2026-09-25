@@ -1,6 +1,7 @@
 """Clash check: pairs of objects whose surfaces intersect (world space), for furniture and fittings.
 
     python3 check_clashes.py [tempel.blend]      -> CLASH lines, worst first
+    CLASH_EVENT=1 python3 check_clashes.py       -> with the event furnishing shown
 """
 import os
 import sys
@@ -14,6 +15,10 @@ SKIP = ('rose', 'gp_', 'scan_', 'lib_', 'proto', 'tree', 'pine', 'birch', 'grass
         'meadow', 'leaf', 'ivy', 'FLYCAM')
 blend = next((a for a in sys.argv[1:] if a.endswith('.blend')), 'tempel.blend')
 bpy.ops.wm.open_mainfile(filepath=os.path.join(HERE, blend))
+if os.environ.get('CLASH_EVENT') == '1':          # the event furnishing (mattress field, zones) instead of daily use
+    sys.path.insert(0, HERE)
+    import render as R
+    R.set_event(True)
 dg = bpy.context.evaluated_depsgraph_get()
 obs = []
 for o in bpy.data.objects:

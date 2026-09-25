@@ -854,7 +854,7 @@ r = standing('callharvey3d_lotus', 1.2, 0.95, 225, z0=MF_Z)
 reach_to(r, 'R', bone_w(a1, 'spine02', (0, -0.1, 0)))
 spoon(-1.6, -0.6, 250, MF_Z)
 face_to_face(0.9, -1.6, 15, MF_Z)
-lying('sohh_posing4', -2.2, 1.5, 110, 'back', MF_Z)                                  # hand behind head, looking up
+lying('sohh_posing4', -1.5, 1.8, 110, 'back', MF_Z)                                  # hand behind head, looking up
 # lounging: one leaning back against the other, who holds them loosely
 g1 = standing('callharvey3d_sittingfloorstretch2', -0.45, -2.45, 20, z0=MF_Z)
 g2 = standing('callharvey3d_lotus', *(Vector((-0.45, -2.45, 0)) - Rz(20) @ Vector((0.42, 0, 0))).xy, 20, z0=MF_Z)
@@ -1186,9 +1186,9 @@ for i in range(3):
     reach_to(tri[i], 'L', on_back(tri[(i + 1) % 3], 'spine03', 0.0, 0.12))
     reach_to(tri[i], 'R', on_back(tri[(i + 2) % 3], 'spine01', 0.0, 0.1))
 # getting up again from a cuddle: one already dancing, one rising, one still lying
-c = pol(3.3, 20)
+c = pol(2.6, 5)                                  # on the east end of the mattress field
 lying('standing02', c.x, c.y, 200, 'back', MF_Z)
-standing('wolgade_sit_on_ground_01', c.x + 0.5, c.y + 0.6, 250, z0=MF_Z)
+standing('wolgade_sit_on_ground_01', c.x + 0.5, c.y - 0.45, 250, z0=MF_Z)
 dancer('49_12', 2, *(c + Vector((1.0, 0.9, 0))).xy, 230)
 UNDRESS[0] = 0.15
 
