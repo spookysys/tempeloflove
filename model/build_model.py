@@ -3598,7 +3598,7 @@ bm = bmesh.new()
 cyl(bm, (mc.x + 0.3, mc.y - 0.3, 0.2), 0.28, 0.12, segs=40)
 mk_obj('ev_handpan', bm, M_STEEL, EV, smooth=True)
 for s in (-1, 1):
-    sp = FP(P.BAR_FACE, P.R_IN - 1.0, -2.4 + s * 1.6, 0)
+    sp = FP(P.BAR_FACE, 7.6, -2.4 + s * 0.9, 0)        # behind the musicians, clear of the bar
     bm = bmesh.new()
     cube(bm, (sp.x, sp.y, 1.2), (0.35, 0.3, 0.55), rz=P.slot_center(P.BAR_FACE))
     cyl(bm, (sp.x, sp.y, 0.46), 0.02, 0.9, segs=8)
@@ -3641,8 +3641,8 @@ for k in (2, 3, 5, 7):
 
 # --- warm candle / lantern light for the event ------------------------------------------------
 bm = bmesh.new()
-for i in range(10):
-    a = 36 * i + 10
+# candle clusters along the walls, kept off the stair terraces, doors, bar and mattress groups
+for i, a in enumerate((10, 64, 170, 198, 214, 250, 286, 334)):
     ev_light('ev_floor_candle_%d' % i, at(8.9, a, 0.3), 4.0)
     for j in range(3):
         c = pol(8.9 + 0.1 * (j - 1), a + 0.8 * j)
@@ -3650,6 +3650,122 @@ for i in range(10):
 mk_obj('ev_candles', bm, M_CANDLE, EV, smooth=True)
 for i, a in enumerate((358, 178)):
     ev_light('ev_zone_glow_%d' % i, at(7.2, a, 1.2), 25.0, soft=0.5)
+
+# --- zone signs (temporary, as at temple nights): hand-painted linen swallowtail banners on a dowel,
+#     hung on twine from a nail, a string of tiny warm lights along the top, a sprig of green ---------
+FONT_TITLE = bpy.data.fonts.load(os.path.join(HERE, 'fonts', 'AmaticSC-Bold.ttf'))
+FONT_SUB = bpy.data.fonts.load(os.path.join(HERE, 'fonts', 'CaveatBrush-Regular.ttf'))
+M_BANNER = mat_fabric('banner_linen', '#EEE3CD', weave=420.0, sheen=0.4, var=0.08)
+M_TWINE = mat_fabric('banner_twine', '#B89A6E', weave=900.0, sheen=0.2)
+M_INK_SUB = mat_simple('ink_umber', '#4A3426', rough=0.8)
+M_BULB = mat_simple('fairy_bulb', '#FFD9A0', rough=0.3, Emission_Color=srgb('#FFB25C'), Emission_Strength=6.0)
+INKS = {c: mat_simple('ink_' + c, h, rough=0.75) for c, h in (
+    ('plum', '#6E2D5A'), ('terracotta', '#A9472A'), ('wine', '#8C2A3C'), ('teal', '#1F6A62'),
+    ('indigo', '#2F3C73'), ('ochre', '#9A6A1C'))}
+
+
+def text_mesh(name, body, font, size, M, mat):
+    cu = bpy.data.curves.new(name, 'FONT')
+    cu.body = body
+    cu.font = font
+    cu.size = size
+    cu.align_x, cu.align_y = 'CENTER', 'CENTER'
+    cu.resolution_u = 4
+    ob = bpy.data.objects.new(name, cu)
+    COLLS[EV].objects.link(ob)
+    bpy.context.view_layer.update()
+    me = bpy.data.meshes.new_from_object(ob.evaluated_get(bpy.context.evaluated_depsgraph_get()))
+    bpy.data.objects.remove(ob)
+    bpy.data.curves.remove(cu)
+    me.transform(M)
+    me.materials.append(mat)
+    new = bpy.data.objects.new(name, me)
+    COLLS[EV].objects.link(new)
+    return new
+
+
+def zone_sign(name, P0, facing, title, sub, ink, w=1.5, h=0.8, nail=0.28, seed=0):
+    """P0: centre of the banner (world), facing: direction (deg) the painted side looks to."""
+    r_ = random.Random(seed)
+    n = Vector((math.cos(rad(facing)), math.sin(rad(facing)), 0))
+    rt = Vector((-n.y, n.x, 0))                       # the viewer's right
+    up = Vector((0, 0, 1))
+    B = Matrix((rt, n, up)).transposed().to_4x4()     # local x right, y towards the viewer, z up
+    B.translation = Vector(P0)
+    tilt = Matrix.Rotation(rad(r_.uniform(-1.5, 1.5)), 4, 'Y')   # hung by hand: never quite level
+    M = B @ tilt
+    # linen, swallowtail notch at the bottom
+    bm = bmesh.new()
+    notch = 0.16 * h
+    outline = [(-w / 2, h / 2), (-w / 2, -h / 2), (0, -h / 2 + notch), (w / 2, -h / 2), (w / 2, h / 2)]
+    bm.faces.new([bm.verts.new(M @ Vector((x, 0, z))) for x, z in outline])
+    mk_obj(name + '_linen', bm, M_BANNER, EV)
+    # dowel, twine to the nail, the nail
+    bm = bmesh.new()
+    rot = Matrix.Rotation(rad(90), 4, 'Y')
+    cyl(bm, M @ Vector((0, -0.005, h / 2 + 0.012)), 0.013, w + 0.14, segs=10, rot=(B @ tilt).to_3x3().to_4x4() @ rot)
+    mk_obj(name + '_dowel', bm, M_WOOD, EV, smooth=True)
+    bm = bmesh.new()
+    top = M @ Vector((0, -0.01, h / 2 + nail))
+    for sx in (-1, 1):
+        a_ = M @ Vector((sx * (w / 2 + 0.03), -0.005, h / 2 + 0.012))
+        d_ = top - a_
+        cyl(bm, (a_ + top) / 2, 0.003, d_.length, segs=5,
+            rot=Vector((0, 0, 1)).rotation_difference(d_.normalized()).to_matrix().to_4x4())
+    cyl(bm, top, 0.008, 0.012, segs=8)
+    mk_obj(name + '_twine', bm, M_TWINE, EV, smooth=True)
+    # painted lettering
+    text_mesh(name + '_title', title, FONT_TITLE, 0.36 * h, M @ Matrix.Translation((0, 0.004, 0.1 * h)) @
+              Matrix.Rotation(rad(90), 4, 'X'), INKS[ink])
+    text_mesh(name + '_sub', sub, FONT_SUB, 0.11 * h, M @ Matrix.Translation((0, 0.004, -0.22 * h)) @
+              Matrix.Rotation(rad(90), 4, 'X'), M_INK_SUB)
+    # tiny warm lights along the top, sagging a little between the ends
+    bm = bmesh.new()
+    bmw = bmesh.new()
+    nb = 13
+    prev = None
+    for i in range(nb):
+        u = i / (nb - 1)
+        p_ = M @ Vector(((u - 0.5) * (w + 0.1), 0.02, h / 2 - 0.035 - 0.05 * math.sin(math.pi * u)))
+        bmesh.ops.create_icosphere(bm, subdivisions=1, radius=0.011, matrix=Matrix.Translation(p_))
+        if prev is not None:
+            d_ = p_ - prev
+            cyl(bmw, (p_ + prev) / 2, 0.0015, d_.length, segs=4,
+                rot=Vector((0, 0, 1)).rotation_difference(d_.normalized()).to_matrix().to_4x4())
+        prev = p_
+    mk_obj(name + '_lights', bm, M_BULB, EV, smooth=True)
+    mk_obj(name + '_wire', bmw, M_TWINE, EV)
+    # a sprig of green tucked behind the dowel on one end
+    bm = bmesh.new()
+    sx = r_.choice((-1, 1))
+    for j in range(7):
+        s = r_.uniform(0.035, 0.055)
+        res = bmesh.ops.create_icosphere(bm, subdivisions=2, radius=1.0)
+        ang = r_.uniform(-50, 40) * sx
+        p_ = M @ Vector((sx * (w / 2 - 0.05 - 0.03 * j), -0.008, h / 2 + 0.03 + 0.02 * r_.uniform(-1, 1)))
+        bmesh.ops.transform(bm, verts=res['verts'], matrix=Matrix.Translation(p_) @ B.to_3x3().to_4x4() @
+                            Matrix.Rotation(rad(ang), 4, 'Y') @ Matrix.Diagonal((s * 2.2, 0.004, s, 1)))
+    mk_obj(name + '_sprig', bm, M_PLANT, EV, smooth=True)
+
+
+def wall_sign(name, k, t, title, sub, ink, z=2.6, **kw):
+    """on the wall of face k (between the windows), painted side to the hall"""
+    zone_sign(name, FP(k, P.R_IN - 0.035, t, z), P.slot_center(k) + 180, title, sub, ink, **kw)
+
+
+wall_sign('sign_cuddle', 5, 0.0, 'Cuddle Puddle', 'soft · slow · ask first', 'plum', seed=1)
+wall_sign('sign_wrestle', 2, 0.0, 'Primal Play', 'wrestle · play · tap out = stop', 'terracotta', seed=2)
+wall_sign('sign_dance', P.BAR_FACE, -2.3, 'Dance', 'move · no words on the floor', 'indigo', w=1.3,
+          h=0.72, seed=3)
+wall_sign('sign_consent', P.ENTRY_SLOT, -2.4, 'Consent', 'ask · listen · a no is welcome', 'ochre', z=2.55,
+          w=1.3, h=0.72, seed=4)
+# Matratzenwiese: hung from the ring beam on the north side, facing the garden door
+zone_sign('sign_field', pol(P.RING_BEAM_IN - 0.08, 90, 2.95), 270, 'Matratzenwiese', 'lie down · look up · breathe',
+          'teal', w=1.8, h=0.8, nail=P.RING_BEAM_BOT - 2.95 - 0.4, seed=5)
+# Eros (intimacy zone): hung from the canopy ring in its opening, facing the hall
+iz_, rc_, Rc_ = P.INT_CANOPY
+zone_sign('sign_intimacy', pol(rc_, iz_) + pol(Rc_ - 0.05, iz_ + 180, 2.72), iz_ + 180, 'Eros',
+          'quiet please · ask before joining', 'wine', w=1.3, h=0.7, nail=3.3 - 2.72 - 0.35, seed=6)
 
 # remove temp collection
 tmp = COLLS.get('tmp')

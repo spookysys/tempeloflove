@@ -21,7 +21,7 @@ if os.environ.get('CLASH_EVENT') == '1':          # the event furnishing (mattre
     R.set_event(True)
 dg = bpy.context.evaluated_depsgraph_get()
 obs = []
-for o in bpy.data.objects:
+for o in bpy.context.scene.objects:               # only what is in the scene (not instancing templates)
     if o.type != 'MESH' or o.hide_render or any(s in o.name.lower() for s in SKIP):
         continue
     if not any(not c.hide_render for c in o.users_collection):
