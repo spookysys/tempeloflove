@@ -3757,10 +3757,10 @@ wall_sign('sign_cuddle', 5, 0.0, 'Cuddle Puddle', 'soft · slow · ask first', '
 wall_sign('sign_wrestle', 2, 0.0, 'Primal Play', 'wrestle · play · tap out = stop', 'terracotta', seed=2)
 wall_sign('sign_dance', P.BAR_FACE, -2.3, 'Dance', 'move · no words on the floor', 'indigo', w=1.3,
           h=0.72, seed=3)
-wall_sign('sign_consent', P.ENTRY_SLOT, -2.4, 'Consent', 'ask · listen · a no is welcome', 'ochre', z=2.55,
+wall_sign('sign_welcome', P.ENTRY_SLOT, -2.4, 'Welcome', 'ask · listen · a no is welcome', 'ochre', z=2.55,
           w=1.3, h=0.72, seed=4)
-# Matratzenwiese: hung from the ring beam on the north side, facing the garden door
-zone_sign('sign_field', pol(P.RING_BEAM_IN - 0.08, 90, 2.95), 270, 'Matratzenwiese', 'lie down · look up · breathe',
+# Spielwiese (mattress field): hung from the ring beam on the north side, facing the garden door
+zone_sign('sign_field', pol(P.RING_BEAM_IN - 0.08, 90, 2.95), 270, 'Spielwiese', 'lie down · look up · breathe',
           'teal', w=1.8, h=0.8, nail=P.RING_BEAM_BOT - 2.95 - 0.4, seed=5)
 # Eros (intimacy zone): hung from the canopy ring in its opening, facing the hall
 iz_, rc_, Rc_ = P.INT_CANOPY
