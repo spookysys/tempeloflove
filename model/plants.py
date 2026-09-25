@@ -378,12 +378,27 @@ def build_ground_plants(seed=13):
         before = set(bpy.data.objects)
         bpy.ops.import_scene.gltf(filepath=path)
         new = [o for o in bpy.data.objects if o not in before]
-        c = bpy.data.collections.new('proto_' + a)
+        # a Poly Haven pack holds several variants side by side: one proto per plant, centred at its base
+        protos[a] = []
         for o in new:
             for uc in list(o.users_collection):
                 uc.objects.unlink(o)
+            if o.type != 'MESH':
+                continue
+            mw = o.matrix_world.copy()
+            o.parent = None
+            o.matrix_world = mw
+            bb = [mw @ Vector(v) for v in o.bound_box]
+            base = Vector((sum(v.x for v in bb) / 8, sum(v.y for v in bb) / 8, min(v.z for v in bb)))
+            o.data = o.data.copy()
+            o.data.transform(mw)
+            o.data.transform(Matrix.Translation(-base))
+            o.matrix_world = Matrix.Identity(4)
+            c = bpy.data.collections.new('proto_' + o.name)
             c.objects.link(o)
-        protos[a] = c
+            protos[a].append(c)
+        if not protos[a]:
+            del protos[a]
     placed = 0
     for i in range(420):
         a = rng.uniform(0, 360)
@@ -399,7 +414,7 @@ def build_ground_plants(seed=13):
             continue
         inst = bpy.data.objects.new('gp_%03d' % i, None)
         inst.instance_type = 'COLLECTION'
-        inst.instance_collection = protos[kind]
+        inst.instance_collection = rng.choice(protos[kind])
         inst.location = (x, y, 0)
         inst.rotation_euler = (0, 0, rng.uniform(0, 6.283))
         inst.scale = [rng.uniform(1.4, 2.6) if 'shrub' in kind else rng.uniform(0.8, 1.5)] * 3

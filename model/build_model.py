@@ -1906,77 +1906,87 @@ def tread_outline(i, grow=0.0):
     return [tuple(FP(KS, n, t))[:2] for n, t in pts]
 
 
-for i in range(1, NT + 1):
+T_FAN = T0 + N_FAN * G_                 # end of the seating terraces / start of the floating flight
+
+
+def terrace_outline(i, grow=0.0):
+    """Seating terrace i (1..N_FAN): reaches from its own riser to the end of the fan, so the terraces
+    nest like contour lines (one sculpted amphitheatre, not separate drums)."""
+    ta = T0 + (i - 1) * G_
+    f = flare(i)
+    n_in = N0 - f
+    ext_t = 0.9 * f
+    pts = superellipse((n_in + N1) / 2, (ta - ext_t + T_FAN) / 2, (N1 - n_in) / 2 + grow,
+                       (T_FAN - ta + ext_t) / 2 + grow, n=3.2, N=56)
+    return [tuple(FP(KS, n, t))[:2] for n, t in pts]
+
+
+for i in range(1, N_FAN + 1):
     zt = i * R_
-    body_z0 = 0.0 if i <= N_FAN + 2 else zt - 0.34
-    extrude_outline('stair_step_%02d' % i, tread_outline(i), body_z0, zt - 0.045, M_CLAY_HALL, None,
-                    coll_name='structure', bevel=0.04, seg=3)
-    extrude_outline('stair_tread_%02d' % i, tread_outline(i, 0.012), zt - 0.045, zt, M_WOOD, None,
-                    coll_name='structure', bevel=0.012, seg=2)
-# closed underside: sloped clay soffit + a smooth clay wall under the high end with flush doors
+    extrude_outline('stair_terrace_%02d' % i, terrace_outline(i), 0.0, zt - 0.05, M_CLAY_HALL, None,
+                    coll_name='structure', bevel=0.05, seg=4)
+    extrude_outline('stair_terrace_top_%02d' % i, terrace_outline(i, 0.015), zt - 0.05, zt, M_WOOD, None,
+                    coll_name='structure', bevel=0.02, seg=3)
+# floating oak treads, cantilevered from the clay wall (steel flats hidden in the wall), open risers
 bm = bmesh.new()
-a2 = FP(KS, (N0 + N1) / 2, T0 + (N_FAN + 2) * G_, (N_FAN + 2) * R_ - 0.42)
-b2 = FP(KS, (N0 + N1) / 2, T_TOP, P.FFL_UF - 0.42)
-d2 = b2 - a2
-M2 = Matrix.Translation((a2 + b2) / 2) @ Vector((1, 0, 0)).rotation_difference(d2.normalized()).to_matrix().to_4x4() @ \
-    Matrix.Diagonal((d2.length, N1 - N0, 0.22, 1))
-bmesh.ops.create_cube(bm, size=1.0, matrix=M2)
-# under-stair wall on the hall side, following the soffit (one sloped-top prism)
-t_w0 = T0 + (N_FAN + 2) * G_
-
-
-def sloped_prism(bm, n0, n1, t0, t1, zb0, zb1, zt0, zt1):
-    """Prism along t with bottom z (zb0->zb1) and top z (zt0->zt1) varying linearly."""
-    v = []
-    for (t, zb, zt) in ((t0, zb0, zt0), (t1, zb1, zt1)):
-        for n in (n0, n1):
-            v.append(bm.verts.new(FP(KS, n, t, zb)))
-            v.append(bm.verts.new(FP(KS, n, t, zt)))
-    # v: [t0n0b, t0n0t, t0n1b, t0n1t, t1n0b, t1n0t, t1n1b, t1n1t]
-    F = [(0, 2, 3, 1), (4, 5, 7, 6), (0, 1, 5, 4), (2, 6, 7, 3), (1, 3, 7, 5), (0, 4, 6, 2)]
-    for f in F:
-        bm.faces.new([v[k] for k in f])
-
-
-z_w0 = (t_w0 - T0) / G_ * R_ - 0.45
-z_w1 = (T_TOP - T0) / G_ * R_ - 0.45
-sloped_prism(bm, N0, N0 + 0.12, t_w0, T_TOP, 0.0, 0.0, z_w0, z_w1)
-mk_obj('stair_underside', bm, M_CLAY_HALL, 'structure')
-t_st = T0 + 12 * G_
+for i in range(N_FAN + 1, NT + 1):
+    zt = i * R_
+    box_nt(bm, N0 + 0.02, N1, T0 + (i - 1) * G_ - 0.015, T0 + i * G_, zt - 0.075, zt)
+treads = rounded(mk_obj('stair_floating_treads', bm, M_WOOD, 'structure'), 0.012, 2, 0)
+# under the flight: the seating terraces continue as a long low clay bench against the wall
 bm = bmesh.new()
-for (ta, tb) in ((t_st + 0.1, t_st + 0.95), (t_st + 1.05, t_st + 1.9)):
-    box_nt(bm, N0 - 0.012, N0, ta, tb, 0.03, 1.95)
-mk_obj('stair_store_doors', bm, M_WOOD, 'structure')
-# solid clay balustrade on the hall side with a rounded top (from the end of the fan upwards)
+box_nt(bm, N0 + 0.25, N1, T_FAN, T_TOP - 0.2, 0.0, 0.42)
+rounded(mk_obj('stair_bench', bm, M_CLAY_HALL, 'structure'), 0.05, 3, 1)
 bm = bmesh.new()
-t_b0 = T0 + (N_FAN + 1) * G_
-zb0 = (t_b0 - T0) / G_ * R_
-zb1 = (T_TOP - T0) / G_ * R_
-sloped_prism(bm, N0, N0 + 0.14, t_b0, T_TOP, zb0 - 0.3, zb1 - 0.3, zb0 + 0.92, zb1 + 0.92)
-bal = mk_obj('stair_balustrade', bm, M_CLAY_ROOM, 'structure', smooth=True)
-bv = bal.modifiers.new('bevel', 'BEVEL')
-bv.width = 0.06
-bv.segments = 5
-bv.limit_method = 'ANGLE'
-bv.angle_limit = rad(40)
-# oak handrails (on the balustrade and on the wall) with a warm LED line underneath (evening)
+box_nt(bm, N0 + 0.22, N1, T_FAN, T_TOP - 0.2, 0.42, 0.47)
+rounded(mk_obj('stair_bench_top', bm, M_WOOD, 'structure'), 0.015, 2, 0)
+t_b0 = T_FAN + 0.5 * G_
+
+
+def flight_z(t):
+    return max(0.0, (t - T0) / G_ * R_)
+
+
+# balustrade on the hall side: rope net (like the big net) between slender oak posts, oak handrail
+bm = bmesh.new()
+uvl = bm.loops.layers.uv.new('UVMap')
+su = 0.7071 / P.NET_MESH
+NS_ = 24
+row_b, row_t = [], []
+for j in range(NS_ + 1):
+    t = t_b0 + (T_TOP + 0.3 - t_b0) * j / NS_
+    zb = flight_z(t) + 0.02
+    row_b.append((bm.verts.new(FP(KS, N0 + 0.05, t, zb)), t, zb))
+    row_t.append((bm.verts.new(FP(KS, N0 + 0.05, t, min(zb + 0.93, P.FFL_UF + 1.0))), t, min(zb + 0.93, P.FFL_UF + 1.0)))
+for j in range(NS_):
+    f = bm.faces.new((row_b[j][0], row_b[j + 1][0], row_t[j + 1][0], row_t[j][0]))
+    for lp, (v, t, z) in zip(f.loops, (row_b[j], row_b[j + 1], row_t[j + 1], row_t[j])):
+        lp[uvl].uv = (t * su, z * su)
+mk_obj('stair_net_balustrade', bm, M_NET, 'structure', recalc=False)
+bm = bmesh.new()
+npost = 5
+for j in range(npost + 1):
+    t = t_b0 + (T_TOP + 0.3 - t_b0) * j / npost
+    zb = flight_z(t)
+    cyl(bm, FP(KS, N0 + 0.05, t, zb + 0.47), 0.022, 0.96, segs=12)
+mk_obj('stair_posts', bm, M_WOOD, 'structure', smooth=True)
 cu = bpy.data.curves.new('stair_handrails', 'CURVE')
 cu.dimensions = '3D'
-cu.bevel_depth = 0.03
-for nn, dz in ((N0 + 0.07, 0.97), (N1 - 0.06, 0.9)):
+cu.bevel_depth = 0.028
+cu.bevel_resolution = 3
+for nn, dz, t_from in ((N0 + 0.05, 0.96, t_b0), (N1 - 0.06, 0.9, T0 + 2 * G_)):
     sp = cu.splines.new('POLY')
-    pts_ = [(t_b0 - 0.2, None), (T_TOP + 0.3, None)]
+    ts_ = [t_from, T_TOP + 0.3]
     sp.points.add(1)
-    for n_, (t, _) in enumerate(pts_):
-        zz = min((t - T0) / G_ * R_ + dz, P.FFL_UF + 1.0)
-        p_ = FP(KS, nn, t, zz)
+    for n_, t in enumerate(ts_):
+        p_ = FP(KS, nn, t, min(flight_z(t) + dz, P.FFL_UF + 1.0))
         sp.points[n_].co = (p_.x, p_.y, p_.z, 1)
 cu.materials.append(M_WOOD)
 coll('structure').objects.link(bpy.data.objects.new('stair_handrails', cu))
-for j in range(6):
-    t = t_b0 + (T_TOP - t_b0) * (j + 0.5) / 6
-    zz = (t - T0) / G_ * R_ + 0.85
-    light('stair_led_%d' % j, 'POINT', FP(KS, N0 + 0.2, t, zz), 4.0, soft=0.05)
+# warm light: small LEDs under the wall handrail wash the treads (evening)
+for j in range(7):
+    t = t_b0 + (T_TOP - t_b0) * (j + 0.5) / 7
+    light('stair_led_%d' % j, 'POINT', FP(KS, N1 - 0.12, t, flight_z(t) + 0.8), 3.0, soft=0.05)
 # cushions on the fanned seating steps, a tree at the foot, a paper lantern above
 for i in range(1, N_FAN):
     zt = i * R_
@@ -1985,6 +1995,9 @@ for i in range(1, N_FAN):
         nn = N0 - flare(i) + 0.35
         cushion('stair_cushion_%d_%d' % (i, s_), None, tuple(FP(KS, nn, tt, zt + 0.07)), (0.5, 0.5, 0.14),
                 M_WOOL[['terracotta', 'ochre', 'olive', 'rose', 'sand', 'wine'][(i + s_) % 6]], rz=RZS + 15 * s_)
+for j in range(4):
+    cushion('stair_bench_cushion_%d' % j, None, tuple(FP(KS, N0 + 0.75, T_FAN + 0.6 + j * 0.85, 0.53)),
+            (0.55, 0.5, 0.13), M_WOOL[['sand', 'rose', 'ochre', 'olive'][j]], rz=RZS)
 c_ = FP(KS, N0 - 0.9, T0 - 1.1, 0)
 indoor_tree('stair_tree', c_.x, c_.y, 0.0, h=2.4, seed=91)
 paper_disc('stair_disc', tuple(FP(KS, N0 - 0.2, T0 + 9 * G_, 3.0)), 0.5, 0.24, cord=P.CEIL_GF, power=35.0)
@@ -2147,6 +2160,16 @@ for k in SUN_FACES:
                 bm.faces.new((rows[i + 1][j], rows[i + 1][j + 1], rows[i][j + 1]))
 mk_obj('terrace_sun_sails', bm, M_SAIL, 'terrace', smooth=True, recalc=False)
 mk_obj('terrace_sail_masts', bmm, M_STEEL, 'terrace', smooth=True)
+# shady side: two big floor mattresses with cushions for lying together (north faces)
+for i, (k, t) in enumerate(((0, 1.8), (7, -0.6))):
+    rz = P.slot_center(k) + 90
+    bm = bmesh.new()
+    cube(bm, FP(k, 8.35, t, P.TERRACE_Z + 0.11), (2.3, 2.4, 0.22), rz=rz)
+    rounded(mk_obj('roof_floor_mattress_%d' % i, bm, M_WOOL[['cream', 'sand'][i]], 'terrace'), 0.08, 4, 1)
+    for j, (tt, nn) in enumerate(((-0.7, 9.3), (0.1, 9.35), (0.8, 9.3), (-0.9, 7.5))):
+        cushion('roof_mattress_cushion_%d_%d' % (i, j), None, tuple(FP(k, nn, t + tt, P.TERRACE_Z + 0.36)),
+                (0.6, 0.22, 0.45) if nn > 9 else (0.5, 0.5, 0.16),
+                M_WOOL[['terracotta', 'rose', 'ochre', 'olive', 'wine'][(i + j) % 5]], rz=rz)
 # wooden sun loungers on the west and east faces
 for k in (2, 6):
     for t in (-2.7, -1.0):
