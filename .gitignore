@@ -3,4 +3,4 @@ renders/quick_*
 __pycache__/
 model/tempel_event.blend
 renders/fly_frames*/
-renders/fly_test/
+renders/fly_test*/

@@ -331,7 +331,7 @@ def main():
     sc, cam, pos, dirs, lens = setup('stills' if mode == 'stills' else 'video')
     if mode == 'stills':
         n = int(sys.argv[2]) if len(sys.argv) > 2 else 24
-        d = os.path.join(OUT, 'fly_test')
+        d = os.path.join(OUT, os.environ.get('FLY_TEST', 'fly_test'))
         os.makedirs(d, exist_ok=True)
         for i in range(n):
             f = int(i * (len(pos) - 1) / (n - 1))
