@@ -207,7 +207,7 @@ def _fp(a, n, t):
 
 def mat_group(name):
     """[(x, y)], rz (deg), thickness of a mattress group; rz turns the 1.40 side onto its local x."""
-    if name == 'field':            # Matratzenwiese under the net: pixelated circle 3 + 5 + 3
+    if name == 'field':            # Spielwiese under the net: pixelated circle 3 + 5 + 3
         cells = [(i * MAT_W, j * MAT_L) for j in (-1, 0, 1) for i in (range(-2, 3) if j == 0 else range(-1, 2))]
         return cells, 0.0, 0.16
     if name == 'cuddle':           # cuddle puddle (SE face): 2 x 2, long sides along the face
