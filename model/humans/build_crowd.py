@@ -1385,6 +1385,13 @@ print('roof done', N[0])
 # ---------------------------------------------------------------------------
 import ragdoll as RD  # noqa: E402
 
+# checkpoint before the (slow) physics: the crowd as placed
+EVC.hide_render = True
+bpy.ops.wm.save_as_mainfile(filepath=os.path.join(MODEL, 'tempel_event.blend'), compress=True, copy=True)
+print('CHECKPOINT saved', flush=True)
+EVC.hide_render = False
+PHYSICS = os.environ.get('CROWD_PHYSICS', '0') == '1'
+
 
 def _keyed(r):
     return bool(r.animation_data and r.animation_data.action)
@@ -1416,7 +1423,7 @@ def _near(ob, pts, d=2.5):
     return any(lo.x - d < p.x < hi.x + d and lo.y - d < p.y < hi.y + d and lo.z - d < p.z < hi.z + d for p in pts)
 
 
-for gi, g in enumerate(groups_):
+for gi, g in enumerate(groups_ if PHYSICS else []):
     pts = [r.matrix_world.translation for r in g]
     cols = [o for o in SURF if _near(o, pts) and len(o.data.polygons) < 60000]
     # dancers standing right next to the group are obstacles too (they stay as they are)
