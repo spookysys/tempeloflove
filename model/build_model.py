@@ -3664,7 +3664,7 @@ INKS = {c: mat_simple('ink_' + c, h, rough=0.75) for c, h in (
     ('indigo', '#2F3C73'), ('ochre', '#9A6A1C'))}
 
 
-def text_mesh(name, body, font, size, M, mat):
+def text_mesh(name, body, font, size, M, mat, maxw=None):
     cu = bpy.data.curves.new(name, 'FONT')
     cu.body = body
     cu.font = font
@@ -3677,6 +3677,11 @@ def text_mesh(name, body, font, size, M, mat):
     me = bpy.data.meshes.new_from_object(ob.evaluated_get(bpy.context.evaluated_depsgraph_get()))
     bpy.data.objects.remove(ob)
     bpy.data.curves.remove(cu)
+    if maxw and me.vertices:                          # shrink long lines to fit the banner
+        xs = [v.co.x for v in me.vertices]
+        wd = max(xs) - min(xs)
+        if wd > maxw:
+            me.transform(Matrix.Scale(maxw / wd, 4))
     me.transform(M)
     me.materials.append(mat)
     new = bpy.data.objects.new(name, me)
@@ -3716,9 +3721,9 @@ def zone_sign(name, P0, facing, title, sub, ink, w=1.5, h=0.8, nail=0.28, seed=0
     mk_obj(name + '_twine', bm, M_TWINE, EV, smooth=True)
     # painted lettering
     text_mesh(name + '_title', title, FONT_TITLE, 0.36 * h, M @ Matrix.Translation((0, 0.004, 0.1 * h)) @
-              Matrix.Rotation(rad(90), 4, 'X'), INKS[ink])
+              Matrix.Rotation(rad(90), 4, 'X'), INKS[ink], maxw=0.84 * w)
     text_mesh(name + '_sub', sub, FONT_SUB, 0.11 * h, M @ Matrix.Translation((0, 0.004, -0.22 * h)) @
-              Matrix.Rotation(rad(90), 4, 'X'), M_INK_SUB)
+              Matrix.Rotation(rad(90), 4, 'X'), M_INK_SUB, maxw=0.82 * w)
     # tiny warm lights along the top, sagging a little between the ends
     bm = bmesh.new()
     bmw = bmesh.new()
@@ -3753,19 +3758,19 @@ def wall_sign(name, k, t, title, sub, ink, z=2.6, **kw):
     zone_sign(name, FP(k, P.R_IN - 0.035, t, z), P.slot_center(k) + 180, title, sub, ink, **kw)
 
 
-wall_sign('sign_cuddle', 5, 0.0, 'Cuddle Puddle', 'soft · slow · ask first', 'plum', seed=1)
-wall_sign('sign_wrestle', 2, 0.0, 'Primal Play', 'wrestle · play · tap out = stop', 'terracotta', seed=2)
-wall_sign('sign_dance', P.BAR_FACE, -2.3, 'Dance', 'move · no words on the floor', 'indigo', w=1.3,
+wall_sign('sign_cuddle', 5, 0.0, 'Kuschelecke', 'sanft · langsam · erst fragen', 'plum', seed=1)
+wall_sign('sign_wrestle', 2, 0.0, 'Wildes Spiel', 'raufen · spielen · abklopfen = Stopp', 'terracotta', seed=2)
+wall_sign('sign_dance', P.BAR_FACE, -2.3, 'Tanz', 'tanzen · ohne Worte', 'indigo', w=1.3,
           h=0.72, seed=3)
-wall_sign('sign_welcome', P.ENTRY_SLOT, -2.4, 'Welcome', 'ask · listen · a no is welcome', 'ochre', z=2.55,
+wall_sign('sign_welcome', P.ENTRY_SLOT, -2.4, 'Willkommen', 'fragen · zuhören · ein Nein ist willkommen', 'ochre', z=2.55,
           w=1.3, h=0.72, seed=4)
 # Spielwiese (mattress field): hung from the ring beam on the north side, facing the garden door
-zone_sign('sign_field', pol(P.RING_BEAM_IN - 0.08, 90, 2.95), 270, 'Spielwiese', 'lie down · look up · breathe',
+zone_sign('sign_field', pol(P.RING_BEAM_IN - 0.08, 90, 2.95), 270, 'Spielwiese', 'hinlegen · hochschauen · atmen',
           'teal', w=1.8, h=0.8, nail=P.RING_BEAM_BOT - 2.95 - 0.4, seed=5)
 # Eros (intimacy zone): hung from the canopy ring in its opening, facing the hall
 iz_, rc_, Rc_ = P.INT_CANOPY
 zone_sign('sign_intimacy', pol(rc_, iz_) + pol(Rc_ - 0.05, iz_ + 180, 2.72), iz_ + 180, 'Eros',
-          'quiet please · ask before joining', 'wine', w=1.3, h=0.7, nail=3.3 - 2.72 - 0.35, seed=6)
+          'leise bitte · erst fragen', 'wine', w=1.3, h=0.7, nail=3.3 - 2.72 - 0.35, seed=6)
 
 # remove temp collection
 tmp = COLLS.get('tmp')
