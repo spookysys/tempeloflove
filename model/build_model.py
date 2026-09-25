@@ -1902,7 +1902,7 @@ def tread_outline(i, grow=0.0):
     f = flare(i)
     n_in = N0 - f
     # rounded plan: soft corners on the hall side, the fanned steps also wrap back along t
-    ext_t = 0.9 * f
+    ext_t = 0.6 * f
     cx_n = (n_in + N1) / 2
     cx_t = (ta - ext_t + tb) / 2 + 0.0
     rn = (N1 - n_in) / 2 + grow
@@ -1920,10 +1920,27 @@ def terrace_outline(i, grow=0.0):
     ta = T0 + (i - 1) * G_
     f = flare(i)
     n_in = N0 - f
-    ext_t = 0.9 * f
+    ext_t = 0.6 * f
     pts = superellipse((n_in + N1) / 2, (ta - ext_t + T_FAN) / 2, (N1 - n_in) / 2 + grow,
                        (T_FAN - ta + ext_t) / 2 + grow, n=3.2, N=56)
-    return [tuple(FP(KS, n, t))[:2] for n, t in pts]
+    # the fan wraps round the corner: stop it at the inner face of the next wall (north / annex side)
+    return clip_halfplane([tuple(FP(KS, n, t))[:2] for n, t in pts], KS - 1, P.R_IN - 0.01)
+
+
+def clip_halfplane(pts, k, lim):
+    """Sutherland-Hodgman: keep the part of the polygon with (p . face-normal k) <= lim"""
+    a = rad(P.slot_center(k))
+    d = lambda q: q[0] * math.cos(a) + q[1] * math.sin(a) - lim   # noqa: E731
+    out = []
+    for i in range(len(pts)):
+        p, q = pts[i], pts[(i + 1) % len(pts)]
+        dp, dq = d(p), d(q)
+        if dp <= 0:
+            out.append(p)
+        if (dp < 0) != (dq < 0) and dp != dq:
+            s = dp / (dp - dq)
+            out.append((p[0] + (q[0] - p[0]) * s, p[1] + (q[1] - p[1]) * s))
+    return out
 
 
 for i in range(1, N_FAN + 1):
@@ -2171,12 +2188,13 @@ for k in SUN_FACES:
 mk_obj('terrace_sun_sails', bm, M_SAIL, 'terrace', smooth=True, recalc=False)
 mk_obj('terrace_sail_masts', bmm, M_STEEL, 'terrace', smooth=True)
 # shady side: two big floor mattresses with cushions for lying together (north faces)
-for i, (k, t) in enumerate(((0, 0.0), (7, 0.0))):      # mid-face, between the planters
+# in the corners N/NE and NE/E (k = x.5): clear of the room skylights (mid-face) and of the planters
+for i, (k, t) in enumerate(((7.5, 0.0), (6.5, 0.0))):
     rz = P.slot_center(k) + 90
     bm = bmesh.new()
-    cube(bm, FP(k, 8.55, t, P.TERRACE_Z + 0.11), (2.3, 2.3, 0.22), rz=rz)
+    cube(bm, FP(k, 8.35, t, P.TERRACE_Z + 0.11), (2.3, 2.3, 0.22), rz=rz)
     rounded(mk_obj('roof_floor_mattress_%d' % i, bm, M_WOOL[['cream', 'sand'][i]], 'terrace'), 0.08, 4, 1)
-    for j, (tt, nn) in enumerate(((-0.7, 9.5), (0.1, 9.55), (0.8, 9.5), (-0.8, 7.7))):
+    for j, (tt, nn) in enumerate(((-0.7, 9.3), (0.1, 9.35), (0.8, 9.3), (-0.8, 7.5))):
         cushion('roof_mattress_cushion_%d_%d' % (i, j), None, tuple(FP(k, nn, t + tt, P.TERRACE_Z + 0.36)),
                 (0.6, 0.22, 0.45) if nn > 9 else (0.5, 0.5, 0.16),
                 M_WOOL[['terracotta', 'rose', 'ochre', 'olive', 'wine'][(i + j) % 5]], rz=rz)

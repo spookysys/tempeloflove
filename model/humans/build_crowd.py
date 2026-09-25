@@ -1368,12 +1368,12 @@ for j, (k, t) in enumerate(((3, -2.25), (4, 2.25), (5, -2.25))):
         spoon(cpt.x, cpt.y, P.slot_center(k) + 90, DB)
 # on the floor mattresses of the shady side: a couple spooning, three lying together
 FM = TZ + 0.22
-p = FP(0, 8.55, 0.0)
-spoon(p.x, p.y, P.slot_center(0) + 90, FM)
-p = FP(7, 8.55, 0.0)
-b_ = lying('standing02', p.x, p.y, P.slot_center(7) + 90, 'back', FM)
-head_on('callharvey3d_sittingnatural', b_, 'spine03', P.slot_center(7) + 10, 'side_r', FM)
-head_on('elvs_yoga_star_pose_1', b_, 'upperleg02.R', P.slot_center(7) - 170, 'back', FM)
+p = FP(7.5, 8.35, 0.0)
+spoon(p.x, p.y, P.slot_center(7.5) + 90, FM)
+p = FP(6.5, 8.35, 0.0)
+b_ = lying('standing02', p.x, p.y, P.slot_center(6.5) + 90, 'back', FM)
+head_on('callharvey3d_sittingnatural', b_, 'spine03', P.slot_center(6.5) + 10, 'side_r', FM)
+head_on('elvs_yoga_star_pose_1', b_, 'upperleg02.R', P.slot_center(6.5) - 170, 'back', FM)
 # someone on the bench ring, leaning back against the dome, looking at the sky
 p = pol(P.DOME_RING_OUT + 0.3, 215)
 standing('callharvey3d_sittingfloorstretch2', p.x, p.y, 215, z0=TZ + 0.2)

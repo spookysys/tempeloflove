@@ -220,6 +220,22 @@ T_TOPS = T0S + NT_S * G_T
 T_VOID = T0S + 7 * G_T
 
 
+def clip_halfplane(pts, k, lim):
+    """Sutherland-Hodgman: keep the part of the polygon with (p . face-normal k) <= lim"""
+    a = rad(P.slot_center(k))
+    d = lambda q: q[0] * math.cos(a) + q[1] * math.sin(a) - lim   # noqa: E731
+    out = []
+    for i in range(len(pts)):
+        p, q = pts[i], pts[(i + 1) % len(pts)]
+        dp, dq = d(p), d(q)
+        if dp <= 0:
+            out.append(p)
+        if (dp < 0) != (dq < 0) and dp != dq:
+            s = dp / (dp - dq)
+            out.append((p[0] + (q[0] - p[0]) * s, p[1] + (q[1] - p[1]) * s))
+    return out
+
+
 def stair_plan(ax, level):
     cut = 7 if level == 'GF' else None
     N_FAN = 5
@@ -232,8 +248,10 @@ def stair_plan(ax, level):
             continue
         if i <= N_FAN:                       # seating terraces: nested outlines reaching to the end of the fan
             if level == 'GF':
-                rect_face(ax, KS, NS0 - f, NS1, ta - 0.9 * f, T_FAN, fc='#F1E6D6' if i % 2 else '#EADCC8',
-                          ec=INK, lw=0.4, z=3 + i * 0.01)
+                pts = [FP(KS, NS0 - f, ta - 0.6 * f), FP(KS, NS1, ta - 0.6 * f), FP(KS, NS1, T_FAN),
+                       FP(KS, NS0 - f, T_FAN)]
+                poly(ax, clip_halfplane(pts, KS - 1, P.R_IN - 0.01), fc='#F1E6D6' if i % 2 else '#EADCC8',
+                     ec=INK, lw=0.4, z=3 + i * 0.01)
             continue
         rect_face(ax, KS, NS0 + 0.02, NS1, ta, tb, fc='none' if above else WOOD,
                   ec='#9C8E80' if above else INK, lw=0.4, z=3.2, ls=(0, (2, 2)) if above else '-')
@@ -681,9 +699,9 @@ def roof_plan():
     for k in (2, 6):
         for t in (-2.7, -1.0):
             rect_face(ax, k, 7.3, 8.7, t - 0.35, t + 0.35, fc='#E8D9C0', lw=0.4, z=5)
-    for k in (0, 7):                                     # floor mattresses on the shady side
-        rect_face(ax, k, 7.4, 9.7, -1.15, 1.15, fc='#EFE2CC', lw=0.5, z=5)
-        p = FP(k, 8.55, 0)
+    for k in (7.5, 6.5):                                 # floor mattresses in the corners, clear of the skylights
+        rect_face(ax, k, 7.2, 9.5, -1.15, 1.15, fc='#EFE2CC', lw=0.5, z=5)
+        p = FP(k, 8.35, 0)
         label(ax, p[0], p[1], 'floor\nmattress', 5.5)
     for k in (0, 2, 6, 7):
         for t0, t1 in ((-3.6, -1.2), (1.2, 3.6)):
@@ -703,9 +721,9 @@ def roof_plan():
     chain(ax, 6, 1.05, [P.R_DOME, P.DOME_RING_OUT + 0.47, P.R_OUT - 0.10],
           ['%.2f bench' % (P.DOME_RING_OUT + 0.47 - P.R_DOME), '%.2f deck' % (P.R_OUT - 0.10 - P.DOME_RING_OUT - 0.47)],
           5.5)
-    for k in (0,):
-        fdim(ax, k, 7.15, -1.15, 7.15, 1.15, '2.30', 5.5)
-        fdim(ax, k, 7.4, 1.4, 9.7, 1.4, '2.30', 5.5)
+    for k in (7.5,):
+        fdim(ax, k, 6.95, -1.15, 6.95, 1.15, '2.30', 5.5)
+        fdim(ax, k, 7.2, 1.4, 9.5, 1.4, '2.30', 5.5)
     t = P.DAYBED_T[1]
     fdim(ax, 4, 6.85, t - 1.02, 6.85, t + 1.02, '%.2f' % 2.04, 5.5)
     fdim(ax, 4, 8.15 - 1.05, t + 1.3, 8.15 + 1.05, t + 1.3, '2.10', 5.5)
