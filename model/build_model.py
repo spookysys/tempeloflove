@@ -3532,9 +3532,10 @@ person('ev_crazy_1', pose_stand_relaxed(), at(3.6, 290, 0.03), rz=100, outfit=('
 # --- mat zones ----------------------------------------------------------------------------------
 # cuddle zone (east)
 cz = 310
-for i, (dr, da, rz) in enumerate(((0, -6, 10), (0, 6, 10), (1.5, 0, 100), (-1.2, -2, 100))):
-    c = pol(7.2 + dr, cz + da)
-    mattress('ev_cuddle_mat_%d' % i, (c.x, c.y), cz + rz, mat=M_WOOL['cream'] if i % 2 else M_MATTRESS)
+# every mattress group is a flush grid of 1.40 x 2.00 mattresses (params.mat_group)
+cells_, rz_, th_ = P.mat_group('cuddle')
+for i, c in enumerate(cells_):
+    mattress('ev_cuddle_mat_%d' % i, c, rz_, mat=M_WOOL['cream'] if i % 2 else M_MATTRESS, size=(P.MAT_W, P.MAT_L, th_))
 for i, (dr, da, rz, pose) in enumerate(((0.2, -4, 90, pose_lie_side()), (-0.3, -3, 270, pose_lie_back('open')),
                                         (0.4, 5, 80, pose_lie_side()), (-0.2, 6, 260, pose_lie_back('head')),
                                         (1.5, 1, 190, pose_sit_lean()))):
@@ -3543,13 +3544,13 @@ for i, (dr, da, rz, pose) in enumerate(((0.2, -4, 90, pose_lie_side()), (-0.3, -
 # mattress field under the net: people below can look up at the people on the net
 # (Matratzenwiese): standard 1.40 x 2.00 mattresses laid flush in a grid, corners left out -> a
 # 'pixelated' circle of 3 + 5 + 3, about 7 m across, under the net and clear of the columns
-MF = [(i * 1.4, j * 2.0) for j in (-1, 0, 1) for i in (range(-2, 3) if j == 0 else range(-1, 2))]
-for i, (x, y) in enumerate(MF):
-    mattress('ev_field_mat_%02d' % i, (x, y), 0, mat=[M_MATTRESS, M_WOOL['cream'], M_WOOL['sand']][i % 3],
-             size=(1.4, 2.0, 0.16))
+cells_, rz_, th_ = P.mat_group('field')
+for i, c in enumerate(cells_):
+    mattress('ev_field_mat_%02d' % i, c, rz_, mat=[M_MATTRESS, M_WOOL['cream'], M_WOOL['sand']][i % 3],
+             size=(P.MAT_W, P.MAT_L, th_))
 # intimacy zone (south-west) under a round linen canopy, half open towards the hall
-iz = 235
-cc = pol(7.0, iz)
+iz, r_cc, R_CAN = P.INT_CANOPY
+cc = pol(r_cc, iz)
 bm = bmesh.new()
 prev = None
 for i in range(90):
@@ -3557,7 +3558,7 @@ for i in range(90):
     if 330 < (a - (iz + 180)) % 360 or (a - (iz + 180)) % 360 < 30:     # opening towards the hall
         prev = None
         continue
-    rr = 2.0 + 0.06 * math.sin(a * 0.4)
+    rr = R_CAN + 0.06 * math.sin(a * 0.4)
     col_ = [bm.verts.new((cc.x + rr * math.cos(rad(a)), cc.y + rr * math.sin(rad(a)), 0.02)),
             bm.verts.new((cc.x + rr * math.cos(rad(a)), cc.y + rr * math.sin(rad(a)), 3.3))]
     if prev:
@@ -3565,25 +3566,23 @@ for i in range(90):
     prev = col_
 mk_obj('ev_canopy', bm, M_SHEER, EV, smooth=True, recalc=False)
 bm = bmesh.new()
-sector(bm, 1.95, 2.05, 0, 360, 3.28, 3.34, step=4)
+sector(bm, R_CAN - 0.05, R_CAN + 0.05, 0, 360, 3.28, 3.34, step=4)
 bmesh.ops.translate(bm, vec=Vector((cc.x, cc.y, 0)), verts=bm.verts[:])
 mk_obj('ev_canopy_ring', bm, M_WOOD, EV)
-for i, (dx, dy) in enumerate(((-0.72, 0.0), (0.72, 0.0), (0.0, 1.05))):
-    v = Matrix.Rotation(rad(iz), 4, 'Z') @ Vector((dx, dy - 0.3, 0))
-    mattress('ev_int_mat_%d' % i, (cc.x + v.x, cc.y + v.y), iz, mat=M_WOOL['wine'] if i == 2 else M_MATTRESS)
-for i, (dx, dy, kind, bl) in enumerate(((-0.72, -0.15, 'straddle', 'terracotta'), (0.72, -0.2, 'spoon', 'rose'),
-                                        (0.0, 0.95, 'lap', None))):
-    v = Matrix.Rotation(rad(iz), 4, 'Z') @ Vector((dx, dy, 0))
-    couple('ev_int_%d' % i, kind, (cc.x + v.x, cc.y + v.y, 0.18), iz + (90 if kind == 'lap' else 0), 60 + 2 * i,
+cells_, rz_, th_ = P.mat_group('intimate')
+for i, c in enumerate(cells_):
+    mattress('ev_int_mat_%d' % i, c, rz_, mat=M_WOOL['wine'] if i == 2 else M_MATTRESS, size=(P.MAT_W, P.MAT_L, th_))
+for i, (c, kind, bl) in enumerate(zip(cells_, ('straddle', 'spoon', 'lap'), ('terracotta', 'rose', None))):
+    couple('ev_int_%d' % i, kind, (c[0], c[1], 0.18), iz + 90 + (90 if kind == 'lap' else 0), 60 + 2 * i,
            blanket_mat=M_WOOL[bl] if bl else None, cover=(-1.0, -0.1) if kind == 'straddle' else (-1.15, 0.25))
 for i in range(3):
     ev_light('ev_int_candle_%d' % i, tuple(pol(1.6, iz + 150 + 30 * i) + Vector((cc.x, cc.y, 0.3))), 3.0)
 # wrestling zone (west)
 wz = 178
-for i, (dr, da) in enumerate(((0, -5), (0, 5), (1.4, -5), (1.4, 5))):
-    c = pol(6.6 + dr, wz + da)
-    mattress('ev_wrestle_mat_%d' % i, (c.x, c.y), wz + 90, mat=M_WOOL['olive'] if i % 3 == 0 else M_WOOL['sand'],
-             size=(1.4, 2.0, 0.12))
+cells_, rz_, th_ = P.mat_group('wrestle')
+for i, c in enumerate(cells_):
+    mattress('ev_wrestle_mat_%d' % i, c, rz_, mat=M_WOOL['olive'] if i % 3 == 0 else M_WOOL['sand'],
+             size=(P.MAT_W, P.MAT_L, th_))
 c = pol(7.2, wz - 3)
 person('ev_wrestle_a', pose_crouch(), (c.x, c.y, 0.12), rz=wz + 90, seed=70)
 d = Matrix.Rotation(rad(wz + 90), 4, 'Z') @ Vector((0, 0.95, 0))

@@ -193,3 +193,28 @@ TERRACE_GATE = (-3.55, -2.30)     # gate in the terrace railing to the external 
 DAYBED_T = (-1.9, 1.9)            # daybed positions on each SUN_FACE (t), centred at n = 8.15
 
 DOME_RING_OUT = R_DOME + 0.10    # outer edge of the dome upstand / start of the terrace deck
+
+
+# --- event mattress groups: standard 1.40 x 2.00 mattresses, always flush (edge to edge) in a grid ---
+MAT_W, MAT_L = 1.40, 2.00
+INT_CANOPY = (225, 6.4, 2.4)       # intimacy zone canopy: face angle, distance from the centre, radius
+
+
+def _fp(a, n, t):
+    a = math.radians(a)
+    return (n * math.cos(a) - t * math.sin(a), n * math.sin(a) + t * math.cos(a))
+
+
+def mat_group(name):
+    """[(x, y)], rz (deg), thickness of a mattress group; rz turns the 1.40 side onto its local x."""
+    if name == 'field':            # Matratzenwiese under the net: pixelated circle 3 + 5 + 3
+        cells = [(i * MAT_W, j * MAT_L) for j in (-1, 0, 1) for i in (range(-2, 3) if j == 0 else range(-1, 2))]
+        return cells, 0.0, 0.16
+    if name == 'cuddle':           # cuddle puddle (SE face): 2 x 2, long sides along the face
+        return [_fp(315, n, t) for n in (6.6, 8.0) for t in (-1.6, 0.4)], 315.0, 0.18
+    if name == 'intimate':         # under the canopy (SW face): 3 side by side, heads to the wall
+        a, n0, _ = INT_CANOPY
+        return [_fp(a, n0, t) for t in (-MAT_W, 0.0, MAT_W)], a + 90.0, 0.18
+    if name == 'wrestle':          # wrestling / rough-and-tumble (W face): 2 x 2, long sides radial
+        return [_fp(180, n, t) for n in (5.9, 7.9) for t in (-0.95, 0.45)], 270.0, 0.12
+    raise KeyError(name)

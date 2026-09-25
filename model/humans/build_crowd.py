@@ -1210,27 +1210,24 @@ print('dance done', N[0])
 # 5. intimate zone under the linen canopy (south-west) (6)
 UNDRESS[0] = 0.7
 # ---------------------------------------------------------------------------
-iz = 235
-cc = pol(7.0, iz)
-R_ = Rz(iz)
-m0 = cc + R_ @ Vector((-0.72, -0.3, 0))
-m1 = cc + R_ @ Vector((0.72, -0.3, 0))
-m2 = cc + R_ @ Vector((0.0, 0.75, 0))
-face_to_face(m0.x, m0.y, iz + 90, 0.18)
+iz = P.INT_CANOPY[0]
+# three mattresses side by side, long sides radial (params.mat_group): one couple / trio on each
+m0, m1, m2 = [Vector((x, y, 0)) for x, y in P.mat_group('intimate')[0]]
+face_to_face(m0.x, m0.y, iz, 0.18)
 # a trio making out: two kissing, the third close behind one of them, a hand on the other
-ta, tb = face_to_face(m1.x, m1.y, iz + 90, 0.18)
-fdir = Rz(iz + 90 - 90) @ Vector((1, 0, 0))
-tc = lying('callharvey3d_sittingnatural', m1.x - fdir.x * 0.42, m1.y - fdir.y * 0.42, iz + 94, 'side_r', 0.18)
+ta, tb = face_to_face(m1.x, m1.y, iz, 0.18)
+fdir = Rz(iz + 90) @ Vector((1, 0, 0))
+tc = lying('callharvey3d_sittingnatural', m1.x - fdir.x * 0.42, m1.y - fdir.y * 0.42, iz + 4, 'side_r', 0.18)
 reach_to(tc, 'L', bone_w(tb, 'spine03', (0, 0.1, 0)))
-s1 = standing('callharvey3d_lotus', m2.x, m2.y, iz + 180, z0=0.18)
-s2 = head_on('standing01', s1, 'pelvis.L', iz - 90, 'back', 0.18)
+s1 = standing('callharvey3d_lotus', m2.x, m2.y, iz + 90, z0=0.18)
+s2 = head_on('standing01', s1, 'pelvis.L', iz - 180, 'back', 0.18)
 reach_to(s1, 'R', bone_w(s2, 'head', (0, 0, 0.08)))
 
 # ---------------------------------------------------------------------------
 # 6. cuddle puddle (south-east) (5)
 # ---------------------------------------------------------------------------
 cz = 310
-c0 = pol(7.2, cz)
+c0 = Vector((*[sum(v) / 4 for v in zip(*P.mat_group('cuddle')[0])], 0))    # centre of the 2 x 2 mattresses
 k1 = lying('standing02', c0.x, c0.y, cz + 100, 'back', 0.18)
 head_on('callharvey3d_sittingnatural', k1, 'spine03', cz - 30, 'side_r', 0.18)
 k3 = lying('callharvey3d_sittingnatural', *(c0 + Rz(cz) @ Vector((0.0, -0.45, 0))).xy, cz + 100, 'side_l', 0.18)
