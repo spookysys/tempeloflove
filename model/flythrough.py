@@ -240,6 +240,11 @@ def setup(render_quality='video'):
     R.set_variant(False)
     EMPTY = os.environ.get('FLY_EMPTY') == '1'      # the building on its own, normal furnishing, no people
     R.set_event(not EMPTY)
+    if EMPTY:                                      # no people at all: also the old placeholder figures
+        for n in ('people', 'event', 'crowd'):
+            c = bpy.data.collections.get(n)
+            if c:
+                c.hide_render = True
     sc.render.engine = 'CYCLES'
     sc.cycles.device = 'CPU'
     sc.cycles.samples = 10 if render_quality == 'video' else 20
