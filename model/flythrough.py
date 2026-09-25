@@ -238,7 +238,8 @@ def setup(render_quality='video'):
     R.setup_volume(0.0)
     R.set_night(0.6)
     R.set_variant(False)
-    R.set_event(True)
+    EMPTY = os.environ.get('FLY_EMPTY') == '1'      # the building on its own, normal furnishing, no people
+    R.set_event(not EMPTY)
     sc.render.engine = 'CYCLES'
     sc.cycles.device = 'CPU'
     sc.cycles.samples = 10 if render_quality == 'video' else 20
@@ -305,25 +306,22 @@ def main():
         print('NEAR people', people_near_path(pos))
         return
     if mode == 'video':
-        frames = sorted(f for f in os.listdir(os.path.join(OUT, 'fly_frames')) if f.endswith('.png'))
-        sc = bpy.context.scene
-        sc.sequence_editor_create()
-        step = int(sys.argv[2]) if len(sys.argv) > 2 else 1
-        for i, f in enumerate(frames):
-            s = sc.sequence_editor.strips.new_image('f%d' % i, os.path.join(OUT, 'fly_frames', f), 1, 1 + i * step) \
-                if hasattr(sc.sequence_editor, 'strips') else \
-                sc.sequence_editor.sequences.new_image('f%d' % i, os.path.join(OUT, 'fly_frames', f), 1, 1 + i * step)
-            s.frame_final_duration = step
-        sc.frame_start, sc.frame_end = 1, len(frames) * step
-        sc.render.fps = FPS
-        sc.render.resolution_x, sc.render.resolution_y = 480, 270
-        sc.render.image_settings.file_format = 'FFMPEG'
-        sc.render.ffmpeg.format = 'MPEG4'
-        sc.render.ffmpeg.codec = 'H264'
-        sc.render.ffmpeg.constant_rate_factor = 'HIGH'
-        sc.render.filepath = os.path.join(OUT, 'flythrough.mp4')
-        bpy.ops.render.render(animation=True)
-        print('VIDEO', sc.render.filepath)
+        # frames rendered every STEP-th frame -> ffmpeg motion interpolation back to 24 fps
+        import subprocess
+        import imageio_ffmpeg
+        src = os.path.join(OUT, os.environ.get('FLY_FRAMES', 'fly_frames'))
+        dst = os.path.join(OUT, os.environ.get('FLY_VIDEO', 'flythrough.mp4'))
+        step = int(sys.argv[2]) if len(sys.argv) > 2 else 2
+        frames = sorted(f for f in os.listdir(src) if f.endswith('.png'))
+        lst = os.path.join(src, 'list.txt')
+        with open(lst, 'w') as fh:
+            for f in frames:
+                fh.write("file '%s'\nduration %f\n" % (f, step / FPS))
+        cmd = [imageio_ffmpeg.get_ffmpeg_exe(), '-y', '-f', 'concat', '-safe', '0', '-i', lst,
+               '-vf', 'fps=%d,minterpolate=fps=%d:mi_mode=mci:mc_mode=aobmc:vsbmc=1,format=yuv420p' % (FPS // step, FPS),
+               '-c:v', 'libx264', '-crf', '20', '-preset', 'slow', dst]
+        subprocess.run(cmd, check=True)
+        print('VIDEO', dst, len(frames), 'frames')
         return
     sc, cam, pos, dirs, lens = setup('stills' if mode == 'stills' else 'video')
     if mode == 'stills':
@@ -340,7 +338,7 @@ def main():
     elif mode == 'frames':
         a, b = int(sys.argv[2]), int(sys.argv[3])
         step = int(sys.argv[4]) if len(sys.argv) > 4 else 1
-        d = os.path.join(OUT, 'fly_frames')
+        d = os.path.join(OUT, os.environ.get('FLY_FRAMES', 'fly_frames'))
         os.makedirs(d, exist_ok=True)
         for f in range(a, min(b, len(pos) - 1) + 1, step):
             dst = os.path.join(d, 'f_%05d.png' % f)
