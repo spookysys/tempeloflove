@@ -3765,7 +3765,7 @@ wall_sign('sign_dance', P.BAR_FACE, -2.3, 'Tanz', 'tanzen · ohne Worte', 'indig
 wall_sign('sign_welcome', P.ENTRY_SLOT, -2.4, 'Willkommen', 'fragen · zuhören · ein Nein ist willkommen', 'ochre', z=2.55,
           w=1.3, h=0.72, seed=4)
 # Spielwiese (mattress field): hung from the ring beam on the north side, facing the garden door
-zone_sign('sign_field', pol(P.RING_BEAM_IN - 0.08, 90, 2.95), 270, 'Spielwiese', 'hinlegen · hochschauen · atmen',
+zone_sign('sign_field', pol(P.RING_BEAM_IN - 0.08, 90, 2.95), 270, 'Spielwiese', 'alles kann · nichts muss',
           'teal', w=1.8, h=0.8, nail=P.RING_BEAM_BOT - 2.95 - 0.4, seed=5)
 # Eros (intimacy zone): hung from the canopy ring in its opening, facing the hall
 iz_, rc_, Rc_ = P.INT_CANOPY
