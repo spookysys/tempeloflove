@@ -188,12 +188,14 @@ def set_event(on):
         c = bpy.data.collections.get(n)
         if c:
             c.hide_render = hide
+            c.hide_viewport = hide           # also for checks: hidden in the viewport = never evaluated / posed
     for ob in bpy.data.objects:          # the round rug + cushion circle make way for the mattress field
         if ob.name.startswith(('hall_zafu', 'hall_round_')):
             ob.hide_render = on
     c = bpy.data.collections.get('crowd')
     if c:
         c.hide_render = not on
+        c.hide_viewport = not on
 
 
 def clear_lens(v, radius=1.2):

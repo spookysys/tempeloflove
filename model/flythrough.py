@@ -224,16 +224,16 @@ def people_near_path(pos, r=0.45):
     for o in c.objects:
         if o.type != 'MESH' or not o.name.endswith('.body'):
             continue
-        bb = [o.matrix_world @ Vector(v) for v in o.bound_box]
-        lo = Vector((min(v.x for v in bb), min(v.y for v in bb), min(v.z for v in bb))) - Vector((r, r, r))
-        hi = Vector((max(v.x for v in bb), max(v.y for v in bb), max(v.z for v in bb))) + Vector((r, r, r))
-        if any(lo.x < p.x < hi.x and lo.y < p.y < hi.y and lo.z < p.z < hi.z for p in samp):
-            ev = o.evaluated_get(dg)
-            me = ev.to_mesh()
-            vs = [o.matrix_world @ v.co for v in me.vertices[::7]]
-            ev.to_mesh_clear()
-            if any((v - p).length < r for p in samp for v in vs if abs(v.z - p.z) < 1.2):
-                near.append(o.parent.name if o.parent else o.name)
+        ev = o.evaluated_get(dg)                       # posed body (needs the crowd visible in the viewport)
+        me = ev.to_mesh()
+        mw = ev.matrix_world
+        vs = [mw @ me.vertices[i].co for i in range(0, len(me.vertices), 7)]
+        ev.to_mesh_clear()
+        lo = Vector((min(v.x for v in vs), min(v.y for v in vs), min(v.z for v in vs))) - Vector((r, r, r))
+        hi = Vector((max(v.x for v in vs), max(v.y for v in vs), max(v.z for v in vs))) + Vector((r, r, r))
+        cand = [p for p in samp if lo.x < p.x < hi.x and lo.y < p.y < hi.y and lo.z < p.z < hi.z]
+        if cand and any((v - p).length < r for p in cand for v in vs):
+            near.append(o.parent.name if o.parent else o.name)
     return sorted(set(near))
 
 

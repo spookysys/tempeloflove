@@ -1,9 +1,9 @@
-"""People on the event mattress groups: flags anyone whose low body parts hang in the air beside a
-mattress (lying half off the edge) or sink into the floor next to it.
+"""Is everyone held up by something? For each person, the lowest parts of the body are traced straight
+down; if none of them rests on a surface (floor, mattress, bench, cushion, another person...) within a
+few cm, the person floats.
 
     python3 humans/check_support.py [tempel_event.blend]
 """
-import math
 import os
 import sys
 
@@ -13,55 +13,53 @@ from mathutils import Vector
 HUM = os.path.dirname(os.path.abspath(__file__))
 MODEL = os.path.dirname(HUM)
 sys.path.insert(0, MODEL)
-import params as P  # noqa: E402
 
 blend = next((a for a in sys.argv[1:] if a.endswith('.blend')), 'tempel_event.blend')
 bpy.ops.wm.open_mainfile(filepath=os.path.join(MODEL, blend))
-bpy.context.scene.frame_set(100)
+import render as R  # noqa: E402
+R.set_event(True)                                # the event layer is viewport-hidden by default (never posed)
+sc = bpy.context.scene
+sc.frame_set(100)
 dg = bpy.context.evaluated_depsgraph_get()
+DOWN = Vector((0, 0, -1))
+GAP = 0.05                                       # counts as resting on something
 
-GROUPS = {g: P.mat_group(g) for g in ('field', 'cuddle', 'intimate', 'wrestle')}
 
-
-def on_mattress(p):
-    """thickness of the mattress under point p (None if no mattress there)"""
-    for cells, rz, th in GROUPS.values():
-        a = math.radians(rz)
-        c, s = math.cos(a), math.sin(a)
-        for x, y in cells:
-            dx, dy = p.x - x, p.y - y
-            u, v = dx * c + dy * s, -dx * s + dy * c
-            if abs(u) <= P.MAT_W / 2 and abs(v) <= P.MAT_L / 2:
-                return th
+def support_below(p, own):
+    """distance down to the nearest surface that is not part of this person (None = nothing within 1 m)"""
+    start = p + Vector((0, 0, 0.03))
+    for _ in range(8):
+        hit, loc, nrm, idx, ob, mw = sc.ray_cast(dg, start, DOWN, distance=1.0)
+        if not hit:
+            return None
+        if ob.name.split('.')[0] != own:
+            return (p - loc).z
+        start = loc + DOWN * 0.002               # skip the person's own clothes / hair
     return None
 
 
-def near_group(p, r=3.2):
-    for cells, rz, th in GROUPS.values():
-        cx = sum(c[0] for c in cells) / len(cells)
-        cy = sum(c[1] for c in cells) / len(cells)
-        if math.hypot(p.x - cx, p.y - cy) < r:
-            return True
-    return False
-
-
 bad = 0
-for o in bpy.data.objects:
+for o in sorted(sc.objects, key=lambda o: o.name):
     if o.type != 'MESH' or not o.name.endswith('.body') or o.hide_render:
         continue
-    e = o.evaluated_get(dg)
-    me = e.to_mesh()
-    pts = [e.matrix_world @ v.co for v in me.vertices]
-    e.to_mesh_clear()
+    own = o.name[:-5]
+    pts = []
+    rig = o.parent
+    for part in ([rig] + list(rig.children_recursive)) if rig else [o]:   # body + clothes + shoes + hair
+        if part.type != 'MESH' or part.hide_render:                     # (covered body parts are masked away)
+            continue
+        e = part.evaluated_get(dg)
+        me = e.to_mesh()
+        pts += [e.matrix_world @ me.vertices[i].co for i in range(0, len(me.vertices), 5)]
+        e.to_mesh_clear()
     zmin = min(p.z for p in pts)
-    low = [p for p in pts if p.z < zmin + 0.06]
-    c = sum(low, Vector()) / len(low)
-    if c.z > 0.45 or not near_group(c):
-        continue
-    floating = [p for p in low if on_mattress(p) is None and p.z > 0.06]        # in the air beside a mattress
-    sunk = [p for p in low if (on_mattress(p) or 0) > 0 and p.z < on_mattress(p) - 0.06]   # inside a mattress
-    if len(floating) > 0.15 * len(low) or len(sunk) > 0.15 * len(low):
+    low = [p for p in pts if p.z < zmin + 0.04]
+    gaps = [support_below(p, own) for p in low[:40]]
+    rest = [g for g in gaps if g is not None and g < GAP]
+    if not rest:                                 # no low point rests on anything
+        g = [x for x in gaps if x is not None]
+        c = sum(low, Vector()) / len(low)
         bad += 1
-        print('SUPPORT %-10s low z %.2f at (%.2f, %.2f): %d%% in the air, %d%% sunk into a mattress'
-              % (o.name[:-5], zmin, c.x, c.y, 100 * len(floating) // len(low), 100 * len(sunk) // len(low)))
-print('SUPPORT DONE', bad, 'problems')
+        print('SUPPORT %-8s floats %s at (%.2f, %.2f, %.2f)' % (own, ('%.2f m' % min(g)) if g else '> 1 m',
+                                                              c.x, c.y, zmin))
+print('SUPPORT DONE', bad, 'floating')
