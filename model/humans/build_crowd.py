@@ -746,7 +746,7 @@ def drop(rig, z0, on=(), sink=0.015, reach=1.3):
     lowest = min(v.z for v in vs)
     rig.location.z += z0 + 0.3 - lowest            # start 30 cm above the target level
     vs = eval_verts(rig)
-    trees = [STATIC] + ([world_bvh([body_of(o) for o in on])] if on else [])
+    trees = [STATIC]        # never onto other people by hand (CLAUDE.md): `on` is kept for the call sites only
     best = -1e9
     for v in vs:
         for t in trees:
@@ -773,9 +773,16 @@ def front(rig):
 N_IK = [0]
 
 
-def reach_to(rig, side, target, chain=4, max_reach=0.5):
-    """Put the hand (wrist bone) of `side` ('L'/'R') on a world point, IK over the arm -
-    only if it is within a comfortable, bent-arm reach of the shoulder (no stretched 'zombie' arms)."""
+N_NO_REF = [0]      # contacts between people asked for by the scene but skipped: no recorded reference for them
+
+
+def reach_to(rig, side, target, chain=4, max_reach=0.5, obj=False):
+    """Put the hand (wrist bone) of `side` ('L'/'R') on an object (obj=True: drum, clipboard), IK over the arm -
+    only if it is within a comfortable, bent-arm reach of the shoulder (no stretched 'zombie' arms).
+    Hands on other people are never placed by hand (CLAUDE.md): without obj=True this does nothing."""
+    if not obj:
+        N_NO_REF[0] += 1
+        return
     sh = bone_w(rig, 'upperarm01.' + side)
     if (Vector(target) - sh).length > max_reach:
         return None
@@ -793,7 +800,9 @@ def reach_to(rig, side, target, chain=4, max_reach=0.5):
 
 
 def foot_to(rig, side, target):
-    """Put a foot on something (IK over the leg)."""
+    """(disabled: a foot on another person needs a recorded reference, CLAUDE.md)"""
+    N_NO_REF[0] += 1
+    return
     N_IK[0] += 1
     e = bpy.data.objects.new('ikf_%s_%d' % (rig.name, N_IK[0]), None)
     e.location = target
@@ -845,7 +854,7 @@ def embrace_standing(x, y, face, z0=0.0, a_pose='standing02', b_pose='standing05
     c = Vector((x, y, 0))
     f = Rz(face) @ Vector((1, 0, 0))
     s = Rz(face) @ Vector((0, 1, 0))
-    d, l = (0.115, 0.025) if kiss else (0.13, 0.07)
+    d, l = 0.55, 0.1                       # no reference for embracing yet: dancing near each other
     a = swayer(*(c - f * d + s * l).xy, face, kinds[0], z0)
     b = swayer(*(c + f * d - s * l).xy, face + 180, kinds[1], z0)
     reach_to(a, 'L', on_back(b, 'spine02', 0.1))
@@ -858,8 +867,8 @@ def embrace_standing(x, y, face, z0=0.0, a_pose='standing02', b_pose='standing05
 def spoon(x, y, head, z0, pname='callharvey3d_sittingnatural', on=()):
     """Two people lying on their side, the one behind holding the one in front."""
     fdir = Rz(head - 90) @ Vector((1, 0, 0))
-    back = lying(pname, x - fdir.x * 0.16, y - fdir.y * 0.16, head, 'side_r', z0, on=on)
-    fr = lying(pname, x + fdir.x * 0.16, y + fdir.y * 0.16, head - 4, 'side_r', z0, on=on)
+    back = lying(pname, x - fdir.x * 0.45, y - fdir.y * 0.45, head, 'side_r', z0, on=on)
+    fr = lying(pname, x + fdir.x * 0.45, y + fdir.y * 0.45, head - 4, 'side_r', z0, on=on)
     reach_to(back, 'L', bone_w(fr, 'spine04', (0, -0.14, 0)))
     return back, fr
 
@@ -867,7 +876,7 @@ def spoon(x, y, head, z0, pname='callharvey3d_sittingnatural', on=()):
 def face_to_face(x, y, head, z0, pa='standing02', pb='standing03', on=(), kiss=True):
     """Lying on their sides facing each other, holding each other, making out."""
     fdir = Rz(head - 90) @ Vector((1, 0, 0))
-    d = 0.135 if kiss else 0.17
+    d = 0.5                               # no reference for lying together yet: side by side, apart
     a = lying(pa, x - fdir.x * d, y - fdir.y * d, head, 'side_r', z0, on=on)
     b = lying(pb, x + fdir.x * d, y + fdir.y * d, head + (4 if kiss else 0), 'side_l', z0, on=on)
     reach_to(a, 'L', on_back(b, 'spine03', 0.0, 0.12))
@@ -884,8 +893,8 @@ def head_on(pname, partner, rest_bone, head_away, how, z0, extra_on=()):
     lie(r, 0, 0, head_away + 180, how)
     bpy.context.view_layer.update()
     hd = bone_w(r, 'head')
-    r.location.x += p.x - hd.x + d.x * 0.02
-    r.location.y += p.y - hd.y + d.y * 0.02
+    r.location.x += p.x - hd.x + d.x * 0.9          # no reference for resting on someone yet: beside them
+    r.location.y += p.y - hd.y + d.y * 0.9
     drop(r, z0, on=(partner,) + tuple(extra_on))
     return r
 
@@ -1220,7 +1229,8 @@ def hand_pos(r, side):
 
 
 def link_hands(ra, rb, maxd=0.45):
-    """If a hand of A and a hand of B are near, let them meet (holding hands)."""
+    """(disabled: recorded pairs keep their hands where they were recorded, CLAUDE.md)"""
+    return
     best = None
     for sa in 'LR':
         for sb in 'LR':
@@ -1317,7 +1327,7 @@ def roll_duet(x, y, head, z0=0.0, style=0):
     """Two people rolling on the floor with each other."""
     if style == 0:                           # one rolling over the other
         a = lying('callharvey3d_sittingnatural', x, y, head, 'side_l', z0)
-        b = lying('elvs_yoga_star_pose_1', x + 0.05, y + 0.05, head + 80, 'back', z0, on=(a,))
+        b = lying('elvs_yoga_star_pose_1', x + 0.8, y + 0.5, head + 80, 'back', z0, on=(a,))
     elif style == 1:                         # back to back
         fdir = Rz(head - 90) @ Vector((1, 0, 0))
         a = lying('callharvey3d_sittingnatural', x - fdir.x * 0.2, y - fdir.y * 0.2, head, 'side_l', z0)
@@ -1421,7 +1431,7 @@ c = pol(4.9, 140)
 t1 = standing('drednicolson_prostrate', c.x, c.y, 250)
 t2 = new_person()
 pose(t2, 'elvs_yoga_star_pose_1')
-lie(t2, c.x, c.y, 340, 'back')
+lie(t2, c.x + 0.9, c.y - 0.6, 340, 'back')
 drop(t2, 0.0, on=(t1,))
 t3 = dancer('49_12', 1, c.x + 0.7, c.y - 0.45, 120)
 reach_to(t3, 'R', bone_w(t2, 'wrist.L'))
@@ -1445,7 +1455,7 @@ duet('22_03', '23_03', 110, p.x, p.y, 272 + 90, z0=0.0)                 # sinkin
 c = pol(5.0, 330)
 tri = []
 for i, pn in enumerate(('standing02', 'standing05', 'standing01')):
-    q = c + Rz(120 * i + 30) @ Vector((0.21, 0, 0))
+    q = c + Rz(120 * i + 30) @ Vector((0.6, 0, 0))
     tri.append(swayer(q.x, q.y, 120 * i + 30 + 180))
 for i in range(3):
     reach_to(tri[i], 'L', on_back(tri[(i + 1) % 3], 'spine03', 0.0, 0.12))
@@ -1541,13 +1551,13 @@ reach_to(x2, 'R', bone_w(x1, 'spine04', (-0.1, -0.12, 0)))
 mc = FP(P.BAR_FACE, P.R_IN - 3.0, -2.4)
 mu = standing('callharvey3d_lotus', mc.x, mc.y, ab + 180, z0=0.0, sex=1.0, years=46)
 hp = Vector((mc.x + 0.3, mc.y - 0.3, 0.27))
-reach_to(mu, 'L', hp + Vector((0.08, 0.05, 0)))
-reach_to(mu, 'R', hp + Vector((-0.08, -0.05, 0)))
+reach_to(mu, 'L', hp + Vector((0.08, 0.05, 0)), obj=True)
+reach_to(mu, 'R', hp + Vector((-0.08, -0.05, 0)), obj=True)
 dc = FP(P.BAR_FACE, P.R_IN - 2.9, -3.3)
 dr = standing('callharvey3d_sittinglegscrossed', dc.x, dc.y, ab + 160, z0=0.0)
 drum_c = bone_w(dr, 'spine03') + front(dr) * 0.3 + Vector((0, 0, -0.15))
-reach_to(dr, 'L', drum_c + Rz(ab + 160) @ Vector((0.0, 0.2, 0.05)))
-reach_to(dr, 'R', drum_c + Rz(ab + 160) @ Vector((0.0, -0.15, 0.1)))
+reach_to(dr, 'L', drum_c + Rz(ab + 160) @ Vector((0.0, 0.2, 0.05)), obj=True)
+reach_to(dr, 'R', drum_c + Rz(ab + 160) @ Vector((0.0, -0.15, 0.1)), obj=True)
 DRUM = (drum_c, ab + 160)
 # organisers in kimonos with clipboards
 CLIP = []
@@ -1555,8 +1565,8 @@ for i, (pos, face, z0) in enumerate(((FP(P.ENTRY_SLOT, P.R_IN - 1.6, 1.1), P.slo
                                      (pol(5.0, 284), 284 + 180 - 30, P.FFL_UF))):
     o = walker(pos.x, pos.y, face, kind='organiser', z0=z0)
     cp = bone_w(o, 'spine02') + front(o) * 0.3 + Vector((0, 0, -0.1))
-    reach_to(o, 'L', cp + Rz(face) @ Vector((0, 0.1, 0)))
-    reach_to(o, 'R', cp + Rz(face) @ Vector((0, -0.1, 0.02)))
+    reach_to(o, 'L', cp + Rz(face) @ Vector((0, 0.1, 0)), obj=True)
+    reach_to(o, 'R', cp + Rz(face) @ Vector((0, -0.1, 0.02)), obj=True)
     CLIP.append((cp, face))
 # stair seating steps
 ks = P.STAIR_SLOT
@@ -1625,7 +1635,7 @@ embrace_standing(p.x, p.y, 40, z0=TZ, kiss=True)
 c = pol(7.4, 188)
 tri2 = []
 for i in range(3):
-    q = c + Rz(120 * i + 10) @ Vector((0.21, 0, 0))
+    q = c + Rz(120 * i + 10) @ Vector((0.6, 0, 0))
     tri2.append(swayer(q.x, q.y, 120 * i + 10 + 180, z0=TZ))
 for i in range(3):
     reach_to(tri2[i], 'L', on_back(tri2[(i + 1) % 3], 'spine03', 0.0, 0.12))
@@ -1634,7 +1644,7 @@ for i in range(3):
 c = pol(7.0, 350)
 hug = []
 for i in range(4):
-    q = c + Rz(90 * i) @ Vector((0.3, 0, 0))
+    q = c + Rz(90 * i) @ Vector((0.7, 0, 0))
     hug.append(swayer(q.x, q.y, 90 * i + 180, z0=TZ))
 for i in range(4):
     reach_to(hug[i], 'L', on_back(hug[(i + 1) % 4], 'spine02', 0.0, 0.12))
@@ -1755,4 +1765,4 @@ CROWD.objects.link(ob)
 EVC.hide_render = True
 EVC.hide_viewport = True
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(MODEL, 'tempel_event.blend'), compress=True)
-print('CROWD', N[0], 'people saved')
+print('CROWD', N[0], 'people saved;', N_NO_REF[0], 'hand-made contacts skipped (no reference yet)')
