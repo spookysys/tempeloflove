@@ -321,6 +321,29 @@ def append_objects(blend, prefix):
     return obs
 
 
+def center_pine_protos(protos=None):
+    """Put each pine variant's trunk base on its collection origin. (Variant c of the scan has its mesh ~10 m away
+    from its origin: its instances stood 10 m off their intended spots, two of them in the annex entrance.)"""
+    protos = protos or [c for c in bpy.data.collections if c.name.startswith('pine_') and c.objects]
+    n = 0
+    for c in protos:
+        trunks = [o for o in c.objects if o.type == 'MESH' and 'twig' not in o.name]
+        if not trunks:
+            continue
+        t = trunks[0]
+        mw = t.matrix_basis
+        zmin = min(v.co.z for v in t.data.vertices)
+        low = [mw @ v.co for v in t.data.vertices if v.co.z < zmin + 0.6]
+        base = sum(low, Vector()) / len(low)
+        off = Vector((base.x, base.y, 0))
+        if off.length < 0.05:
+            continue
+        for o in c.objects:
+            o.location -= off
+        n += 1
+    return n
+
+
 def build_forest(seed=11):
     rng = random.Random(seed)
     col = coll('forest_scanned')
@@ -341,6 +364,7 @@ def build_forest(seed=11):
             c.objects.link(o)
             o.location = (o.location.x - obs[0].location.x, o.location.y - obs[0].location.y, o.location.z)
         protos.append(c)
+    center_pine_protos(protos)
     # replace old pines (trunk + crown) by instances at the same spots
     n = 0
     for o in list(bpy.data.objects):

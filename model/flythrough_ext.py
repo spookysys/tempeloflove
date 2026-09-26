@@ -34,27 +34,28 @@ def extend(basic):
     # 1. small room (slot 5, doors fully open: the opening is at t > -0.7), after the walkway point at 315 deg
     i = _index(way, pol(5.15, 315, UF + 1.72))
     k = 5
-    room = [                                                                  # the pendant hangs at n 7.0, t 0.9
-        (FP(k, 4.75, 0.8, UF + 1.7), FP(k, 7.6, 1.9, UF + 1.2), 0.5, 19),    # turning towards the doors early
-        (FP(k, 5.1, 1.6, UF + 1.66), FP(k, 8.0, 1.0, UF + 1.1), 0.5, 19),
-        (FP(k, 6.4, 1.7, UF + 1.6), FP(k, 9.4, -0.4, UF + 0.7), 0.5, 18),    # in: bed, window, the forest
-        (FP(k, 7.6, 1.6, UF + 1.58), FP(k, 8.6, -1.7, UF + 0.8), 0.45, 18),   # a slow look round
-        (FP(k, 7.3, 1.8, UF + 1.6), FP(k, 6.2, -2.0, UF + 1.0), 0.3, 18),    # across the room
-        (FP(k, 6.6, 1.8, UF + 1.6), FP(k, 4.0, 2.4, UF + 1.3), 0.4, 19),     # turning back to the door
+    room = [                              # the paper pendant hangs at n 7.0, t 0.9: camera low, looking down,
+        (FP(k, 4.75, 0.8, UF + 1.6), FP(k, 7.6, 1.9, UF + 0.9), 0.5, 19),    # so the lamp stays above the frame
+        (FP(k, 5.1, 1.6, UF + 1.5), FP(k, 8.0, 1.0, UF + 0.6), 0.5, 19),
+        (FP(k, 6.4, 1.7, UF + 1.4), FP(k, 9.4, -0.4, UF + 0.5), 0.5, 18),    # in: bed, window, the forest
+        (FP(k, 7.6, 1.6, UF + 1.35), FP(k, 8.6, -1.7, UF + 0.4), 0.45, 18),  # a slow look round
+        (FP(k, 7.3, 1.8, UF + 1.4), FP(k, 6.2, -2.0, UF + 0.6), 0.3, 18),    # across the room
+        (FP(k, 6.6, 1.8, UF + 1.5), FP(k, 4.0, 2.4, UF + 1.1), 0.4, 19),     # turning back to the door
         (FP(k, 5.0, 1.6, UF + 1.7), pol(2.6, 345 + 55, UF - 0.3), 0.7, 19),
     ]
     way[i + 1:i + 1] = room
     # 2. bathing room (slot 0), between the walkway points at 435 and 465 deg; the sliding door leaves t 0..0.75
     j = _index(way, pol(5.15, 435, UF + 1.72))
     k = P.BATH_SLOT
-    bath = [
+    bath = [                              # plan: showers mid-back, daybed nook at t > 0, long bench at t < 0
         (FP(k, 4.7, -1.0, UF + 1.7), FP(k, 7.5, 0.6, UF + 1.3), 0.6, 18),    # turning towards the door early
         (FP(k, 4.85, 0.35, UF + 1.68), FP(k, 8.0, 0.35, UF + 1.2), 0.45, 18),
         (FP(k, 5.6, 0.38, UF + 1.65), FP(k, 9.3, 0.0, UF + 1.0), 0.45, 17),   # through the half-open door
-        (FP(k, 7.0, 0.3, UF + 1.62), FP(k, 9.4, -1.2, UF + 0.9), 0.4, 17),    # showers under the skylight
-        (FP(k, 7.6, -0.2, UF + 1.6), FP(k, 8.6, -2.6, UF + 0.6), 0.4, 17),    # bench and aftercare nook
-        (FP(k, 7.5, 0.3, UF + 1.6), FP(k, 6.6, -2.8, UF + 1.0), 0.3, 17),     # turning slowly (left wall, WC)
-        (FP(k, 6.9, 0.4, UF + 1.62), FP(k, 4.4, -1.4, UF + 1.3), 0.3, 18),
+        (FP(k, 7.0, 0.3, UF + 1.62), FP(k, 9.4, -0.6, UF + 0.9), 0.4, 17),    # rain showers under the skylight
+        (FP(k, 7.5, 0.0, UF + 1.6), FP(k, 8.9, 2.1, UF + 0.6), 0.3, 17, 2.5),      # the aftercare nook
+        (FP(k, 7.6, -0.2, UF + 1.6), FP(k, 9.1, -1.9, UF + 0.6), 0.3, 17, 2.8),    # the warm bench under the window
+        (FP(k, 7.4, 0.1, UF + 1.61), FP(k, 7.6, -3.0, UF + 1.0), 0.3, 17, 2.5),   # along the bench to its end
+        (FP(k, 7.1, 0.3, UF + 1.62), FP(k, 5.4, -1.0, UF + 1.1), 0.3, 18, 2.5),    # turning back: the changing bench
         (FP(k, 6.3, 0.4, UF + 1.63), FP(k, 3.5, 0.6, UF + 1.4), 0.35, 18),    # back to the door
         (FP(k, 5.5, 0.4, UF + 1.66), FP(k, 3.0, 1.2, UF + 1.4), 0.45, 18),
         (FP(k, 4.8, 0.6, UF + 1.7), pol(2.6, 465 + 55, UF - 0.3), 0.7, 19),
@@ -71,8 +72,8 @@ def extend(basic):
         (FP(k, 17.8, -0.6, 1.8), FP(k, 14.8, 0.0, 1.3), 0.9, 22),
         (FP(k, 15.9, 0.0, 1.66), FP(k, 12.0, 0.0, 1.4), 0.7, 20),             # under the canopy
         (FP(k, 14.2, 0.0, 1.65), FP(k, 12.3, 2.3, 0.9), 0.55, 18),            # in: coat benches and rails
-        (FP(k, 13.2, 0.0, 1.64), FP(k, 12.3, -2.3, 0.9), 0.45, 18),
-        (FP(k, 12.4, 0.0, 1.62), FP(k, 9.9, 0.0, 1.3), 0.4, 20),              # ending on the doors to the hall
+        (FP(k, 13.3, 0.4, 1.63), FP(k, 11.2, -2.2, 1.0), 0.4, 18),            # ending across the foyer: bench,
+        (FP(k, 13.0, 0.9, 1.62), FP(k, 10.4, -1.0, 1.1), 0.3, 18),            # coats, the doors to the hall
     ]
     way[e:] = annex
     return way

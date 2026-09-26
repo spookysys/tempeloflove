@@ -92,6 +92,7 @@ if __name__ == '__main__':
     bpy.ops.wm.open_mainfile(filepath=path)
     print('POSTFIX cushions', fix_stair_cushions())
     print('POSTFIX ext stair guards', fix_ext_stair_guards())
+    print('POSTFIX pine variants centred', PL.center_pine_protos())
     import annex_interior
     print('POSTFIX annex interior', annex_interior.build())
     PL.build_roof_planters()

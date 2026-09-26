@@ -118,7 +118,7 @@ def times():
     for i in range(1, len(WAY)):
         d = (WAY[i][0] - WAY[i - 1][0]).length
         v = (WAY[i][2] + WAY[i - 1][2]) / 2 if WAY[i - 1][2] else WAY[i][2]
-        ts.append(ts[-1] + max(d / max(v, 0.3), 1.2))
+        ts.append(ts[-1] + max(d / max(v, 0.3), WAY[i][4] if len(WAY[i]) > 4 else 1.2))   # optional 5th: min s
     return ts
 
 
