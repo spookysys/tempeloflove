@@ -847,6 +847,83 @@ def head_on(pname, partner, rest_bone, head_away, how, z0, extra_on=()):
     return r
 
 
+# blindfolds for everyone in the 'Blind' zone: a band of dark silk fitted round each head at eye level
+def blindfold(rig, mat):
+    body = next(c for c in rig.children_recursive if c.name.endswith('.body'))
+    bpy.context.view_layer.update()
+    dg = bpy.context.evaluated_depsgraph_get()
+    e = body.evaluated_get(dg)
+    me = e.to_mesh()
+    pts = [e.matrix_world @ v.co for v in me.vertices]
+    e.to_mesh_clear()
+    hm = rig.matrix_world @ rig.pose.bones['head'].matrix
+    up = (hm.to_3x3() @ Vector((0, 1, 0))).normalized()
+    if 'eye.L' in rig.pose.bones and 'eye.R' in rig.pose.bones:
+        eye = (bone_w(rig, 'eye.L') + bone_w(rig, 'eye.R')) / 2
+    else:
+        eye = hm.translation + up * 0.09
+    base = hm.translation
+    c = base + up * (eye - base).dot(up)                     # head axis at eye level
+    fwd = (eye - c)
+    fwd = (fwd - up * fwd.dot(up)).normalized() if fwd.length > 1e-4 else front(rig)
+    side = up.cross(fwd).normalized()
+    near = [p for p in pts if abs((p - c).dot(up)) < 0.03 and (p - c).length < 0.16]
+    N_, rings = 48, []
+    for i in range(N_):
+        a = 2 * math.pi * i / N_
+        d = fwd * math.cos(a) + side * math.sin(a)
+        best = 0.07
+        for p in near:
+            q = p - c - up * (p - c).dot(up)
+            if q.length > 1e-4 and q.normalized().dot(d) > 0.995:
+                best = max(best, q.length)
+        rings.append((d, best + (0.009 if math.cos(a) > 0.3 else 0.006)))
+    bm = bmesh.new()
+    rows = []
+    for dz, dr in ((-0.021, 0.0), (0.021, 0.0), (0.021, -0.004), (-0.021, -0.004)):
+        rows.append([bm.verts.new(c + d * (r + dr) + up * dz) for d, r in rings])
+    for j in range(4):
+        A, B = rows[j], rows[(j + 1) % 4]
+        for i in range(N_):
+            bm.faces.new((A[i], A[(i + 1) % N_], B[(i + 1) % N_], B[i]))
+    me2 = bpy.data.meshes.new(rig.name + '.blindfold')
+    bm.to_mesh(me2)
+    bm.free()
+    for f in me2.polygons:
+        f.use_smooth = True
+    me2.materials.append(mat)
+    ob = bpy.data.objects.new(rig.name + '.blindfold', me2)
+    for col in rig.users_collection:
+        col.objects.link(ob)
+    ob.parent = rig
+    ob.parent_type = 'BONE'
+    ob.parent_bone = 'head'
+    ob.matrix_world = Matrix.Identity(4)
+    return ob
+
+
+def blindfold_mat():
+    m = bpy.data.materials.get('blindfold_silk')
+    if m is None:
+        m = bpy.data.materials.new('blindfold_silk')
+        m.use_nodes = True
+        b = m.node_tree.nodes.get('Principled BSDF')
+        b.inputs['Base Color'].default_value = (0.02, 0.012, 0.018, 1)
+        b.inputs['Roughness'].default_value = 0.35
+        b.inputs['Sheen Weight'].default_value = 0.8
+    return m
+# test mode: CROWD_TEST=blind builds only the Blind zone (section 5) into /tmp/claude-0/mh/blind_test.blend
+if os.environ.get('CROWD_TEST') == 'blind':
+    _src = open(os.path.abspath(__file__)).read()
+    _a = _src.index('\n# 5. intimate zone') + 1          # headings at the start of a line only
+    _b = _src.index('\n# 6. cuddle puddle') + 1
+    exec(compile(_src[_a:_b], 'section5', 'exec'))
+    for r_ in BLIND:
+        blindfold(r_, blindfold_mat())
+    bpy.ops.wm.save_as_mainfile(filepath='/tmp/claude-0/mh/blind_test.blend', compress=True)
+    print('BLIND TEST saved', len(BLIND), flush=True)
+    sys.exit(0)
+
 # ---------------------------------------------------------------------------
 # 1. mattress field under the net (12): lying together, some looking up at the net
 # ---------------------------------------------------------------------------
@@ -1216,18 +1293,40 @@ print('dance done', N[0])
 UNDRESS[0] = 0.7
 # ---------------------------------------------------------------------------
 iz = P.INT_CANOPY[0]
-# three mattresses side by side, long sides radial (params.mat_group): one couple / trio on each
+# three mattresses side by side, long sides radial (params.mat_group), everyone blindfolded ('Blind'):
+# two sitting face to face, exploring each other's faces with their hands; a couple spooning; one lying on
+# their back, the other sitting beside them with a hand on their chest
 m0, m1, m2 = [Vector((x, y, 0)) for x, y in P.mat_group('intimate')[0]]
-BLIND = list(face_to_face(m0.x, m0.y, iz, 0.18))           # the 'Blind' zone: everyone here wears a blindfold
-# a trio making out: two kissing, the third close behind one of them, a hand on the other
-ta, tb = face_to_face(m1.x, m1.y, iz, 0.18)
-fdir = Rz(iz + 90) @ Vector((1, 0, 0))
-tc = lying('callharvey3d_sittingnatural', m1.x - fdir.x * 0.42, m1.y - fdir.y * 0.42, iz + 4, 'side_r', 0.18)
-reach_to(tc, 'L', bone_w(tb, 'spine03', (0, 0.1, 0)))
-s1 = standing('callharvey3d_lotus', m2.x, m2.y, iz + 90, z0=0.18)
-s2 = head_on('standing01', s1, 'pelvis.L', iz - 180, 'back', 0.18)
-reach_to(s1, 'R', bone_w(s2, 'head', (0, 0, 0.08)))
-BLIND += [ta, tb, tc, s1, s2]
+rad_ = Rz(iz) @ Vector((1, 0, 0))                      # along the mattresses (towards the wall)
+tan_ = Rz(iz + 90) @ Vector((1, 0, 0))                 # across them
+MZ = 0.18
+a0 = standing('callharvey3d_lotus', *(m0 + rad_ * 0.42).xy, iz + 180, z0=MZ)
+b0 = standing('callharvey3d_lotus', *(m0 - rad_ * 0.42).xy, iz, z0=MZ)
+reach_to(a0, 'R', bone_w(b0, 'head', (0.07, -0.08, 0.02)))
+reach_to(b0, 'L', bone_w(a0, 'head', (-0.07, -0.08, 0.02)))
+reach_to(b0, 'R', bone_w(a0, 'wrist.L'))
+
+
+def centre_on(rigs, target):
+    """move people (and their hand / foot targets) so their bodies' centre lies over target (xy)"""
+    vs = [v for r in rigs for v in eval_verts(r)]
+    c = sum(vs, Vector()) / len(vs)
+    d = Vector((target.x - c.x, target.y - c.y, 0))
+    for r in rigs:
+        r.location += d
+        for o in bpy.data.objects:
+            if o.name.startswith(('ik_%s_' % r.name, 'ikf_%s_' % r.name)):
+                o.location += d
+    bpy.context.view_layer.update()
+
+
+s1, s2 = spoon(m1.x, m1.y, iz, MZ)
+centre_on([s1, s2], m1)
+l2 = lying('standing02', m2.x, m2.y, iz, 'back', MZ)
+centre_on([l2], m2 + tan_ * 0.25)
+k2 = standing('wolgade_sit_on_ground_01', *(m2 - tan_ * 0.45 - rad_ * 0.1).xy, iz + 90, z0=MZ)
+reach_to(k2, 'R', bone_w(l2, 'spine03', (0, -0.12, 0)))
+BLIND = [a0, b0, s1, s2, l2, k2]
 
 # ---------------------------------------------------------------------------
 # 6. cuddle puddle (south-east) (5)
@@ -1388,70 +1487,9 @@ print('roof done', N[0])
 # ---------------------------------------------------------------------------
 import ragdoll as RD  # noqa: E402
 
-# blindfolds for everyone in the 'Blind' zone: a band of dark silk fitted round each head at eye level
-def blindfold(rig, mat):
-    body = next(c for c in rig.children_recursive if c.name.endswith('.body'))
-    bpy.context.view_layer.update()
-    dg = bpy.context.evaluated_depsgraph_get()
-    e = body.evaluated_get(dg)
-    me = e.to_mesh()
-    pts = [e.matrix_world @ v.co for v in me.vertices]
-    e.to_mesh_clear()
-    hm = rig.matrix_world @ rig.pose.bones['head'].matrix
-    up = (hm.to_3x3() @ Vector((0, 1, 0))).normalized()
-    if 'eye.L' in rig.pose.bones and 'eye.R' in rig.pose.bones:
-        eye = (bone_w(rig, 'eye.L') + bone_w(rig, 'eye.R')) / 2
-    else:
-        eye = hm.translation + up * 0.09
-    base = hm.translation
-    c = base + up * (eye - base).dot(up)                     # head axis at eye level
-    fwd = (eye - c)
-    fwd = (fwd - up * fwd.dot(up)).normalized() if fwd.length > 1e-4 else front(rig)
-    side = up.cross(fwd).normalized()
-    near = [p for p in pts if abs((p - c).dot(up)) < 0.03 and (p - c).length < 0.16]
-    N_, rings = 48, []
-    for i in range(N_):
-        a = 2 * math.pi * i / N_
-        d = fwd * math.cos(a) + side * math.sin(a)
-        best = 0.07
-        for p in near:
-            q = p - c - up * (p - c).dot(up)
-            if q.length > 1e-4 and q.normalized().dot(d) > 0.995:
-                best = max(best, q.length)
-        rings.append((d, best + (0.009 if math.cos(a) > 0.3 else 0.006)))
-    bm = bmesh.new()
-    rows = []
-    for dz, dr in ((-0.021, 0.0), (0.021, 0.0), (0.021, -0.004), (-0.021, -0.004)):
-        rows.append([bm.verts.new(c + d * (r + dr) + up * dz) for d, r in rings])
-    for j in range(4):
-        A, B = rows[j], rows[(j + 1) % 4]
-        for i in range(N_):
-            bm.faces.new((A[i], A[(i + 1) % N_], B[(i + 1) % N_], B[i]))
-    me2 = bpy.data.meshes.new(rig.name + '.blindfold')
-    bm.to_mesh(me2)
-    bm.free()
-    for f in me2.polygons:
-        f.use_smooth = True
-    me2.materials.append(mat)
-    ob = bpy.data.objects.new(rig.name + '.blindfold', me2)
-    for col in rig.users_collection:
-        col.objects.link(ob)
-    ob.parent = rig
-    ob.parent_type = 'BONE'
-    ob.parent_bone = 'head'
-    ob.matrix_world = Matrix.Identity(4)
-    return ob
-
-
-M_BLINDFOLD = bpy.data.materials.new('blindfold_silk')
-M_BLINDFOLD.use_nodes = True
-_bsdf = M_BLINDFOLD.node_tree.nodes.get('Principled BSDF')
-_bsdf.inputs['Base Color'].default_value = (0.02, 0.012, 0.018, 1)
-_bsdf.inputs['Roughness'].default_value = 0.35
-_bsdf.inputs['Sheen Weight'].default_value = 0.8
 for r_ in BLIND:
     try:
-        blindfold(r_, M_BLINDFOLD)
+        blindfold(r_, blindfold_mat())
     except Exception:                                   # never lose a long crowd build over an accessory
         import traceback
         traceback.print_exc()
