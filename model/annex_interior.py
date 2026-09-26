@@ -126,10 +126,22 @@ def build():
         for s in (-1, 1):
             _box(bm, FP(KE, gap[0] + 0.12, tt + s * 0.05, 1.05), (0.03, 0.03, 0.28))
     _obj('annex_door_pulls', bm, wood, 'annex')
-    # accessible WC (east, t < -2.6): grab bars beside the toilet, mirror over the basin, a shelf
+    # accessible WC (east, t < -2.6): wall-hung WC against the building, grab bars, copper basin under the mirror
+    import sanitary as SAN
+    old = bpy.data.objects.get('annex_wc_fixtures')
+    if old:
+        bpy.data.objects.remove(old)
+    a_ = math.radians(RZ)
+    wc_c = FP(KE, P.R_OUT + 0.02, -3.4)
+    SAN.wall_wc('annex_wc', SAN.frame(wc_c.x, wc_c.y, 0.0, RZ))
+    bc = FP(KE, AO - T - 0.01, -3.3)
+    bm = bmesh.new()
+    _box(bm, FP(KE, AO - T - 0.26, -3.3, 0.8), (0.5, 0.6, 0.04))
+    _obj('annex_wc_counter', bm, wood, 'annex')
+    SAN.vessel_basin('annex_wc_basin', SAN.frame(bc.x, bc.y, 0.0, RZ + 180), 0.82)
     bm = bmesh.new()
     for s in (-1, 1):
-        _box(bm, FP(KE, P.R_OUT + 1.1, -3.4 + s * 0.38, 0.78), (0.7, 0.035, 0.035))
+        _box(bm, FP(KE, P.R_OUT + 0.4, -3.4 + s * 0.38, 0.78), (0.7, 0.035, 0.035))
     _obj('annex_wc_grab_bars', bm, steel, 'annex')
     bm = bmesh.new()
     _box(bm, FP(KE, AO - T - 0.015, -3.3, 1.55), (0.02, 0.55, 0.75))

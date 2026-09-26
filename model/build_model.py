@@ -1357,15 +1357,52 @@ def rounded(ob, w=0.04, seg=3, sub=1):
     return ob
 
 
-def cushion(name, parent, center, size, mat, rz=0.0, rx=0.0, squish=0.35, coll_name='furnishing'):
+def soft_round(name, base, r, h, mat, pleats=0, bulge=0.1, top_dip=0.15, coll_name='furnishing'):
+    """Round upholstered seat standing on base (x, y, z): zafu (pleated, low), pouf (taller, leather)."""
+    bm = bmesh.new()
+    seg, rows = 48, 12
+    vs = []
+    for j in range(rows + 1):
+        u = j / rows                                    # 0 bottom .. 1 top
+        z = h * u
+        rr = r * (1 + bulge * math.sin(math.pi * u)) * (0.92 + 0.08 * math.sin(math.pi * min(1, u * 1.15)))
+        ring = []
+        for i in range(seg):
+            t = 2 * math.pi * i / seg
+            pr = rr * (1 + (0.035 * math.cos(pleats * t) * math.sin(math.pi * u) if pleats else 0))
+            ring.append(bm.verts.new((base[0] + pr * math.cos(t), base[1] + pr * math.sin(t), base[2] + z)))
+        vs.append(ring)
+    for a_, b_ in zip(vs, vs[1:]):
+        for i in range(seg):
+            k = (i + 1) % seg
+            bm.faces.new((a_[i], a_[k], b_[k], b_[i]))
+    cb = bm.verts.new((base[0], base[1], base[2]))
+    ct = bm.verts.new((base[0], base[1], base[2] + h * (1 - top_dip)))   # the seat sinks in the middle
+    for i in range(seg):
+        k = (i + 1) % seg
+        bm.faces.new((vs[0][k], vs[0][i], cb))
+        bm.faces.new((vs[-1][i], vs[-1][k], ct))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    ob = mk_obj(name, bm, mat, coll_name, smooth=True)
+    ob.modifiers.new('sub', 'SUBSURF').levels = 1
+    return ob
+
+
+def cushion(name, parent, center, size, mat, rz=0.0, rx=0.0, squish=0.35, coll_name='furnishing', upright=False):
+    """A pillow. Lying: size = (x, y, thickness). upright=True (back cushions): size = (width along x,
+    thickness along y, height), the broad face towards -y; rx leans it (positive: the top goes towards +... -y side
+    of the face, i.e. back against what is behind it)."""
     bm = bmesh.new()
     res = bmesh.ops.create_cube(bm, size=1.0)
     bmesh.ops.subdivide_edges(bm, edges=bm.edges[:], cuts=4, use_grid_fill=True)
+    sx, sy, sz = (size[0], size[2], size[1]) if upright else size      # built lying: (w, h, thickness)
     for v in bm.verts:
         x, y, z = v.co
         # pillow shape: thinner towards the edges
         f = (1 - (2 * x) ** 2 * squish) * (1 - (2 * y) ** 2 * squish)
-        v.co = Vector((x * size[0], y * size[1], z * size[2] * max(f, 0.15)))
+        v.co = Vector((x * sx, y * sy, z * sz * max(f, 0.15)))
+    if upright:                                                          # stand it up: height -> z
+        bmesh.ops.rotate(bm, verts=bm.verts[:], cent=(0, 0, 0), matrix=Matrix.Rotation(rad(90), 3, 'X'))
     M = (Matrix.Translation(Vector(center)) @ Matrix.Rotation(rad(rz), 4, 'Z')
          @ Matrix.Rotation(rad(rx), 4, 'X'))
     bmesh.ops.transform(bm, matrix=M, verts=bm.verts[:])
@@ -1690,12 +1727,16 @@ def bathroom_fixtures(k, parent, yw, x0, xb, z):
         y_out = yw(XW)
         cube(bm, (XW, s_ * (YW + y_out) / 2, z + 1.3), (0.1, y_out - YW, 2.6))
     put('bath_wc_walls_%d' % k, bm, M_TADELAKT)
-    bm = bmesh.new()
+    # WCs: wall-hung toilet on the back wall, a small copper basin on a shelf by the door (sanitary.py)
+    import sanitary as SAN
     for s_ in (-1, 1):
-        cube(bm, (XW - 0.28, s_ * 1.6, z + 0.2), (0.55, 0.38, 0.4))
-        cube(bm, (XW - 0.1, s_ * 1.6, z + 0.55), (0.16, 0.4, 0.5))
-        cube(bm, (6.05, s_ * (YW + 0.3), z + 0.85), (0.35, 0.45, 0.1))
-    rounded(put('bath_wc_%d' % k, bm, M_CERAMIC), 0.05, 3, 1)
+        SAN.wall_wc('bath_wc_%d_%d' % (k, s_), SAN.frame(XW - 0.05, s_ * 1.6, z, 180), parent)
+        f_ = SAN.frame(6.05, s_ * (YW + 0.05), z, 90 if s_ > 0 else 270)
+        bm = bmesh.new()
+        cube(bm, f_ @ Vector((0, 0.2, 0.8)), (0.5, 0.4, 0.04))
+        put('bath_wc_shelf_%d_%d' % (k, s_), bm, M_WOOD)
+        SAN.vessel_basin('bath_wc_basin_%d_%d' % (k, s_), f_ @ Matrix.Scale(0.8, 4), 0.82 / 0.8, parent)
+        SAN.round_mirror('bath_wc_mirror_%d_%d' % (k, s_), f_, 1.45, 0.22, parent)
     # entry / changing zone: bench, hooks, basin counter
     bm = bmesh.new()
     cube(bm, (6.5, -YW + 0.3, z + 0.22), (1.3, 0.42, 0.44))
@@ -1707,19 +1748,57 @@ def bathroom_fixtures(k, parent, yw, x0, xb, z):
     put('bath_hooks_%d' % k, bm, M_WOOD_DARK)
     top = [(5.95, YW - 0.05), (7.2, YW - 0.05), (7.2, YW - 0.55), (5.95, YW - 0.55)]
     extrude_outline('bath_counter_%d' % k, top, z + 0.84, z + 0.9, M_WOOD, parent, bevel=0.01, seg=2)
+    for i, xc in enumerate((6.3, 6.9)):                               # two copper vessel basins, round mirrors
+        f_ = SAN.frame(xc, YW - 0.05, z, 270)
+        SAN.vessel_basin('bath_basin_%d_%d' % (k, i), f_, 0.9, parent)
+        SAN.round_mirror('bath_mirror_%d_%d' % (k, i), f_, 1.55, 0.26, parent)
+    # shower zone under the skylight: three round brass rain heads, a thermostat, a linear drain;
+    # tiles: terracotta hexagon mosaic on the whole floor, a star-pattern 'carpet' under the showers,
+    # hand-made teal glass mosaic on the shower walls (scanned tiles, ambientCG CC0)
+    for i, yy in enumerate((-1.9, -0.75, 0.4)):
+        SAN.rain_head('bath_rain_head_%d_%d' % (k, i), (8.55, yy), P.CEIL_UF, parent)
+    SAN.wall_mixer('bath_mixer_%d' % k, SAN.frame(XW + 0.05, -1.55, z, 0), 1.05, parent)
     bm = bmesh.new()
-    for xc in (6.3, 6.9):
-        bmesh.ops.create_uvsphere(bm, u_segments=24, v_segments=12, radius=0.19,
-                                  matrix=Matrix.Translation((xc, YW - 0.3, z + 0.97)) @
-                                  Matrix.Diagonal((1, 1, 0.45, 1)))
-    put('bath_basins_%d' % k, bm, M_CERAMIC, smooth=True)
-    # shower zone under the skylight: three wide rain heads from the ceiling
+    cube(bm, (7.95, -0.75, z + 0.012), (0.05, 3.2, 0.008))           # linear drain
+    put('bath_drain_%d' % k, bm, M_STEEL)
+    xf, xr = x0 + 0.05, P.R_IN - 0.02
+    SAN.tile_floor('bath_floor_tiles_%d' % k, [(xf, -yw(xf)), (xr, -yw(xr)), (xr, yw(xr)), (xf, yw(xf))], z + 0.001,
+                   SAN.tile_mat('Tiles066', 0.6), parent)
+    SAN.tile_floor('bath_star_tiles_%d' % k, [(8.0, -2.3), (9.0, -2.3), (9.0, 0.85), (8.0, 0.85)], z + 0.0035,
+                   SAN.tile_mat('Tiles131', 1.2), parent)
+    zel = SAN.tile_mat('Tiles019', 0.45)
+    SAN.tile_wall('bath_mosaic_side_%d' % k, (7.45, -yw(7.45)), (P.R_IN - 0.05, -yw(P.R_IN - 0.05)), z, z + 2.0, zel,
+                  parent)
+    SAN.tile_wall('bath_mosaic_wc_%d' % k, (XW + 0.05, -YW - 0.05), (XW + 0.05, -yw(XW + 0.05)), z, z + 2.0, zel,
+                  parent)
+    # three arched glowing niches in the mosaic wall (hammam style), a warm light line under the long bench
+    M_NICHE = mat_simple('niche_glow', '#FFB066', rough=0.6, Emission_Color=srgb('#FF9A4A'), Emission_Strength=2.5)
+
+    def arch(cx, w, zb, hgt, seg=12):
+        pts = [(cx - w / 2, zb), (cx + w / 2, zb), (cx + w / 2, zb + hgt - w / 2)]
+        for i in range(1, seg):
+            t = math.pi * i / seg
+            pts.append((cx + w / 2 * math.cos(t), zb + hgt - w / 2 + w / 2 * math.sin(t)))
+        pts.append((cx - w / 2, zb + hgt - w / 2))
+        return pts
+    wa, wb = Vector((7.45, -yw(7.45))), Vector((P.R_IN - 0.05, -yw(P.R_IN - 0.05)))
+    du = (wb - wa).normalized()
+    nv = Vector((-du.y, du.x))
+    for i, u in enumerate((0.55, 1.05, 1.55)):
+        for nm_, w_, h_, off, mat in (('frame', 0.42, 0.66, 0.018, M_TADELAKT), ('glow', 0.3, 0.52, 0.022, M_NICHE)):
+            bm = bmesh.new()
+            base = wa + du * (u / 1.0) * ((wb - wa).length / 2.1)
+            vs = [bm.verts.new((base.x + du.x * (pu - 0) + nv.x * off, base.y + du.y * pu + nv.y * off, z + pv))
+                  for pu, pv in arch(0.0, w_, 1.05 + (0.07 if nm_ == 'glow' else 0.0), h_)]
+            bm.faces.new(vs)
+            bmesh.ops.solidify(bm, geom=bm.faces[:], thickness=0.012)
+            put('bath_niche_%s_%d_%d' % (nm_, k, i), bm, mat)
+        lo_ = parent.matrix_world @ Vector((base.x + nv.x * 0.12, base.y + nv.y * 0.12, z + 1.3))
+        light('bath_niche_light_%d_%d' % (k, i), 'POINT', lo_, 4.0, soft=0.1)
     bm = bmesh.new()
-    for yy in (-1.9, -0.75, 0.4):
-        cube(bm, (8.55, yy, P.CEIL_UF - 0.05), (0.34, 0.34, 0.03))
-        cyl(bm, (8.55, yy, P.CEIL_UF - 0.02), 0.012, 0.04, segs=8)
-    cube(bm, (7.95, -0.75, z + 0.004), (0.05, 3.2, 0.008))           # linear drain
-    put('bath_rain_heads_%d' % k, bm, M_STEEL)
+    cube(bm, (9.02, -0.85, z + 0.035), (0.03, 3.3, 0.02))
+    put('bath_bench_glow_%d' % k, bm, M_NICHE)
+    light('bath_bench_light_%d' % k, 'POINT', parent.matrix_world @ Vector((8.9, -0.85, z + 0.08)), 12.0, soft=0.3)
     bench = [(xx, yy) for xx, yy in superellipse(9.3, -0.85, 0.24, 1.75, n=3.5)]
     extrude_outline('bath_warm_bench_%d' % k, bench, z, z + 0.45, M_TADELAKT, parent, bevel=0.06, seg=4)
     # aftercare nook: low curved wall, heated daybed with towels + blanket, candle niche, plant
@@ -1805,7 +1884,7 @@ def room(k, bath=False):
     drape('room_blanket_%d' % k, parent, NEST_N - 1.05, 0.1, 1.25, NEST_N + 0.05, z + 0.50, z + 0.06, M_WOOL[pal[0]], seed=seed)
     for i, yy in enumerate((-1.05, -0.38, 0.32, 1.0)):
         cushion('room_cushion_%d_%d' % (k, i), parent, (NEST_N + 0.7 - 0.05 * abs(yy), yy, z + 0.75),
-                (0.6, 0.22, 0.52), M_WOOL[pal[i % 3]], rz=yy * 10, rx=-12, squish=0.3)
+                (0.6, 0.2, 0.46), M_WOOL[pal[i % 3]], rz=90 + yy * 10, rx=12, squish=0.3, upright=True)
     cushion('room_bolster_%d' % k, parent, (NEST_N - 0.8, 1.05, z + 0.58), (0.25, 0.6, 0.2), M_WOOL[pal[1]], rz=15,
             squish=0.6)
     # cob bench along one side wall with a curved back
@@ -2147,7 +2226,7 @@ for i, (k, t) in enumerate(DAYBEDS):
     for j, tt in enumerate((-0.55, 0.05, 0.62)):
         cushion('daybed_cushion_%d_%d' % (i, j), None, tuple(FP(k, 9.0, t + tt, P.TERRACE_Z + 0.68)),
                 (0.55, 0.2, 0.45), M_WOOL[['olive', 'ochre', 'rose', 'wine', 'sand'][(i + j) % 5]],
-                rz=P.slot_center(k) + 90, rx=-15, coll_name='terrace')
+                rz=P.slot_center(k) + 90, rx=15, coll_name='terrace', upright=True)
 
 # sun sails over the daybeds (tensioned triangles on three masts)
 bm = bmesh.new()
@@ -2185,8 +2264,9 @@ for i, (k, t) in enumerate(((7.5, 0.0), (6.5, 0.0))):
     rounded(mk_obj('roof_floor_mattress_%d' % i, bm, M_WOOL[['cream', 'sand'][i]], 'terrace'), 0.08, 4, 1)
     for j, (tt, nn) in enumerate(((-0.7, 9.3), (0.1, 9.35), (0.8, 9.3), (-0.8, 7.5))):
         cushion('roof_mattress_cushion_%d_%d' % (i, j), None, tuple(FP(k, nn, t + tt, P.TERRACE_Z + 0.36)),
-                (0.6, 0.22, 0.45) if nn > 9 else (0.5, 0.5, 0.16),
-                M_WOOL[['terracotta', 'rose', 'ochre', 'olive', 'wine'][(i + j) % 5]], rz=rz)
+                (0.6, 0.2, 0.45) if nn > 9 else (0.5, 0.5, 0.16),
+                M_WOOL[['terracotta', 'rose', 'ochre', 'olive', 'wine'][(i + j) % 5]], rz=rz,
+                rx=12 if nn > 9 else 0.0, upright=nn > 9)
 # wooden sun loungers on the west and east faces
 for k in (2, 6):
     for t in (-2.7, -1.0):
@@ -2474,8 +2554,8 @@ cols = ['terracotta', 'ochre', 'olive', 'rose', 'wine', 'sand', 'umber', 'cream'
 for i in range(14):
     a = 360 * i / 14 + 8
     p = pol(2.45, a)
-    cushion('hall_zafu_%02d' % i, None, (p.x, p.y, 0.12), (0.5, 0.5, 0.2),
-            M_WOOL[cols[i % len(cols)]], rz=a, squish=0.25)
+    soft_round('hall_zafu_%02d' % i, (p.x, p.y, 0.0), 0.18, 0.15, M_WOOL[cols[i % len(cols)]], pleats=22,
+               bulge=0.12)
 # deep window seats under the big ground-floor windows
 i = 0
 for k in range(P.N_SLOTS):
@@ -2492,7 +2572,7 @@ for k in range(P.N_SLOTS):
         rounded(mk_obj('hall_window_pad_%d' % i, bm, M_WOOL[cols[(i * 3) % 8]], 'furnishing'), 0.04, 3, 1)
         for j, dt in enumerate((-0.6, 0.55)):
             cushion('hall_window_cushion_%d_%d' % (i, j), None, tuple(FP(k, P.R_IN - 0.12, tc + dt, 0.7)),
-                    (0.5, 0.18, 0.45), M_WOOL[cols[(i + j) % 8]], rz=rz, rx=-10)
+                    (0.5, 0.18, 0.45), M_WOOL[cols[(i + j) % 8]], rz=rz, rx=10, upright=True)
         i += 1
 # stacked floor mats + blankets against the windowless bar wall, between the corner lantern and the bar
 for j in range(5):
@@ -2513,9 +2593,9 @@ for i in range(9):
     cyl(bm, FP(7, P.R_IN - 0.15, -0.9 + i * 0.36, 1.37 + 0.09 + 0.5 * (i % 2)), 0.05, 0.18, segs=12)
 mk_obj('hall_bar_jars', bm, M_TERRACOTTA, 'furnishing', smooth=True)
 for i in range(4):
-    c_ = FP(7, P.R_IN - 2.05, -0.8 + i * 0.95, 0.35)
-    cushion('hall_bar_pouf_%d' % i, None, tuple(c_), (0.45, 0.45, 0.35), M_WOOL[['umber', 'ochre', 'wine', 'olive'][i]],
-            squish=0.2)
+    c_ = FP(7, P.R_IN - 2.05, -0.8 + i * 0.95, 0.0)
+    soft_round('hall_bar_pouf_%d' % i, tuple(c_), 0.24, 0.38, M_WOOL[['umber', 'ochre', 'wine', 'olive'][i]],
+               pleats=0, bulge=0.08, top_dip=0.06)
 # floor lanterns in the octagon corners (night)
 for i in range(P.N_SLOTS):
     a = P.partition_angle(i)
