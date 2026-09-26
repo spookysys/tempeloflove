@@ -788,9 +788,22 @@ def standing(pname, x, y, face, kind='flow', z0=0.0, **kw):
     return r
 
 
+def pose_lying(r, pname, how):
+    """A lying person: the recorded walking / swaying moments ('standing0x') would lie stiff as a plank,
+    so they get a resting posture instead (knee up, hand on the belly, curled on the side...)."""
+    if pname.startswith('standing'):
+        import mocap as MC_
+        kind_ = {'back': 'back', 'front': 'front'}.get(how, 'side')
+        MC_.apply_joints(r, MC_.resting_joints(kind_, random.Random(hash(r.name) & 0xffff)))
+        r['pose'] = 'resting_' + kind_
+        bpy.context.view_layer.update()
+    else:
+        pose(r, pname)
+
+
 def lying(pname, x, y, head, how, z0, on=(), kind='flow', tilt=0.0, **kw):
     r = new_person(kind, **kw)
-    pose(r, pname)
+    pose_lying(r, pname, how)
     lie(r, x, y, head, how, tilt)
     drop(r, z0, on=on)
     return r
@@ -837,7 +850,7 @@ def head_on(pname, partner, rest_bone, head_away, how, z0, extra_on=()):
     p = bone_w(partner, rest_bone)
     d = Rz(head_away) @ Vector((1, 0, 0))
     r = new_person()
-    pose(r, pname)
+    pose_lying(r, pname, how)
     lie(r, 0, 0, head_away + 180, how)
     bpy.context.view_layer.update()
     hd = bone_w(r, 'head')
@@ -912,16 +925,104 @@ def blindfold_mat():
         b.inputs['Roughness'].default_value = 0.35
         b.inputs['Sheen Weight'].default_value = 0.8
     return m
-# test mode: CROWD_TEST=blind builds only the Blind zone (section 5) into /tmp/claude-0/mh/blind_test.blend
-if os.environ.get('CROWD_TEST') == 'blind':
+# ---------------------------------------------------------------------------
+# separation: nobody deep inside another person or inside furniture. Touching is fine (embraces, heads on
+# bellies); limbs through torsos and bodies through mattresses / benches are not. People are moved apart
+# horizontally (from each other) or along the surface normal (out of furniture), in a few rounds.
+# ---------------------------------------------------------------------------
+def _person_mesh(rig, dg, step=3):
+    vs, polys = [], []
+    for part in [rig] + list(rig.children_recursive):
+        if part.type != 'MESH' or part.hide_render or not part.name.endswith('.body'):
+            continue
+        e = part.evaluated_get(dg)
+        me = e.to_mesh()
+        o = len(vs)
+        vs += [e.matrix_world @ v.co for v in me.vertices]
+        polys += [[o + i for i in p.vertices] for p in me.polygons]
+        e.to_mesh_clear()
+    return vs, polys
+
+
+def _depth_into(pts, tree, lim=0.5):
+    best, n = 0.0, 0
+    for p in pts:
+        loc, nrm, _, dist = tree.find_nearest(p, lim)
+        if loc is not None and (p - loc).dot(nrm) < -0.002:
+            n += 1
+            best = max(best, dist)
+    return best, n
+
+
+def _shift(rig, d):
+    rig.location += d
+    for o in bpy.data.objects:
+        if o.name.startswith(('ik_%s_' % rig.name, 'ikf_%s_' % rig.name)):
+            o.location += d
+
+
+def separate_people(rigs, rounds=4, tol_person=0.05, tol_static=0.04):
+    from mathutils.bvhtree import BVHTree
+    for rnd in range(rounds):
+        bpy.context.view_layer.update()
+        dg = bpy.context.evaluated_depsgraph_get()
+        data = {}
+        for r in rigs:
+            vs, polys = _person_mesh(r, dg)
+            if not vs:
+                continue
+            lo = Vector((min(v.x for v in vs), min(v.y for v in vs), min(v.z for v in vs)))
+            hi = Vector((max(v.x for v in vs), max(v.y for v in vs), max(v.z for v in vs)))
+            data[r] = (vs[::4], BVHTree.FromPolygons(vs, polys), lo, hi, sum(vs, Vector()) / len(vs))
+        moves = {r: Vector() for r in data}
+        count = 0
+        items = list(data.items())
+        for i in range(len(items)):
+            ra, (pa, ta, la, ha, ca) = items[i]
+            for rb, (pb, tb, lb, hb, cb) in items[i + 1:]:
+                if any(ha[k] < lb[k] or hb[k] < la[k] for k in range(3)):
+                    continue
+                d = max(_depth_into(pa, tb)[0], _depth_into(pb, ta)[0])
+                if d > tol_person:
+                    v = Vector((ca.x - cb.x, ca.y - cb.y, 0))
+                    v = v.normalized() if v.length > 1e-3 else Vector((1, 0, 0))
+                    moves[ra] += v * (d / 2 + 0.01)
+                    moves[rb] -= v * (d / 2 + 0.01)
+                    count += 1
+        for r, (pts, _, _, _, _) in data.items():             # out of furniture (floor, mattresses, benches)
+            deep = []
+            for p in pts:
+                loc, nrm, _, dist = STATIC.find_nearest(p, 0.5)
+                if loc is not None and (p - loc).dot(nrm) < -0.002 and dist > tol_static:
+                    deep.append((dist, nrm))
+            if len(deep) > 3:
+                dist = max(x[0] for x in deep)
+                nrm = sum((x[1] for x in deep), Vector()).normalized()
+                moves[r] += nrm * min(dist + 0.01, 0.4)
+                count += 1
+        for r, m in moves.items():
+            if m.length > 1e-4:
+                _shift(r, m)
+        print('separation round', rnd, count, 'fixes', flush=True)
+        if not count:
+            break
+
+
+# test mode: CROWD_TEST=blind | field builds only that zone into /tmp/claude-0/mh/<zone>_test.blend
+_TEST = os.environ.get('CROWD_TEST')
+if _TEST in ('blind', 'field'):
     _src = open(os.path.abspath(__file__)).read()
-    _a = _src.index('\n# 5. intimate zone') + 1          # headings at the start of a line only
-    _b = _src.index('\n# 6. cuddle puddle') + 1
-    exec(compile(_src[_a:_b], 'section5', 'exec'))
+    _m = {'blind': ('\n# 5. intimate zone', '\n# 6. cuddle puddle'),
+          'field': ('\n# 1. mattress field', '\n# 2. on the net')}[_TEST]
+    _a = _src.index(_m[0]) + 1                           # headings at the start of a line only
+    _b = _src.index(_m[1]) + 1
+    BLIND = []
+    exec(compile(_src[_a:_b], _TEST, 'exec'))
+    separate_people([o for o in CROWD.objects if o.type == 'ARMATURE'])
     for r_ in BLIND:
         blindfold(r_, blindfold_mat())
-    bpy.ops.wm.save_as_mainfile(filepath='/tmp/claude-0/mh/blind_test.blend', compress=True)
-    print('BLIND TEST saved', len(BLIND), flush=True)
+    bpy.ops.wm.save_as_mainfile(filepath='/tmp/claude-0/mh/%s_test.blend' % _TEST, compress=True)
+    print('ZONE TEST saved', _TEST, flush=True)
     sys.exit(0)
 
 # ---------------------------------------------------------------------------
@@ -1494,6 +1595,8 @@ for r_ in BLIND:
         import traceback
         traceback.print_exc()
 print('blindfolds', len(BLIND), flush=True)
+
+separate_people([o for o in CROWD.objects if o.type == 'ARMATURE'])
 
 # checkpoint before the (slow) physics: the crowd as placed
 EVC.hide_render = True
