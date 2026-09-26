@@ -46,6 +46,7 @@ def tread_z(t):                      # inner stair: tread height at face coordin
 
 KS = P.STAIR_SLOT
 # (position, look target, speed to this point [m/s], lens [mm])
+# the BASIC flyby (approved as it is - keep it unchanged; the extended one is built from it below)
 WAY = [
     # arrival: high over the meadow in the south-west (tree-free corridor), gliding down to the garden door
     (pol(44, 238, 16), Vector((0, 0, 4)), 0, 30),
@@ -99,6 +100,11 @@ WAY += [
     (pol(20, 222, TZ + 7.0), Vector((0, 0, 6)), 2.2, 26),
     (pol(30, 228, TZ + 10.0), Vector((0, 0, 5)), 2.6, 30),
 ]
+WAY_BASIC = list(WAY)
+PATH = os.environ.get('FLY_PATH', 'basic')          # basic | extended
+if PATH == 'extended':
+    import flythrough_ext as _EXT
+    WAY = _EXT.extend(WAY_BASIC)
 
 
 # ---------------------------------------------------------------------------
@@ -300,6 +306,8 @@ def setup(render_quality='video'):
     sc.view_settings.look = 'AgX - Medium High Contrast'
     sc.view_settings.exposure = 0.8
     sc.render.fps = FPS
+    if PATH == 'extended':
+        _EXT.open_annex_doors()
     pos, dirs, lens, T = build_path()
     hidden = people_near_path(pos)
     for name in hidden:
@@ -334,6 +342,8 @@ def main():
         diagnostics(pos, dirs)
         blend = sys.argv[2] if len(sys.argv) > 2 else 'tempel_event.blend'
         bpy.ops.wm.open_mainfile(filepath=os.path.join(HERE, blend))
+        if PATH == 'extended':
+            _EXT.open_annex_doors()
         R.set_event(True)
         summer_evening()
         bpy.context.view_layer.update()

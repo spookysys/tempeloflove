@@ -9,6 +9,8 @@
 #       stills: renders/*.jpg at 1920 px, 256 samples
 # Frame renders resume: frames already on disk (and newer than the scene) are skipped, so an interrupted run can simply be restarted.
 # Override with FLY_RES=WxH FLY_SAMPLES=n FLY_STEP=n.
+# FLY_PATH=extended renders the extended flyby (adds a small room, the bathing room and the annex):
+#   renders/flythrough_ext_{empty,people}[_hq].mp4; default FLY_PATH=basic.
 set -e
 Q=${1:-lq}; shift || true
 WHAT=${*:-empty people stills}
@@ -22,6 +24,8 @@ case $Q in
   hq) export FLY_RES=${FLY_RES:-1920x1080} FLY_SAMPLES=${FLY_SAMPLES:-64} FLY_HQ=1; STEP=${FLY_STEP:-1}; SUF=_hq; STILLS= ;;
   *) echo "usage: $0 lq|hq [empty|people|stills ...]"; exit 2 ;;
 esac
+export FLY_PATH=${FLY_PATH:-basic}
+[ "$FLY_PATH" = extended ] && SUF=_ext$SUF
 cd "$REPO/model"
 [ -f tempel_event.blend ] || { echo "no scene - run scripts/build_scene.sh"; exit 1; }
 
@@ -37,8 +41,8 @@ film() {  # film empty|people
     FLY_BLEND=tempel_event.blend FLY_FRAMES=$fr nice -n 5 python3 flythrough.py frames 0 99999 "$STEP" \
       > "$L/film_$k$SUF.log" 2>&1
   fi || { echo "FAILED: see $L/film_$k$SUF.log"; tail -20 "$L/film_$k$SUF.log"; exit 1; }
-  FLY_FRAMES=$fr FLY_VIDEO=flythrough_$k$SUF.mp4 python3 flythrough.py video "$STEP" >> "$L/film_$k$SUF.log" 2>&1
-  echo "   -> renders/flythrough_$k$SUF.mp4"
+  FLY_FRAMES=$fr FLY_VIDEO=flythrough${SUF%_hq}_$k${SUF#_ext}.mp4 python3 flythrough.py video "$STEP" >> "$L/film_$k$SUF.log" 2>&1
+  echo "   -> renders/flythrough${SUF%_hq}_$k${SUF#_ext}.mp4"
 }
 
 for w in $WHAT; do

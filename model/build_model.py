@@ -2275,6 +2275,17 @@ for (t0, t1, zz) in ((land_uf[0], land_uf[1], P.FFL_UF), (land_top[0], land_top[
     for i in range(int((t1 - t0) / 0.12)):
         cube(bms, FP(K_, n_out1 - 0.03, t0 + 0.06 + i * 0.12, zz + 0.5), (0.02, 0.02, 1.0), rz=RZ_)
 mk_obj('ext_stair_steel', bms, M_STEEL, 'ext_stair')
+# guards across the landing ends (no open edge anywhere): the far end of both landings, and the top landing's
+# edge above the lower flight (run 1 lies ~6 m below it)
+bms = bmesh.new()
+for (t, n0, n1, zz) in ((land_top[0] + 0.03, P.R_OUT + 0.02, n_out1, P.TERRACE_Z),
+                        (land_top[1] - 0.03, P.R_OUT + 0.02, n_out0 + 0.03, P.TERRACE_Z),
+                        (land_uf[1] - 0.03, P.R_OUT + 0.02, n_out1, P.FFL_UF)):
+    cube(bms, FP(K_, (n0 + n1) / 2, t, zz + 1.0), (0.05, n1 - n0, 0.05), rz=RZ_)
+    for i in range(int((n1 - n0) / 0.12)):
+        cube(bms, FP(K_, n0 + 0.06 + i * 0.12, t, zz + 0.5), (0.02, 0.02, 1.0), rz=RZ_)
+    cube(bms, FP(K_, n0 + 0.04, t, zz + 0.5), (0.06, 0.06, 1.0), rz=RZ_)       # post at the wall
+mk_obj('ext_stair_guards', bms, M_STEEL, 'ext_stair')
 # climbing plant on the external stair posts
 vine('vine_ext_stair', K_, 3.9, 4.0, 777, spread=0.4)
 
@@ -2432,6 +2443,9 @@ for side in (-1, 1):
     bm = bmesh.new()
     cube(bm, FP(KE, P.R_OUT + 2.3, side * 2.52, 1.75), (2.0, 0.06, 0.08), rz=P.slot_center(KE) + 90 - 90)
     mk_obj('coat_rail_%d' % side, bm, M_WOOD_DARK, 'annex')
+# doors, WC fittings, tech room, ceiling lights (also the bathing room's two WCs upstairs)
+import annex_interior  # noqa: E402
+annex_interior.build()
 # hall side of the door: heavy linen curtain
 bm = bmesh.new()
 prev = None
