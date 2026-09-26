@@ -66,9 +66,9 @@ WAY = [
     # up the stair (flight along the NW wall, t increasing = up)
     (FP(KS, 8.75, -3.4, tread_z(-3.4) + 1.65), FP(KS, 8.75, 0.5, tread_z(0.5) + 1.5), 0.9, 20),
     (FP(KS, 8.75, -1.0, tread_z(-1.0) + 1.65), FP(KS, 8.6, 2.5, UF + 1.5), 0.9, 20),
-    (FP(KS, 8.7, 1.4, tread_z(1.4) + 1.65), FP(KS, 8.0, 4.0, UF + 1.4), 0.9, 20),
-    # top of the flight, past the parapet end, then turn towards the net
-    (FP(KS, 8.5, 2.55, UF + 1.65), FP(KS, 5.0, 1.8, UF + 1.2), 0.8, 20),
+    (FP(KS, 8.7, 1.1, tread_z(1.1) + 1.65), FP(KS, 6.0, 3.2, UF + 1.3), 0.9, 20),   # already looking to the exit
+    # top of the flight: out past the parapet end towards the net
+    (FP(KS, 8.3, 2.3, UF + 1.65), FP(KS, 3.5, 0.6, UF + 0.9), 0.8, 20),
     # onto the walkway, then a slow loop around the net (counter-clockwise: net on the left)
     (FP(KS, 7.1, 0.35, UF + 1.7), FP(KS, 3.0, -1.0, UF + 0.6), 0.9, 20),
 ]

@@ -1973,18 +1973,21 @@ def flight_z(t):
 
 
 # balustrade on the hall side: rope net (like the big net) between slender oak posts, oak handrail;
-# it ends where the stairwell lining / upper-floor parapet takes over (T_VOID)
+# the net runs up the whole open side of the flight, capped under the upper-floor slab; above it the slab
+# edge and the parapet guard the flight, and the handrail carries on along them to the top
 T_VOID = T0 + 7 * G_                     # void over the flight starts here (headroom)
+T_NET = T0 + (P.CEIL_GF - 0.1) / R_ * G_  # tread reaches the slab underside here: net no longer needed
 bm = bmesh.new()
 uvl = bm.loops.layers.uv.new('UVMap')
 su = 0.7071 / P.NET_MESH
 NS_ = 24
 row_b, row_t = [], []
 for j in range(NS_ + 1):
-    t = t_b0 + (T_VOID - 0.03 - t_b0) * j / NS_
+    t = t_b0 + (T_NET - t_b0) * j / NS_
     zb = flight_z(t) + 0.02
-    row_b.append((bm.verts.new(FP(KS, N0 - 0.01, t, zb)), t, zb))
-    row_t.append((bm.verts.new(FP(KS, N0 - 0.01, t, min(zb + 0.93, P.FFL_UF + 1.0))), t, min(zb + 0.93, P.FFL_UF + 1.0)))
+    zt = min(zb + 0.93, P.CEIL_GF - 0.01) if t > T_VOID else zb + 0.93
+    row_b.append((bm.verts.new(FP(KS, N0 + 0.005, t, zb)), t, zb))
+    row_t.append((bm.verts.new(FP(KS, N0 + 0.005, t, zt)), t, zt))
 for j in range(NS_):
     f = bm.faces.new((row_b[j][0], row_b[j + 1][0], row_t[j + 1][0], row_t[j][0]))
     for lp, (v, t, z) in zip(f.loops, (row_b[j], row_b[j + 1], row_t[j + 1], row_t[j])):
@@ -1993,20 +1996,21 @@ mk_obj('stair_net_balustrade', bm, M_NET, 'structure', recalc=False)
 bm = bmesh.new()
 npost = 5
 for j in range(npost + 1):
-    t = t_b0 + (T_VOID - 0.05 - t_b0) * j / npost
+    t = t_b0 + (T_NET - 0.1 - t_b0) * j / npost
     zb = flight_z(t)
-    cyl(bm, FP(KS, N0 + 0.05, t, zb + 0.47), 0.022, 0.96, segs=12)
+    h_ = min(0.96, P.CEIL_GF - 0.01 - zb)
+    cyl(bm, FP(KS, N0 + 0.05, t, zb + h_ / 2), 0.022, h_, segs=12)
 mk_obj('stair_posts', bm, M_WOOD, 'structure', smooth=True)
 cu = bpy.data.curves.new('stair_handrails', 'CURVE')
 cu.dimensions = '3D'
 cu.bevel_depth = 0.028
 cu.bevel_resolution = 3
-for nn, dz, t_from, t_to in ((N0 + 0.05, 0.96, t_b0, T_VOID - 0.05), (N1 - 0.06, 0.9, T0 + 2 * G_, T_TOP + 0.3)):
+for nn, dz, t_from in ((N0 + 0.05, 0.96, t_b0), (N1 - 0.06, 0.9, T0 + 2 * G_)):
     sp = cu.splines.new('POLY')
-    ts_ = [t_from, t_to]
-    sp.points.add(1)
+    ts_ = [t_from, T_TOP, T_TOP + 0.3]                 # both rails all the way up, level extension at the top
+    sp.points.add(2)
     for n_, t in enumerate(ts_):
-        p_ = FP(KS, nn, t, min(flight_z(t) + dz, P.FFL_UF + 1.0))
+        p_ = FP(KS, nn, t, min(flight_z(min(t, T_TOP)) + dz, P.FFL_UF + 1.0))
         sp.points[n_].co = (p_.x, p_.y, p_.z, 1)
 cu.materials.append(M_WOOD)
 coll('structure').objects.link(bpy.data.objects.new('stair_handrails', cu))
@@ -2025,11 +2029,11 @@ for i in range(1, N_FAN):
 for j in range(4):
     cushion('stair_bench_cushion_%d' % j, None, tuple(FP(KS, N0 + 0.75, T_FAN + 0.6 + j * 0.85, 0.53)),
             (0.55, 0.5, 0.13), M_WOOL[['sand', 'rose', 'ochre', 'olive'][j]], rz=RZS)
-c_ = FP(KS, N0 - 0.9, T0 - 1.1, 0)
+c_ = FP(KS, N0 - 0.9, -4.82, 0)
 indoor_tree('stair_tree', c_.x, c_.y, 0.0, h=2.4, seed=91)
 paper_disc('stair_disc', tuple(FP(KS, N0 - 2.2, T0 + 2 * G_, 3.1)), 0.5, 0.24, cord=P.CEIL_GF, power=35.0)
 
-# upper floor: guard along the void, linen / laundry room, open landing with tea niche
+# upper floor: guard along the void, linen / laundry room, open landing (1.5 m way out, as wide as the stair)
 bm = bmesh.new()
 box_nt(bm, N0 - 0.12, N0, T_VOID, T_TOP, P.FFL_UF, P.FFL_UF + 1.05)                # parapet along the void
 box_nt(bm, N0 - 0.12, N1, T_VOID - 0.12, T_VOID, P.FFL_UF, P.CEIL_UF)              # linen room side wall
@@ -2043,16 +2047,6 @@ mk_obj('stair_uf_walls', bm, M_CLAY_ROOM, 'structure')
 bm = bmesh.new()
 box_nt(bm, N0 - 0.14, N0 + 0.02, T_VOID, T_TOP, P.FFL_UF + 1.05, P.FFL_UF + 1.10)
 mk_obj('stair_uf_guard_cap', bm, M_WOOD, 'structure')
-bm = bmesh.new()
-box_nt(bm, 6.2, 7.6, 1.55, 2.05, P.FFL_UF, P.FFL_UF + 0.9)
-mk_obj('tea_niche_counter', bm, M_CLAY_ROOM, 'furnishing')
-bm = bmesh.new()
-box_nt(bm, 6.18, 7.62, 1.53, 2.07, P.FFL_UF + 0.9, P.FFL_UF + 0.95)
-mk_obj('tea_niche_top', bm, M_WOOD, 'furnishing')
-bm = bmesh.new()
-for i in range(4):
-    cyl(bm, FP(KS, 6.4 + i * 0.3, 1.8, P.FFL_UF + 1.03), 0.045, 0.16, segs=12)
-mk_obj('tea_niche_pots', bm, M_TERRACOTTA, 'furnishing', smooth=True)
 
 # void in the upper slab + floor finish over the flight
 c_ = FP(KS, (N0 + N1) / 2, (T_VOID + T_TOP) / 2, (P.CEIL_GF + P.FFL_UF) / 2)
@@ -2216,7 +2210,7 @@ for k in (2, 6):
         bm = bmesh.new()
         bmesh.ops.create_cube(bm, size=1.0, matrix=(Matrix.Translation(FP(k, 8.9, t, P.TERRACE_Z + 0.55)) @
                                                     Matrix.Rotation(rad(P.slot_center(k)), 4, 'Z') @
-                                                    Matrix.Rotation(rad(55), 4, 'Y') @
+                                                    Matrix.Rotation(rad(-55), 4, 'Y') @   # rises from the pad's head
                                                     Matrix.Diagonal((0.75, 0.7, 0.05, 1))))
         mk_obj('lounger_back_%d_%.1f' % (k, t), bm, M_DECK_DARK, 'terrace')
         cushion('lounger_pad_%d_%.1f' % (k, t), None, tuple(FP(k, 8.0, t, P.TERRACE_Z + 0.31)), (1.35, 0.64, 0.07),

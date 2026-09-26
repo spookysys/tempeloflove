@@ -284,7 +284,6 @@ def stair_plan(ax, level):
         rect_face(ax, KS, NS0 - 0.12, NS1, T_VOID - 0.12, T_VOID, fc=POCHE, lw=0.5, z=4)
         rect_face(ax, KS, fr - 0.12, fr, -P.face_half(fr) + 0.1, -2.35, fc=POCHE, lw=0.5, z=4)
         rect_face(ax, KS, fr - 0.12, fr, -1.45, -1.18, fc=POCHE, lw=0.5, z=4)
-        rect_face(ax, KS, 6.2, 7.6, 1.55, 2.05, fc='#E6D6BF', lw=0.4, z=4)
 
 
 # ---------------------------------------------------------------------------
@@ -551,8 +550,8 @@ def upper_floor():
                         '   7.9 m at the straight outer wall, 3.8 m deep\n'
                         '• Shared bathroom (north): 2 WCs, walk-in group\n'
                         '   shower, 2 basins – all gender\n'
-                        '• Stair segment: stair, linen / laundry, tea,\n'
-                        '   door to the external stair\n'
+                        '• Stair segment: stair, linen / laundry, landing\n'
+                        '   with the door to the external stair\n'
                         'Clear height in rooms 2.60 m')
     circle(ax, P.R_DOME, ec=GLASS, lw=0.7, ls='-.', zorder=7)
     octagon_wall(ax, P.FFL_UF + 1.2)
@@ -611,8 +610,6 @@ def upper_floor():
     label(ax, p[0], p[1], 'linen /\nlaundry', 5.5)
     p = FP(KS, 8.8, 2.9)
     label(ax, p[0], p[1], 'landing ->\nroof stair', 5.5)
-    p = FP(KS, 6.9, 1.2)
-    label(ax, p[0], p[1], 'tea', 5.5)
     dim(ax, (0, 0), pol(P.R_NET, 322), 'Ø 7.80 usable', size=6.5)
     # dimensions through R3 (south): radial chain, door front, window, face
     ht = math.tan(rad(P.SLOT_DEG / 2))
