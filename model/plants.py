@@ -516,22 +516,22 @@ def build_roof_planters(seed=19):
     """Roof terrace planters: scanned grass clumps, tall grass tufts and ferns instead of blob bushes."""
     rng = random.Random(seed)
     pr = load_protos(('grass_medium_01', 'grass_medium_02', 'fern_02'))
-    _remove(['terrace_grasses'])
+    _remove(['terrace_grasses'] + [o.name for o in bpy.data.objects if o.name.startswith('rp_')])
     clump = _tallest(pr.get('grass_medium_02', []), 1)
     tufts = _tallest(pr.get('grass_medium_01', []), 5)
     ferns = _tallest(pr.get('fern_02', []), 2)
     n = 0
     for k in (0, 2, 6, 7):
         for t0, t1 in ((-3.6, -1.2), (1.2, 3.6)):
-            m = 9
+            m = 15
             for i in range(m):
                 t = t0 + 0.18 + (t1 - t0 - 0.36) * (i + rng.uniform(-0.3, 0.3)) / (m - 1)
                 nn = P.R_OUT - 0.40 + rng.uniform(-0.08, 0.08)
                 r_ = rng.random()
                 if r_ < 0.45 and clump:
-                    proto, h, rc = clump[0], rng.uniform(0.5, 0.7), 0.4
+                    proto, h, rc = clump[0], rng.uniform(0.6, 0.85), 0.65
                 elif r_ < 0.8 and tufts:
-                    proto, h, rc = rng.choice(tufts), rng.uniform(0.45, 0.7), 0.3
+                    proto, h, rc = rng.choice(tufts), rng.uniform(0.6, 0.9), 0.4
                 elif ferns:
                     proto, h, rc = rng.choice(ferns), rng.uniform(0.35, 0.45), 0.45
                 else:
@@ -548,6 +548,7 @@ def build_hanging_greens(seed=23):
     rng = random.Random(seed)
     mat = leaf_material('LeafSet024', 'trailing_leaf', 0.8)
     stem_m = simple_material('trailing_stem', '#4E5A2E', 0.6)
+    _remove([o.name for o in bpy.data.objects if o.name.startswith('dome_ring_greens_') and o.name.endswith('_stems')])
     olds = [o for o in bpy.data.objects if o.name.startswith('dome_ring_greens_')]
     atlas = 'LeafSet024'
     for o in olds:
@@ -560,7 +561,7 @@ def build_hanging_greens(seed=23):
         bm = bmesh.new()
         uvl = bm.loops.layers.uv.new('UVMap')
         stems = bmesh.new()
-        for strand in range(6):
+        for strand in range(11):
             p = top + Vector((rng.uniform(-0.14, 0.14), rng.uniform(-0.14, 0.14), 0))
             L = length * rng.uniform(0.45, 1.0)
             z = 0.0
@@ -574,7 +575,7 @@ def build_hanging_greens(seed=23):
                 rot = Vector((0, 0, 1)).rotation_difference(d.normalized()).to_matrix().to_4x4()
                 bmesh.ops.transform(stems, verts=res['verts'], matrix=Matrix.Translation((q + prev) / 2) @ rot)
                 prev = q
-                for _ in range(2 if z < L * 0.8 else 1):
+                for _ in range(3 if z < L * 0.7 else 2):
                     sz = rng.uniform(0.045, 0.075) * (1.0 - 0.35 * z / L)
                     x0, y0, x1, y1 = rng.choice(CROPS[atlas])
                     M = (Matrix.Translation(q) @ Matrix.Rotation(rng.uniform(0, 6.283), 4, 'Z') @
