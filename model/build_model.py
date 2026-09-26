@@ -2018,19 +2018,17 @@ coll('structure').objects.link(bpy.data.objects.new('stair_handrails', cu))
 for j in range(7):
     t = t_b0 + (T_TOP - t_b0) * (j + 0.5) / 7
     light('stair_led_%d' % j, 'POINT', FP(KS, N1 - 0.12, t, flight_z(t) + 0.8), 3.0, soft=0.05)
-# cushions on the fanned seating steps, a tree at the foot, a paper lantern above
+# cushions on the fanned seating steps, a paper lantern above
 for i in range(1, N_FAN):
     zt = i * R_
     for s_ in range(2):
-        tt = T0 + (i - 0.5) * G_ - 0.45 * flare(i) - 0.6 * s_
+        tt = T0 + (i - 0.5) * G_ - 0.3 * flare(i) - 0.35 * s_          # both fully on the step
         nn = N0 - flare(i) + 0.35
         cushion('stair_cushion_%d_%d' % (i, s_), None, tuple(FP(KS, nn, tt, zt + 0.07)), (0.5, 0.5, 0.14),
                 M_WOOL[['terracotta', 'ochre', 'olive', 'rose', 'sand', 'wine'][(i + s_) % 6]], rz=RZS + 15 * s_)
 for j in range(4):
     cushion('stair_bench_cushion_%d' % j, None, tuple(FP(KS, N0 + 0.75, T_FAN + 0.6 + j * 0.85, 0.53)),
             (0.55, 0.5, 0.13), M_WOOL[['sand', 'rose', 'ochre', 'olive'][j]], rz=RZS)
-c_ = FP(KS, N0 - 0.9, -4.82, 0)
-indoor_tree('stair_tree', c_.x, c_.y, 0.0, h=2.4, seed=91)
 paper_disc('stair_disc', tuple(FP(KS, N0 - 2.2, T0 + 2 * G_, 3.1)), 0.5, 0.24, cord=P.CEIL_GF, power=35.0)
 
 # upper floor: guard along the void, linen / laundry room, open landing (1.5 m way out, as wide as the stair)
