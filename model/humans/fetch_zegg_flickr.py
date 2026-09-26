@@ -12,7 +12,7 @@ import os
 import re
 import subprocess
 
-OUT = '/tmp/claude-0/mh/zegg'
+OUT = os.path.join(os.environ.get('TEMPEL_TMP', '/tmp/tempel'), 'zegg')   # private: never committed
 UA = 'Mozilla/5.0'
 
 

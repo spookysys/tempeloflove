@@ -78,6 +78,9 @@ def to_metres(ob):
 
 def simulate(rig, body, garments, clip, f, face, loc, seconds=1.0, breeze=True, wind=True):
     sc = bpy.context.scene
+    keep = (sc.frame_start, sc.frame_end, sc.frame_current)
+    pose = {pb.name: pb.rotation_quaternion.copy() for pb in rig.pose.bones}
+    rig_loc = rig.location.copy()
     for ob in [body] + list(garments):
         to_metres(ob)
     last, vel = animate_lead_in(rig, clip, f, face, loc, seconds)
@@ -142,16 +145,27 @@ def simulate(rig, body, garments, clip, f, face, loc, seconds=1.0, breeze=True, 
         sims.append(g)
     for fr in range(1, last + 1):
         sc.frame_set(fr)
-    # bake the final shape into the garments
+    # bake the final shape into the garments; they stay parented to the rig (no armature), so later moves carry them
     dg = bpy.context.evaluated_depsgraph_get()
     for g in sims:
         me = bpy.data.meshes.new_from_object(g.evaluated_get(dg))
         mw = g.matrix_world.copy()
         g.modifiers.clear()
-        g.parent = None
         g.data = me
+        g.matrix_parent_inverse = rig.matrix_world.inverted() @ mw @ g.matrix_basis.inverted()
         g.matrix_world = mw
+        # the body is no longer hidden under a garment that may have lifted away from it
+        for md in list(body.modifiers):
+            if md.type == 'MASK' and md.vertex_group == 'Delete.' + g.name.split('.', 1)[-1]:
+                body.modifiers.remove(md)
     bpy.data.objects.remove(cb)
     for fo in fields:
         bpy.data.objects.remove(fo)
+    # back to the still: the chosen pose at its place, no keys, the scene's own frame range
+    rig.animation_data_clear()
+    for pb in rig.pose.bones:
+        pb.rotation_quaternion = pose[pb.name]
+    rig.location = rig_loc
+    sc.frame_start, sc.frame_end = keep[0], keep[1]
+    sc.frame_set(keep[2])
     return last

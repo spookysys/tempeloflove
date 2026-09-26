@@ -1008,8 +1008,33 @@ def separate_people(rigs, rounds=4, tol_person=0.05, tol_static=0.04):
             break
 
 
-# test mode: CROWD_TEST=blind | field builds only that zone into /tmp/claude-0/mh/<zone>_test.blend
+# test mode: CROWD_TEST=blind | field builds only that zone into $TEMPEL_TMP/<zone>_test.blend
 _TEST = os.environ.get('CROWD_TEST')
+if _TEST == 'cloth':                                   # three dancers in flowing clothes, cloth simulation on
+    _src = open(os.path.abspath(__file__)).read()
+    _a = _src.index('\nCLOTH = os.environ.get') + 1
+    _b = _src.index('\nSWAY = [') + 1
+    exec(compile(_src[_a:_b], 'cloth', 'exec'))
+    CLOTH = True
+    SC.frame_set(10)
+    DANCERS, FR_CACHE = [], {}
+    import mocap as MC  # noqa: F811
+
+    def frames_of(clip, k=4):
+        if clip not in FR_CACHE:
+            FR_CACHE[clip] = MC.best_frames(clip, k)
+        return FR_CACHE[clip]
+
+    def blur_move(r, mv, face):
+        pass
+    for i_, clip_ in enumerate(('61_01', '05_06', '05_16')):
+        p_ = pol(2.2, 200 + 40 * i_)
+        dancer(clip_, i_, p_.x, p_.y, 20 + 60 * i_, kind='flow')
+    os.makedirs(os.environ.get('TEMPEL_TMP', '/tmp/tempel'), exist_ok=True)
+    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(os.environ.get('TEMPEL_TMP', '/tmp/tempel'), 'cloth_test.blend'),
+                                compress=True)
+    print('ZONE TEST saved cloth', [(r.name, [c.name for c in r.children][:6]) for r in DANCERS], flush=True)
+    sys.exit(0)
 if _TEST in ('blind', 'field'):
     _src = open(os.path.abspath(__file__)).read()
     _m = {'blind': ('\n# 5. intimate zone', '\n# 6. cuddle puddle'),
@@ -1021,7 +1046,8 @@ if _TEST in ('blind', 'field'):
     separate_people([o for o in CROWD.objects if o.type == 'ARMATURE'])
     for r_ in BLIND:
         blindfold(r_, blindfold_mat())
-    bpy.ops.wm.save_as_mainfile(filepath='/tmp/claude-0/mh/%s_test.blend' % _TEST, compress=True)
+    os.makedirs(os.environ.get('TEMPEL_TMP', '/tmp/tempel'), exist_ok=True)
+    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(os.environ.get('TEMPEL_TMP', '/tmp/tempel'), '%s_test.blend' % _TEST), compress=True)
     print('ZONE TEST saved', _TEST, flush=True)
     sys.exit(0)
 
@@ -1090,6 +1116,31 @@ def blur_move(r, mv, face):
     r.location = loc
 
 
+CLOTH = os.environ.get('CROWD_CLOTH', '0') == '1'
+FLOWY = ('skirt', 'dress', 'kimono', 'lungi', 'robe', 'cape', 'sarong', 'chiffon', 'goddess', 'halter', 'wrap', 'shawl')
+
+
+def cloth_pass(r, clip, f, face):
+    """CROWD_CLOTH=1: the person moves through the last second of their recorded motion and their flowing
+    garments are simulated as cloth (humans/clothsim.py: pinned at waist / shoulders, relative wind, soft
+    air), then baked. Returns True if simulated (the lead-in replaces the motion-blur keys)."""
+    if not CLOTH:
+        return False
+    import clothsim as CS
+    garments = [c for c in r.children if c.type == 'MESH' and not c.name.endswith('.body') and
+                (any(k in c.name.lower() for k in FLOWY) or
+                 (c.active_material and c.active_material.name.lower().startswith(('chiffon', 'lungi'))))]
+    if not garments:
+        return False
+    try:
+        CS.simulate(r, body_of(r), garments, clip, f, face, tuple(r.location))
+        bpy.context.scene.frame_set(10)
+        return True
+    except Exception as e:                              # never lose a long crowd build over one skirt
+        print('cloth sim failed for', r.name, e, flush=True)
+        return False
+
+
 def dancer(clip, i, x, y, face, kind='flow', z0=0.0, lean_deg=0.0, **kw):
     fs = frames_of(clip)
     f = fs[i % len(fs)]
@@ -1100,7 +1151,8 @@ def dancer(clip, i, x, y, face, kind='flow', z0=0.0, lean_deg=0.0, **kw):
     if lean_deg:
         lean(r, lean_deg)
     drop(r, z0)
-    blur_move(r, mv, face)
+    if not cloth_pass(r, clip, f, face):
+        blur_move(r, mv, face)
     DANCERS.append(r)
     return r
 
@@ -1120,7 +1172,8 @@ def moving(clips, x, y, face, kind='flow', z0=0.0, seed=0, **kw):
     mv = MC.key_motion(r, clip_, f)
     stand(r, x, y, face)
     drop(r, z0)
-    blur_move(r, mv, face)
+    if not cloth_pass(r, clip_, f, face):
+        blur_move(r, mv, face)
     return r
 
 

@@ -22,8 +22,34 @@ specialist net maker, and the fire strategy by a fire engineer (Brandschutzplane
 | `model/params.py` | **All dimensions in one place**; the model and the drawings are both generated from it |
 | `model/build_model.py`, `render.py`, `export_glb.py`, `drawings/plans.py` | Scripts to rebuild everything |
 
-Rebuild: `pip install bpy matplotlib pillow`, then
-`cd model && python3 build_model.py && python3 export_glb.py && python3 render.py` and `python3 ../drawings/plans.py`.
+## Rebuild everything (reproducible pipeline)
+
+Linux or macOS, Python 3.11, about 8 GB of downloads. All scripts are in `scripts/`:
+
+| Script | What it does |
+|---|---|
+| `fetch_assets.sh` | Installs Blender 5.0.1 as a Python module (`bpy`) and downloads every asset into `.assets/`. Safe to re-run. |
+| `build_scene.sh [lq\|hq]` | Builds the building, plants, crowd, fixes, checks and drawings, producing `model/tempel.blend` and `model/tempel_event.blend`. |
+| `render_lq.sh` | Renders the preview films (480×270) `renders/flythrough_empty.mp4` and `flythrough_people.mp4`, plus quick stills. |
+| `render_hq.sh` | Renders the 1920×1080 films (`*_hq.mp4`) and full stills. |
+| `run_all.sh [lq\|hq]` | Runs all of the above in order. |
+
+Downloaded assets:
+- MPFB 2.0.17 (MakeHuman for Blender) and 33 MakeHuman community packs (CC0 / CC-BY).
+- Poly Haven plant scans (CC0).
+- ambientCG leaf atlases (CC0).
+- CMU Graphics Lab motion capture: dance, contact-improvisation duets and walking (free for any use).
+
+What the crowd build uses:
+- **Poses** come from CMU mocap retargeted onto the MakeHuman skeleton (`humans/mocap.py`) and from poses measured on photos (`humans/photo_poses*.json`, MediaPipe; only joint angles are stored, never photos).
+- **Contact-improvisation duets** are keyed together, with their contact frames.
+- **Resting postures** cover lying and sitting.
+- **Separation pass**: nobody intersects anybody.
+- **hq only**: active ragdoll settling of people lying and leaning (`humans/ragdoll.py`) and cloth simulation of skirts, dresses, kimonos and lungis (`humans/clothsim.py`). The cloth sim runs the recorded dance for a second, adds relative wind and pins the fabric at the waist and shoulders. You can switch these on alone with `CROWD_PHYSICS=1` / `CROWD_CLOTH=1`.
+
+Checks run after the build: clashes between furniture, people standing on something (nobody floating), and camera-path clearance. The summary is printed at the end, and full logs are in `logs/`.
+
+Single steps are still possible, for example `cd model && python3 build_model.py`, `python3 render.py [view] --quick` or `python3 ../drawings/plans.py`.
 
 
 ## Walk around on a laptop (light model)

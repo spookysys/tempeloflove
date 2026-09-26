@@ -11,7 +11,8 @@ import os
 import numpy as np
 from mathutils import Euler, Matrix, Vector
 
-CMU = os.environ.get('CMU_DIR', '/tmp/claude-0/mh/cmu')
+CMU = os.environ.get('CMU_DIR', os.path.join(os.environ.get('TEMPEL_ASSETS', os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), '.assets')), 'cmu'))
 
 
 def _rot(ax, order='XYZ'):

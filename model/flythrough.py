@@ -272,7 +272,7 @@ def setup(render_quality='video'):
                 c.hide_render = True
     sc.render.engine = 'CYCLES'
     sc.cycles.device = 'CPU'
-    sc.cycles.samples = 10 if render_quality == 'video' else 20
+    sc.cycles.samples = int(os.environ.get('FLY_SAMPLES', 10 if render_quality == 'video' else 20))
     sc.cycles.use_adaptive_sampling = True
     sc.cycles.adaptive_threshold = 0.05
     sc.cycles.use_denoising = True
@@ -288,7 +288,13 @@ def setup(render_quality='video'):
     sc.cycles.texture_limit_render = '1024'
     sc.render.use_motion_blur = False
     sc.render.use_persistent_data = True
-    sc.render.resolution_x, sc.render.resolution_y = (480, 270) if render_quality == 'video' else (640, 360)
+    res = os.environ.get('FLY_RES')                  # e.g. 1920x1080 for the hq film
+    sc.render.resolution_x, sc.render.resolution_y = tuple(int(x) for x in res.split('x')) if res else \
+        ((480, 270) if render_quality == 'video' else (640, 360))
+    if os.environ.get('FLY_HQ') == '1':             # full textures and subdivision, motion-quality light
+        sc.render.simplify_subdivision_render = 2
+        sc.cycles.texture_limit_render = 'OFF'
+        sc.cycles.adaptive_threshold = 0.02
     sc.render.resolution_percentage = 100
     sc.view_settings.view_transform = 'AgX'
     sc.view_settings.look = 'AgX - Medium High Contrast'

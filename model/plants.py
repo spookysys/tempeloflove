@@ -8,7 +8,7 @@
    They replace the old procedural facade vines.
 2. (see further below) scanned trees, shrubs, grass and indoor plants from Poly Haven (CC0).
 
-Assets are looked up in PLANT_DIR (default /tmp/claude-0/mh): ph/<asset>/..., acg/<LeafSet>/...
+Assets are looked up in PLANT_DIR (default $TEMPEL_ASSETS, i.e. <repo>/.assets; see scripts/fetch_assets.sh): ph/<asset>/..., acg/<LeafSet>/...
 """
 import json
 import math
@@ -24,7 +24,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import params as P  # noqa: E402
 
-PLANT_DIR = os.environ.get('PLANT_DIR', '/tmp/claude-0/mh')
+PLANT_DIR = os.environ.get('PLANT_DIR', os.environ.get('TEMPEL_ASSETS', os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.assets')))
 ACG = os.path.join(PLANT_DIR, 'acg')
 CROPS = json.load(open(os.path.join(HERE, 'leaf_crops.json')))
 rad = math.radians
