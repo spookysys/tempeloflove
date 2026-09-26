@@ -1,32 +1,28 @@
 #!/bin/sh
 # Generate the whole scene from params.py + the downloaded assets (run scripts/fetch_assets.sh first).
 #
-#   scripts/build_scene.sh [lq|hq]
+#   scripts/build_scene.sh
 #
 # 1. building           model/build_model.py         -> model/tempel.blend
 # 2. plants             model/plants.py              Poly Haven scans, roses, roof planters (packed into the file)
 # 3. crowd              model/humans/build_crowd.py  -> model/tempel_event.blend
 #      MakeHuman people (MPFB), poses from CMU mocap (dance, contact improvisation duets, walking),
-#      poses measured from photos (photo_poses*.json), resting postures, separation pass.
-#      hq adds: active ragdoll settling of lying / leaning people (humans/ragdoll.py, slow: ~20 min per group)
-#               and cloth simulation of skirts, dresses, kimonos and lungis (humans/clothsim.py)
+#      poses measured from photos (photo_poses*.json), separation pass, then always:
+#      cloth simulation of skirts, dresses, kimonos and lungis (humans/clothsim.py) and active ragdoll settling
+#      of everyone lying, sitting or leaning (humans/ragdoll.py). Slow (many hours on 4 CPU cores) but it is what
+#      makes the people look natural. The scene is the same for lq and hq renders.
 # 4. small fixes         model/postfix.py             stair cushions, roof planters (both files)
 # 5. checks             clashes, support (nobody floating), camera path clearance
 # 6. drawings           drawings/plans.py            -> drawings/*.pdf / *.png
 # Logs go to $TEMPEL_LOGS (default <repo>/logs). Each step stops the script on failure.
 set -e
-Q=${1:-lq}
 HERE=$(cd "$(dirname "$0")" && pwd)
 REPO=$(dirname "$HERE")
 export TEMPEL_ASSETS=${TEMPEL_ASSETS:-$REPO/.assets}
 export TEMPEL_TMP=${TEMPEL_TMP:-$REPO/.tmp}
 L=${TEMPEL_LOGS:-$REPO/logs}
 mkdir -p "$L" "$TEMPEL_TMP"
-case $Q in
-  lq) export CROWD_PHYSICS=0 CROWD_CLOTH=0 ;;
-  hq) export CROWD_PHYSICS=1 CROWD_CLOTH=1 ;;
-  *) echo "usage: $0 [lq|hq]"; exit 2 ;;
-esac
+export CROWD_PHYSICS=1 CROWD_CLOTH=1
 [ -d "$TEMPEL_ASSETS/cmu" ] || { echo "no assets in $TEMPEL_ASSETS - run scripts/fetch_assets.sh"; exit 1; }
 cd "$REPO/model"
 
@@ -55,4 +51,4 @@ for f in "$L"/5_*.log; do
   echo "-- $(basename "$f" .log): $(grep -c -E '^CLASH|^CLEAR|^BLOCKED|^SUPPORT .* floats' "$f" || true) findings"
   grep -h -E '^CLASH|^CLEAR|^BLOCKED|^NEAR|^SUPPORT' "$f" | head -12 || true
 done
-echo "scene ready ($Q): model/tempel.blend (empty), model/tempel_event.blend (with people)"
+echo "scene ready: model/tempel.blend (empty), model/tempel_event.blend (with people)"

@@ -1116,13 +1116,13 @@ def blur_move(r, mv, face):
     r.location = loc
 
 
-CLOTH = os.environ.get('CROWD_CLOTH', '0') == '1'
+CLOTH = os.environ.get('CROWD_CLOTH', '1') == '1'
 FLOWY = ('skirt', 'dress', 'kimono', 'lungi', 'robe', 'cape', 'sarong', 'chiffon', 'goddess', 'halter', 'wrap', 'shawl')
 
 
 def cloth_pass(r, clip, f, face):
-    """CROWD_CLOTH=1: the person moves through the last second of their recorded motion and their flowing
-    garments are simulated as cloth (humans/clothsim.py: pinned at waist / shoulders, relative wind, soft
+    """Cloth (on unless CROWD_CLOTH=0): the person moves through the last second of their recorded motion
+    and their flowing garments are simulated as cloth (humans/clothsim.py: pinned at waist / shoulders, relative wind, soft
     air), then baked. Returns True if simulated (the lead-in replaces the motion-blur keys)."""
     if not CLOTH:
         return False
@@ -1656,7 +1656,7 @@ EVC.hide_render = True
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(MODEL, 'tempel_event.blend'), compress=True, copy=True)
 print('CHECKPOINT saved', flush=True)
 EVC.hide_render = False
-PHYSICS = os.environ.get('CROWD_PHYSICS', '0') == '1'
+PHYSICS = os.environ.get('CROWD_PHYSICS', '1') == '1'     # always on: part of the look (0 only for quick tests)
 
 
 def _keyed(r):

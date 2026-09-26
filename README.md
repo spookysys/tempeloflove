@@ -29,7 +29,7 @@ Linux or macOS, Python 3.11, about 8 GB of downloads. All scripts are in `script
 | Script | What it does |
 |---|---|
 | `fetch_assets.sh` | Installs Blender 5.0.1 as a Python module (`bpy`) and downloads every asset into `.assets/`. Safe to re-run. |
-| `build_scene.sh [lq\|hq]` | Builds the building, plants, crowd, fixes, checks and drawings, producing `model/tempel.blend` and `model/tempel_event.blend`. |
+| `build_scene.sh` | Builds the building, plants, crowd, fixes, checks and drawings, producing `model/tempel.blend` and `model/tempel_event.blend`. |
 | `render_lq.sh` | Renders the preview films (480×270) `renders/flythrough_empty.mp4` and `flythrough_people.mp4`, plus quick stills. |
 | `render_hq.sh` | Renders the 1920×1080 films (`*_hq.mp4`) and full stills. |
 | `run_all.sh [lq\|hq]` | Runs all of the above in order. |
@@ -45,7 +45,7 @@ What the crowd build uses:
 - **Contact-improvisation duets** are keyed together, with their contact frames.
 - **Resting postures** cover lying and sitting.
 - **Separation pass**: nobody intersects anybody.
-- **hq only**: active ragdoll settling of people lying and leaning (`humans/ragdoll.py`) and cloth simulation of skirts, dresses, kimonos and lungis (`humans/clothsim.py`). The cloth sim runs the recorded dance for a second, adds relative wind and pins the fabric at the waist and shoulders. You can switch these on alone with `CROWD_PHYSICS=1` / `CROWD_CLOTH=1`.
+- **Always**: active ragdoll settling of people lying and leaning (`humans/ragdoll.py`) and cloth simulation of skirts, dresses, kimonos and lungis (`humans/clothsim.py`). The cloth sim runs the recorded dance for a second, adds relative wind and pins the fabric at the waist and shoulders. These are what make the people look natural, so they are part of every build (many hours on 4 CPU cores). `CROWD_PHYSICS=0` / `CROWD_CLOTH=0` exist only for quick tests.
 
 Checks run after the build: clashes between furniture, people standing on something (nobody floating), and camera-path clearance. The summary is printed at the end, and full logs are in `logs/`.
 
