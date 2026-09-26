@@ -148,6 +148,18 @@ JEWEL_F = ['elvs_heart_belly_jewel', 'elvs_stars_belly_circlet', 'elvs_braided_a
 JEWEL_M = ['culturalibre_leather_bracelet', 'elvs_braided_anklet1', 'culturalibre_cl_spiral_bracelets',
            'punkduck_necklace_native_american_fashion_']
 KIMONO = ('mindfront_kimono',)
+# the Liebe Tanzen / contact-jam look (from the Liebe Tanzen and Love & Dance festival photos): soft, practical,
+# barefoot; tank tops and T-shirts, long-sleeve tops, loose harem / wide / soft trousers, now and then a long skirt,
+# an open cardigan, hoodie or knit over it; muted earthy colours with a few warm accents; little jewellery
+DANCE_BOT_F = ['toigo_harem_pants', 'toigo_harem_pants', 'elvs_gored_elephant_pants', 'toigo_wool_pants',
+               'mindfront_female_trousers_1', 'toigo_long_full_skirt']
+DANCE_TOP_F = ['elvs_ladies_tank1', 'elvs_lara_tank1', 'punkduck_spaghetti_strap_tank_top', 'toigo_basic_tucked_t-shirt',
+               'joepal_crude_t-shirt_female', 'punkduck_off-shoulder_long-sleeve_top', 'toigo_keyhole_tank_top']
+DANCE_BOT_M = ['toigo_harem_pants', 'toigo_harem_pants', 'elvs_gored_elephant_pants', 'toigo_wool_pants',
+               'mindfront_male_trousers_1', 'mindfront_male_trousers_2']
+DANCE_TOP_M = ['elvs_male_tankshirt1', 'elvs_male_athletic_tank1', 'elvs_crude_t-shirt_male', 'mindfront_tank_top_01',
+               'elvs_male_muscle_shirt1', 'punkduck_sleeveless_shirt']
+DANCE_LAYER = ['mindfront_cardigan_long_open_front', 'elvs_hooded_sweat_jacket1', 'mindfront_knitted_sweater_02']
 # most of the clothes already off: bare chests, loose pants and wraps, camisoles, slips
 UNDIES_F = [('mindfront_kimono', 'elvs_retro_girly_shorts1'), ('toigo_camisole_top', 'elvs_retro_girly_shorts1'), ('elvs_crochet_baby_doll',),
             ('punkduck_tube_top', 'elvs_sarong_cover_up'), ('mindfront_cardigan_long_open_front', 'elvs_retro_girly_shorts1'),
@@ -502,8 +514,8 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
     race = race or rnd.choice(['caucasian'] * 16 + ['african', 'asian', 'mixed', 'mixed'])
     build = rnd.choice(['slim', 'average', 'full'])     # body diversity: slim / average / curvy, heavy, soft bellies
     if kind == 'flow':                       # everyone dresses how they feel: a balanced, individual mix
-        w = {'flow': 0.27, 'mix': 0.22, 'everyday': 0.15, 'lungi': 0.12 if sex < 0.5 else 0.07, 'crazy': 0.08,
-             'undress': 0.14 + 0.4 * UNDRESS[0], 'onesie': 0.07}
+        w = {'dance': 0.36, 'flow': 0.17, 'mix': 0.12, 'everyday': 0.07, 'lungi': 0.08 if sex < 0.5 else 0.05,
+             'crazy': 0.04, 'undress': 0.10 + 0.4 * UNDRESS[0], 'onesie': 0.03}
         u = rnd.random() * sum(w.values())
         for k_, v_ in w.items():
             if u < v_:
@@ -520,6 +532,11 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
             top = rnd.choice(TOPS_F if sex < 0.5 else TOPS_M)
             outfit = tuple(x for x in (bottom, top, 'mindfront_kimono' if rnd.random() < 0.25 else None) if x)
             kind = 'flow'
+        if kind == 'dance':                  # the Liebe Tanzen look (see DANCE_*)
+            f_ = sex < 0.5
+            outfit = (rnd.choice(DANCE_BOT_F if f_ else DANCE_BOT_M), rnd.choice(DANCE_TOP_F if f_ else DANCE_TOP_M))
+            if rnd.random() < 0.28:
+                outfit += (rnd.choice(DANCE_LAYER),)
         if kind == 'everyday':               # everyday and colourful (as on ZEGG's festival photos)
             if sex < 0.5:
                 outfit = (rnd.choice(['punkduck_retro_polka_dot_skirt', 'toigo_tiered_skirt', 'elvs_gored_midi_skirt',
@@ -591,7 +608,7 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
                 'shoe', 'boot', 'sandal', 'flat', 'ring', 'anklet', 'bracelet', 'bangle', 'necklace', 'choker',
                 'collar', 'mask', 'crown', 'circlet', 'jewel', 'hoop', 'earring')):
             continue
-        if rnd.random() < 0.13:
+        if rnd.random() < (0.03 if kind == 'dance' else 0.13):
             fab[piece] = fabric('animal_%s_%s' % (name, piece[:12]), rnd.choice(['leopard', 'leopard', 'zebra', 'tiger']),
                                 rnd)
     dress_up(rig, fab)
@@ -606,7 +623,7 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
     # plush faux-fur leopard on some kimonos / cardigans / dresses
     for ob in rig.children:
         if ob.type == 'MESH' and any(k in ob.name for k in ('kimono', 'cardigan', 'goddess', 'fringe')) and \
-                kind != 'organiser' and rnd.random() < 0.15:
+                kind not in ('organiser', 'dance') and rnd.random() < 0.15:
             ob.data.materials.clear()
             ob.data.materials.append(fabric('fur_' + name, 'fur_leopard', rnd))
     if kind in ('flow', 'mix') and rnd.random() < 0.45:  # colourful: shift the colours of the rest
@@ -615,6 +632,13 @@ def new_person(kind='flow', sex=None, years=None, race=None, outfit=None, seed=N
                     'body', 'hair', 'eyebrow', 'eyelash', 'high-poly', 'kimono')) and \
                     not any(ob.name.endswith(k) for k in fab):
                 recolour(ob, rnd.random(), rnd.uniform(1.0, 1.5), rnd.uniform(0.9, 1.2))
+    if kind == 'dance':                      # muted earthy tones, each piece its own
+        for ob in rig.children:
+            if ob.type == 'MESH' and ob.active_material and not any(k in ob.name for k in (
+                    'body', 'hair', 'eyebrow', 'eyelash', 'high-poly')) and not any(ob.name.endswith(k) for k in fab):
+                accent = rnd.random() < 0.15                 # now and then a warm, saturated piece
+                recolour(ob, rnd.uniform(0.35, 0.65), rnd.uniform(1.1, 1.4) if accent else rnd.uniform(0.3, 0.85),
+                         rnd.uniform(0.55, 1.1))
     if kind == 'lingerie':                   # deep lingerie tones
         tone = rnd.choice(LINGERIE_TONES)
         for ob in rig.children:
@@ -1066,7 +1090,11 @@ if _TEST == 'cloth':                                   # three dancers in flowin
 
     def blur_move(r, mv, face):
         pass
-    for i_, clip_ in enumerate(('61_01', '05_06', '05_16')):
+    if os.environ.get('CROWD_LINEUP'):                    # a row of people in one look, for checking clothes
+        for i_ in range(8):
+            dancer(['61_01', '05_06', '05_16', '60_04'][i_ % 4], i_, -3.5 + i_ * 1.0, -2.0, 90,
+                   kind=os.environ['CROWD_LINEUP'])
+    for i_, clip_ in enumerate(() if os.environ.get('CROWD_LINEUP') else ('61_01', '05_06', '05_16')):
         p_ = pol(2.2, 200 + 40 * i_)
         dancer(clip_, i_, p_.x, p_.y, 20 + 60 * i_, kind='flow')
     os.makedirs(os.environ.get('TEMPEL_TMP', '/tmp/tempel'), exist_ok=True)

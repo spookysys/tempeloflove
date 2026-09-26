@@ -84,7 +84,25 @@ def _light(name, loc, power):
     return lo
 
 
+def frost_side_windows():
+    """The two annex windows beside the entrance look into the WC and the tech room: frosted glass."""
+    g = bpy.data.objects.get('annex_glass')
+    fr = bpy.data.materials.get('frosted_glass')
+    if not g or not fr or fr.name in [m.name for m in g.data.materials if m]:
+        return 0
+    g.data.materials.append(fr)
+    idx = len(g.data.materials) - 1
+    mw = g.matrix_world
+    n = 0
+    for p in g.data.polygons:
+        if abs((mw @ p.center).x) > 1.5:
+            p.material_index = idx
+            n += 1
+    return n
+
+
 def build():
+    frost_side_windows()
     if bpy.data.objects.get('annex_doors'):
         return 0
     wood = _mat_or('wood_dark_walnut', _mat('wood_dark_walnut', '#6A4A30'))

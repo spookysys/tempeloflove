@@ -33,10 +33,11 @@ film() {  # film empty|people
   k=$1
   fr=fly_frames_$k$SUF
   # frames from an older scene build are thrown away (the rest resume)
-  [ -d "../renders/$fr" ] && find "../renders/$fr" -name 'f_*.png' ! -newer tempel_event.blend -delete
+  src=tempel_event.blend; [ "$k" = empty ] && src=tempel.blend       # empty: the building on its own
+  [ -d "../renders/$fr" ] && find "../renders/$fr" -name 'f_*.png' ! -newer $src -delete
   echo "== film $k ($Q, $FLY_RES, $FLY_SAMPLES samples, step $STEP) $(date -u +%H:%M:%S)"
   if [ "$k" = empty ]; then
-    FLY_EMPTY=1 FLY_FRAMES=$fr nice -n 5 python3 flythrough.py frames 0 99999 "$STEP" > "$L/film_$k$SUF.log" 2>&1
+    FLY_EMPTY=1 FLY_BLEND=tempel.blend FLY_FRAMES=$fr nice -n 5 python3 flythrough.py frames 0 99999 "$STEP" > "$L/film_$k$SUF.log" 2>&1
   else
     FLY_BLEND=tempel_event.blend FLY_FRAMES=$fr nice -n 5 python3 flythrough.py frames 0 99999 "$STEP" \
       > "$L/film_$k$SUF.log" 2>&1
