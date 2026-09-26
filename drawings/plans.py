@@ -248,8 +248,7 @@ def stair_plan(ax, level):
             continue
         if i <= N_FAN:                       # seating terraces: nested outlines reaching to the end of the fan
             if level == 'GF':
-                pts = [FP(KS, NS0 - f, ta - 0.6 * f), FP(KS, NS1, ta - 0.6 * f), FP(KS, NS1, T_FAN),
-                       FP(KS, NS0 - f, T_FAN)]
+                pts = [FP(KS, n, t) for n, t in P.stair_tier_outline(i)]      # seating tiers along the flight
                 poly(ax, clip_halfplane(pts, KS - 1, P.R_IN - 0.01), fc='#F1E6D6' if i % 2 else '#EADCC8',
                      ec=INK, lw=0.4, z=3 + i * 0.01)
             continue
@@ -266,8 +265,8 @@ def stair_plan(ax, level):
                 lw=0.8, zorder=6)
         ax.annotate('', xy=FP(KS, (NS0 + NS1) / 2, T0S + 4 * G_T), xytext=FP(KS, (NS0 + NS1) / 2, T0S + 0.1),
                     arrowprops=dict(arrowstyle='-|>', lw=0.8, color=INK), zorder=6)
-        p = FP(KS, NS0 - 0.55, T0S + 0.4)
-        label(ax, p[0], p[1], 'seating\nterraces', 5.5)
+        p = FP(KS, NS0 - 1.3, T_FAN + 0.9)
+        label(ax, p[0], p[1], 'seating\ntiers', 5.5)
         p = FP(KS, NS0 + 0.95, T0S + 9.5 * G_T)
         label(ax, p[0], p[1], 'bench', 5.5)
         p = FP(KS, NS0 + 0.7, T0S + 1.2)

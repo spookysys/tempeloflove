@@ -396,8 +396,9 @@ def load_protos(assets):
         before = set(bpy.data.objects)
         bpy.ops.import_scene.gltf(filepath=path)
         new = [o for o in bpy.data.objects if o not in before]
-        # a pack may hold several variants side by side: one proto per plant, centred at its base
-        cols = []
+        # a pack may hold several plants side by side, each made of several meshes (pot, soil, stem,
+        # leaves): group meshes whose footprints overlap into one plant, one proto per plant, centred at its base
+        meshes = []
         for o in new:
             for uc in list(o.users_collection):
                 uc.objects.unlink(o)
@@ -406,16 +407,32 @@ def load_protos(assets):
             mw = o.matrix_world.copy()
             o.parent = None
             o.matrix_world = mw
-            bb = [mw @ Vector(v) for v in o.bound_box]
-            base = Vector((sum(v.x for v in bb) / 8, sum(v.y for v in bb) / 8, min(v.z for v in bb)))
             o.data = o.data.copy()
             o.data.transform(mw)
-            o.data.transform(Matrix.Translation(-base))
             o.matrix_world = Matrix.Identity(4)
-            c = bpy.data.collections.new('proto_' + o.name)
-            c.objects.link(o)
-            c['height'] = max(v.co.z for v in o.data.vertices)
-            c['radius'] = max(math.hypot(v.co.x, v.co.y) for v in o.data.vertices)
+            xs = [v.co.x for v in o.data.vertices]
+            ys = [v.co.y for v in o.data.vertices]
+            meshes.append([o, min(xs), max(xs), min(ys), max(ys)])
+        groups = []
+        for m in meshes:
+            hit = [g for g in groups if any(m[1] < q[2] and q[1] < m[2] and m[3] < q[4] and q[3] < m[4] for q in g)]
+            merged = [m]
+            for g in hit:
+                merged += g
+                groups.remove(g)
+            groups.append(merged)
+        cols = []
+        for g in groups:
+            vs = [v.co for q in g for v in q[0].data.vertices]
+            base = Vector(((min(v.x for v in vs) + max(v.x for v in vs)) / 2,
+                           (min(v.y for v in vs) + max(v.y for v in vs)) / 2, min(v.z for v in vs)))
+            c = bpy.data.collections.new('proto_%s_%d' % (a, len(cols)))
+            for q in g:
+                q[0].data.transform(Matrix.Translation(-base))
+                c.objects.link(q[0])
+            vs = [v.co for q in g for v in q[0].data.vertices]
+            c['height'] = max(v.z for v in vs)
+            c['radius'] = max(math.hypot(v.x, v.y) for v in vs)
             cols.append(c)
         if cols:
             out[a] = PROTO_CACHE[a] = cols
@@ -451,62 +468,76 @@ def _base_of(o):
     return Vector((sum(v.x for v in bb) / 8, sum(v.y for v in bb) / 8, min(v.z for v in bb)))
 
 
+def _tallest(cols, n=1):
+    return sorted(cols, key=lambda c: -c['height'])[:n]
+
+
 def build_indoor_plants(seed=17):
     """The procedural stand-ins (disc-leaf pot plants, blob trees) replaced by scanned plants (Poly Haven, CC0):
-    rooms: potted plants; walkway / bathroom: calathea, anthurium; hall + stair: money trees (pachira)."""
+    rooms: potted plants (with their own pots); walkway / bathroom: calathea and anthurium planted in the
+    terracotta pots; hall: money trees (pachira) in their pots."""
     rng = random.Random(seed)
-    pr = load_protos(('potted_plant_01', 'potted_plant_02', 'potted_plant_04', 'calathea_orbifolia_01',
-                      'anthurium_botany_01', 'pachira_aquatica_01'))
+    pr = load_protos(('potted_plant_01', 'potted_plant_02', 'calathea_orbifolia_01', 'anthurium_botany_01',
+                      'pachira_aquatica_01'))
     n = 0
     for o in [o for o in bpy.data.objects if o.name.endswith('_leaves') and
               o.name.startswith(('room_plant_', 'walk_plant_', 'bath_plant_'))]:
         stem = o.name[:-7]
         pot = bpy.data.objects.get(stem + '_pot')
         base = _base_of(pot) if pot else _base_of(o)
-        if stem.startswith('room_plant_'):
-            kind, h, r = rng.choice(['potted_plant_01', 'potted_plant_02', 'potted_plant_04']), 1.25, 0.55
-        elif stem.startswith('walk_plant_'):
-            kind, h, r = rng.choice(['calathea_orbifolia_01', 'anthurium_botany_01']), 0.8, 0.4
-        else:
-            kind, h, r = 'calathea_orbifolia_01', 0.9, 0.5
-        if kind not in pr:
-            continue
-        _remove([o.name, stem + '_pot'])
-        place_proto('ip_' + stem, rng.choice(pr[kind]), base, h, r, rng.uniform(0, 6.283), 'furnishing')
+        if stem.startswith('room_plant_') and 'potted_plant_01' in pr:
+            kind = rng.choice(['potted_plant_01', 'potted_plant_02'])
+            h = {'potted_plant_01': rng.uniform(1.15, 1.35), 'potted_plant_02': rng.uniform(0.85, 1.0)}[kind]
+            _remove([o.name, stem + '_pot'])                 # comes with its own pot
+            place_proto('ip_' + stem, pr[kind][0], base, h, 0.6, rng.uniform(0, 6.283), 'furnishing')
+        else:                                                # planted in the existing terracotta pot
+            kind = 'calathea_orbifolia_01' if stem.startswith('bath_') or rng.random() < 0.5 else 'anthurium_botany_01'
+            if kind not in pr or not pot:
+                continue
+            top = max((pot.matrix_world @ Vector(c)).z for c in pot.bound_box) - 0.03
+            _remove([o.name])
+            place_proto('ip_' + stem, rng.choice(_tallest(pr[kind], 2)), Vector((base.x, base.y, top)),
+                        rng.uniform(0.42, 0.55), 0.42, rng.uniform(0, 6.283), 'furnishing')
         n += 1
-    for o in [o for o in bpy.data.objects if o.name.endswith('_leaves') and
-              o.name.startswith(('hall_tree_', 'stair_tree'))]:
+    for o in [o for o in bpy.data.objects if o.name.endswith('_leaves') and o.name.startswith('hall_tree_')]:
         stem = o.name[:-7]
         pot = bpy.data.objects.get(stem + '_pot')
         base = _base_of(pot) if pot else _base_of(o)
-        h = max(v[2] for v in [o.matrix_world @ Vector(c) for c in o.bound_box]) - base.z
         if 'pachira_aquatica_01' not in pr:
             continue
         _remove([o.name, stem + '_pot', stem + '_wood'])
-        place_proto('ip_' + stem, rng.choice(pr['pachira_aquatica_01']), base, min(2.6, max(2.0, h)), 0.75,
+        place_proto('ip_' + stem, _tallest(pr['pachira_aquatica_01'])[0], base, rng.uniform(2.05, 2.35), 0.8,
                     rng.uniform(0, 6.283))
         n += 1
     print('indoor plants:', n, 'scanned')
 
 
 def build_roof_planters(seed=19):
-    """Roof terrace planters: scanned ornamental grasses and low shrubs instead of blob bushes."""
+    """Roof terrace planters: scanned grass clumps, tall grass tufts and ferns instead of blob bushes."""
     rng = random.Random(seed)
-    pr = load_protos(('grass_medium_01', 'grass_medium_02', 'shrub_03', 'fern_02'))
+    pr = load_protos(('grass_medium_01', 'grass_medium_02', 'fern_02'))
     _remove(['terrace_grasses'])
+    clump = _tallest(pr.get('grass_medium_02', []), 1)
+    tufts = _tallest(pr.get('grass_medium_01', []), 5)
+    ferns = _tallest(pr.get('fern_02', []), 2)
     n = 0
     for k in (0, 2, 6, 7):
         for t0, t1 in ((-3.6, -1.2), (1.2, 3.6)):
-            m = 6
+            m = 9
             for i in range(m):
-                t = t0 + 0.2 + (t1 - t0 - 0.4) * (i + rng.uniform(-0.2, 0.2)) / (m - 1)
-                nn = P.R_OUT - 0.40 + rng.uniform(-0.1, 0.1)
-                kind = rng.choice(['grass_medium_01', 'grass_medium_02', 'grass_medium_01', 'shrub_03'])
-                if kind not in pr:
+                t = t0 + 0.18 + (t1 - t0 - 0.36) * (i + rng.uniform(-0.3, 0.3)) / (m - 1)
+                nn = P.R_OUT - 0.40 + rng.uniform(-0.08, 0.08)
+                r_ = rng.random()
+                if r_ < 0.45 and clump:
+                    proto, h, rc = clump[0], rng.uniform(0.5, 0.7), 0.4
+                elif r_ < 0.8 and tufts:
+                    proto, h, rc = rng.choice(tufts), rng.uniform(0.45, 0.7), 0.3
+                elif ferns:
+                    proto, h, rc = rng.choice(ferns), rng.uniform(0.35, 0.45), 0.45
+                else:
                     continue
-                h = rng.uniform(0.55, 0.8) if 'grass' in kind else rng.uniform(0.5, 0.65)
-                place_proto('rp_%d_%d_%d' % (k, int(t0), i), rng.choice(pr[kind]), FP(k, nn, t, P.TERRACE_Z + 0.51),
-                            h, 0.42, rng.uniform(0, 6.283), 'roof')
+                place_proto('rp_%d_%d_%d' % (k, int(t0), i), proto, FP(k, nn, t, P.TERRACE_Z + 0.51), h, rc,
+                            rng.uniform(0, 6.283), 'roof')
                 n += 1
     print('roof planters:', n, 'scanned plants')
 

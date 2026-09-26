@@ -1918,16 +1918,10 @@ T_FAN = T0 + N_FAN * G_                 # end of the seating terraces / start of
 
 
 def terrace_outline(i, grow=0.0):
-    """Seating terrace i (1..N_FAN): reaches from its own riser to the end of the fan, so the terraces
-    nest like contour lines (one sculpted amphitheatre, not separate drums)."""
-    ta = T0 + (i - 1) * G_
-    f = flare(i)
-    n_in = N0 - f
-    ext_t = 0.6 * f
-    pts = superellipse((n_in + N1) / 2, (ta - ext_t + T_FAN) / 2, (N1 - n_in) / 2 + grow,
-                       (T_FAN - ta + ext_t) / 2 + grow, n=3.2, N=56)
-    # the fan wraps round the corner: stop it at the inner face of the next wall (north / annex side)
-    return clip_halfplane([tuple(FP(KS, n, t))[:2] for n, t in pts], KS - 1, P.R_IN - 0.01)
+    """Seating tier i (params.stair_tier_outline): the stair's i-th step under the flight, continuing as a
+    seat along the hall side of the flight (an amphitheatre facing the hall), stopped at the north wall."""
+    pts = [tuple(FP(KS, n, t))[:2] for n, t in P.stair_tier_outline(i, grow)]
+    return clip_halfplane(pts, KS - 1, P.R_IN - 0.01)
 
 
 def clip_halfplane(pts, k, lim):
@@ -2019,13 +2013,18 @@ for j in range(7):
     t = t_b0 + (T_TOP - t_b0) * (j + 0.5) / 7
     light('stair_led_%d' % j, 'POINT', FP(KS, N1 - 0.12, t, flight_z(t) + 0.8), 3.0, soft=0.05)
 # cushions on the fanned seating steps, a paper lantern above
-for i in range(1, N_FAN):
+for i in range(1, N_FAN + 1):                       # cushions along each seating tier, facing the hall
     zt = i * R_
-    for s_ in range(2):
-        tt = T0 + (i - 0.5) * G_ - 0.3 * flare(i) - 0.35 * s_          # both fully on the step
-        nn = N0 - flare(i) + 0.35
-        cushion('stair_cushion_%d_%d' % (i, s_), None, tuple(FP(KS, nn, tt, zt + 0.07)), (0.5, 0.5, 0.14),
-                M_WOOL[['terracotta', 'ochre', 'olive', 'rose', 'sand', 'wine'][(i + s_) % 6]], rz=RZS + 15 * s_)
+    d_ = P.TIER_DEPTH * (N_FAN + 1 - i)
+    nn = N0 - d_ + 0.24
+    t_end = T_FAN + P.TIER_RUN - P.TIER_STEP_BACK * (i - 1)
+    tt, s_ = T0 + (i - 1) * G_ + 0.1, 0
+    while tt < t_end - 0.35:
+        if (i + s_) % 3 != 2:                          # a few gaps: room to sit on the clay, too
+            cushion('stair_cushion_%d_%d' % (i, s_), None, tuple(FP(KS, nn, tt, zt + 0.07)), (0.5, 0.5, 0.14),
+                    M_WOOL[['terracotta', 'ochre', 'olive', 'rose', 'sand', 'wine'][(i + s_) % 6]], rz=RZS + 7 * s_)
+        tt += 0.62
+        s_ += 1
 for j in range(4):
     cushion('stair_bench_cushion_%d' % j, None, tuple(FP(KS, N0 + 0.75, T_FAN + 0.6 + j * 0.85, 0.53)),
             (0.55, 0.5, 0.13), M_WOOL[['sand', 'rose', 'ochre', 'olive'][j]], rz=RZS)
