@@ -32,7 +32,9 @@ def support_below(p, own):
         hit, loc, nrm, idx, ob, mw = sc.ray_cast(dg, start, DOWN, distance=1.0)
         if not hit:
             return None
-        if ob.name.split('.')[0] != own:
+        o_ = getattr(ob, 'original', ob)
+        hidden = o_.hide_render or any(c.hide_render for c in o_.users_collection)
+        if ob.name.split('.')[0] != own and not hidden:
             return (p - loc).z
         start = loc + DOWN * 0.002               # skip the person's own clothes / hair
     return None

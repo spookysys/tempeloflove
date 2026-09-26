@@ -93,7 +93,11 @@ def _static_objects():
         if ob.users_collection and ob.users_collection[0].name in ('variant_central_rope', 'people'):
             continue
         bb = [ob.matrix_world @ Vector(c) for c in ob.bound_box]
-        if min(v.z for v in bb) > 8.0 or min(math.hypot(v.x, v.y) for v in bb) > 10.5:
+        # distance from the building axis to the nearest point of the bounding box (not to its corners:
+        # the floor and the roof deck have all corners far out but cover the centre)
+        nx = max(min(v.x for v in bb), 0.0, -max(v.x for v in bb))
+        ny = max(min(v.y for v in bb), 0.0, -max(v.y for v in bb))
+        if min(v.z for v in bb) > 8.0 or math.hypot(nx, ny) > 10.5:
             continue
         out.append(ob)
     return out
