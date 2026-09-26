@@ -34,32 +34,20 @@ def fix_stair_cushions():
     me0 = tmpl.data.copy()
     for o in olds:
         bpy.data.objects.remove(o)
-    KS, N_FAN = P.STAIR_SLOT, P.STAIR_N_FAN
-    N0 = P.R_IN - P.STAIR_FLIGHT_W_T
-    T0, G, R = P.STAIR_T0, P.STAIR_GOING_T, P.STAIR_RISE
-    T_FAN = T0 + N_FAN * G
+    KS, R = P.STAIR_SLOT, P.STAIR_RISE
     n = 0
-    for i in range(1, N_FAN + 1):
-        k_ = N_FAN + 1 - i
-        d_, d_s = P.TIER_DEPTH * k_, 0.24 * k_
-        t_end = T_FAN + P.TIER_RUN - P.TIER_STEP_BACK * (i - 1)
-        tt, s_ = T0 + (i - 1) * G + 0.1, 0
-        while tt < t_end - 0.35:
-            nn = N0 - d_s / 2 if tt < T_FAN - 0.5 else (N0 - d_ + 0.24 if tt > T_FAN + 1.0 else None)
-            if nn is not None and d_s / 2 < 0.25 and tt < T_FAN - 0.5:
-                nn = None
-            if nn is not None and (i + s_) % 3 != 2:
-                me = me0.copy()
-                ob = bpy.data.objects.new('stair_cushion_%d_%d' % (i, s_), me)
-                for c in cols:
-                    c.objects.link(ob)
-                ob.location = FP(KS, nn, tt, i * R + 0.07) - c0
-                if mats:
-                    me.materials.clear()
-                    me.materials.append(mats[(i + s_) % len(mats)])
-                n += 1
-            tt += 0.62
-            s_ += 1
+    for s_, (i, nn, tt) in enumerate(P.stair_cushion_spots()):
+        if s_ % 4 == 3:
+            continue
+        me = me0.copy()
+        ob = bpy.data.objects.new('stair_cushion_%d_%d' % (i, s_), me)
+        for c in cols:
+            c.objects.link(ob)
+        ob.location = FP(KS, nn, tt, i * R + 0.065) - c0
+        if mats:
+            me.materials.clear()
+            me.materials.append(mats[(i + s_) % len(mats)])
+        n += 1
     return n
 
 

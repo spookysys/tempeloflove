@@ -220,43 +220,90 @@ def mat_group(name):
     raise KeyError(name)
 
 
-# --- stair foot: seating tiers (amphitheatre) along the hall side of the flight --------------------------
-# Tier i (1..5, height i * STAIR_RISE) is the stair's i-th step under the flight (t from its riser to the end
-# of the fan) and continues along the hall side of the flight as a seat 0.45 m deeper than the tier above,
-# each tier a bit shorter: contour lines round the foot of the stair, facing the hall, clear of the corner.
+# --- stair foot: seating tiers along the hall side of the flight -----------------------------------------
+# Tier i (1..5, height i * STAIR_RISE) is the stair's i-th step under the flight; at the foot it flares a
+# little towards the hall. The lowest TIER_ROWS tiers continue along the hall side of the flight as seat rows
+# (TIER_DEPTH deep each, each row a bit shorter): a modest amphitheatre facing the hall, clear of the corner.
 STAIR_N_FAN = 5
-TIER_DEPTH = 0.45                     # seat depth per tier (hall side)
-TIER_RUN = 2.6                        # how far the lowest tier runs along the flight beyond the fan
-TIER_STEP_BACK = 0.45                 # each tier ends this much earlier
+TIER_ROWS = 3
+TIER_DEPTH = 0.40                     # seat depth per row
+TIER_RUN = 2.0                        # how far the lowest row runs along the flight beyond the fan
+TIER_STEP_BACK = 0.45                 # each row ends this much earlier
 
 
-def stair_tier_outline(i, grow=0.0, r=0.35, seg=6):
-    """Outline (n, t) of seating tier i in stair-face coordinates, hall-side corners rounded.
-    Shallow at the foot of the stair (keeps the way from the entrance free), deep along the flight."""
+def _tier_dims(i, grow=0.0):
     n1 = R_IN - 0.02                                   # outer wall side of the flight
     n0 = R_IN - STAIR_FLIGHT_W_T                       # hall-side edge of the flight
     t_fan = STAIR_T0 + STAIR_N_FAN * STAIR_GOING_T
-    k = STAIR_N_FAN + 1 - i
-    d = TIER_DEPTH * k                                 # along the flight
-    d_s = 0.24 * k                                     # at the foot, towards the entrance
-    n_in, n_s = n0 - d - grow, n0 - d_s - grow
+    d_s = 0.2 * (STAIR_N_FAN + 1 - i)                  # flare at the foot
+    d = TIER_DEPTH * (TIER_ROWS + 1 - i) if i <= TIER_ROWS else 0.0
     t_start = STAIR_T0 + (i - 1) * STAIR_GOING_T - 0.2 * d_s - grow
-    t_end = t_fan + TIER_RUN - TIER_STEP_BACK * (i - 1) + grow
-    n_top = n0 + grow                                  # beyond the fan the tier stops at the flight's edge
-    t_a = max(t_fan - 0.5, t_start + 0.25)             # the tier widens between t_a and t_b
-    t_b = max(t_a + 0.3, min(t_fan + 1.0, t_end - 0.3))
+    t_end = t_fan + TIER_RUN - TIER_STEP_BACK * (i - 1) + grow if d else t_fan + grow
+    return n1 + grow, n0, t_fan, n0 - d_s - grow, n0 - d - grow, t_start, t_end
+
+
+def stair_tier_outline(i, grow=0.0, r=0.3, seg=6):
+    """Outline (n, t) of tier i in stair-face coordinates, hall-side corners rounded."""
+    n1, n0, t_fan, n_s, n_in, t_start, t_end = _tier_dims(i, grow)
+    n_top = n0 + grow
 
     def arc(cn, ct, a0, a1, rr):
         return [(cn + rr * math.cos(math.radians(a0 + (a1 - a0) * q / seg)),
                  ct + rr * math.sin(math.radians(a0 + (a1 - a0) * q / seg))) for q in range(seg + 1)]
-    r1 = max(0.02, min(r, d_s / 2 - 0.01, (t_a - t_start) / 2 - 0.01))
+    if n_in >= n_top - 1e-6:                           # a plain step: flare at the foot only
+        rr = max(0.02, min(r, (n1 - n_s) / 3, (t_end - t_start) / 2 - 0.01))
+        return ([(n1, t_start)] + arc(n_s + rr, t_start + rr, 270, 180, rr) +
+                arc(n_s + rr, t_end - rr, 180, 90, rr) + [(n1, t_end)])
+    t_a = max(t_fan - 0.5, t_start + 0.25)             # the tier widens between t_a and t_b
+    t_b = max(t_a + 0.3, min(t_fan + 0.8, t_end - 0.3))
+    r1 = max(0.02, min(r, (n0 - n_s) / 2 - 0.01, (t_a - t_start) / 2 - 0.01))
     r2 = max(0.02, min(r, (n_top - n_in) / 2 - 0.01, (t_end - t_b) / 2 - 0.01))
-    pts = [(n1 + grow, t_start)]
+    pts = [(n1, t_start)]
     pts += arc(n_s + r1, t_start + r1, 270, 180, r1)
     pts += [(n_s, t_a)]
     pts += [(n_s + (n_in - n_s) * (3 * (q / 8) ** 2 - 2 * (q / 8) ** 3), t_a + (t_b - t_a) * q / 8)
             for q in range(1, 9)]                      # smooth widening
     pts += arc(n_in + r2, t_end - r2, 180, 90, r2)
     pts += arc(n_top - r2, t_end - r2, 90, 0, r2)
-    pts += [(n_top, t_fan + grow), (n1 + grow, t_fan + grow)]
+    pts += [(n_top, t_fan + grow), (n1, t_fan + grow)]
     return pts
+
+
+def _inside(poly, n, t):
+    c = False
+    for k in range(len(poly)):
+        (n_a, t_a), (n_b, t_b) = poly[k], poly[k - 1]
+        if (t_a > t) != (t_b > t) and n < n_a + (t - t_a) * (n_b - n_a) / (t_b - t_a):
+            c = not c
+    return c
+
+
+def stair_cushion_spots(width=0.36, step=0.5):
+    """(tier, n, t) spots for seat cushions: on the exposed seat of that tier (inside it, not under the next
+    tier up), wide enough, off the stair's walking line and clear of the north wall."""
+    n0 = R_IN - STAIR_FLIGHT_W_T
+    a = math.radians(slot_center(STAIR_SLOT - 1))
+    b = math.radians(slot_center(STAIR_SLOT))
+    out = []
+    for i in range(1, STAIR_N_FAN + 1):
+        me, up = stair_tier_outline(i), stair_tier_outline(i + 1) if i < STAIR_N_FAN else []
+        ts = [t for _, t in me]
+        t = min(ts) + 0.3
+        while t < max(ts) - 0.3:
+            run, best = [], []
+            n = n0 - 2.0
+            while n < n0 - 0.05:
+                ok = _inside(me, n, t) and not (up and _inside(up, n, t))
+                x, y = n * math.cos(b) - t * math.sin(b), n * math.sin(b) + t * math.cos(b)
+                ok = ok and x * math.cos(a) + y * math.sin(a) < R_IN - 0.35
+                if ok:
+                    run.append(n)
+                elif run:
+                    best = max(best, run, key=len)
+                    run = []
+                n += 0.02
+            best = max(best, run, key=len)
+            if best and best[-1] - best[0] >= width:
+                out.append((i, (best[0] + best[-1]) / 2, t))
+            t += step
+    return out

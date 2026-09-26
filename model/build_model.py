@@ -2013,22 +2013,12 @@ for j in range(7):
     t = t_b0 + (T_TOP - t_b0) * (j + 0.5) / 7
     light('stair_led_%d' % j, 'POINT', FP(KS, N1 - 0.12, t, flight_z(t) + 0.8), 3.0, soft=0.05)
 # cushions on the fanned seating steps, a paper lantern above
-for i in range(1, N_FAN + 1):                       # cushions along each seating tier, facing the hall
-    zt = i * R_
-    k_ = N_FAN + 1 - i
-    d_, d_s = P.TIER_DEPTH * k_, 0.24 * k_
-    t_end = T_FAN + P.TIER_RUN - P.TIER_STEP_BACK * (i - 1)
-    tt, s_ = T0 + (i - 1) * G_ + 0.1, 0
-    while tt < t_end - 0.35:
-        # on the tier's own seat: shallow part at the foot, deep part along the flight, none on the curve
-        nn = N0 - d_s / 2 if tt < T_FAN - 0.5 else (N0 - d_ + 0.24 if tt > T_FAN + 1.0 else None)
-        if nn is not None and d_s / 2 < 0.25 and tt < T_FAN - 0.5:
-            nn = None                                  # too narrow near the foot for a cushion
-        if nn is not None and (i + s_) % 3 != 2:      # a few gaps: room to sit on the clay, too
-            cushion('stair_cushion_%d_%d' % (i, s_), None, tuple(FP(KS, nn, tt, zt + 0.07)), (0.5, 0.5, 0.14),
-                    M_WOOL[['terracotta', 'ochre', 'olive', 'rose', 'sand', 'wine'][(i + s_) % 6]], rz=RZS + 7 * s_)
-        tt += 0.62
-        s_ += 1
+# cushions on the exposed seats of the tiers (params.stair_cushion_spots), a few spots left free
+for s_, (i, nn, tt) in enumerate(P.stair_cushion_spots()):
+    if s_ % 4 == 3:
+        continue
+    cushion('stair_cushion_%d_%d' % (i, s_), None, tuple(FP(KS, nn, tt, i * R_ + 0.065)), (0.45, 0.38, 0.13),
+            M_WOOL[['terracotta', 'ochre', 'olive', 'rose', 'sand', 'wine'][(i + s_) % 6]], rz=RZS + 6 * (s_ % 3 - 1))
 for j in range(4):
     cushion('stair_bench_cushion_%d' % j, None, tuple(FP(KS, N0 + 0.75, T_FAN + 0.6 + j * 0.85, 0.53)),
             (0.55, 0.5, 0.13), M_WOOL[['sand', 'rose', 'ochre', 'olive'][j]], rz=RZS)
