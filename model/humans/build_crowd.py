@@ -649,10 +649,44 @@ def body_of(rig):
     return bpy.data.objects[rig['body']]
 
 
+# stock library poses the scene was written with -> the kind of recorded resting moment that replaces them
+REST_OF = {'callharvey3d_lotus': 'sit_floor', 'callharvey3d_sittingnatural': 'sit_floor',
+           'callharvey3d_sittinglegscrossed': 'sit_floor', 'callharvey3d_sittingfloor2': 'sit_floor',
+           'callharvey3d_sittingfloorstretch2': 'sit_floor', 'wolgade_sit_on_ground_01': 'sit_floor',
+           'callharvey3d_sittingdefault': 'sit_high', 'anrico_sitting02': 'sit_high', 'anrico_sitting04': 'sit_high',
+           'drednicolson_prostrate': 'all_fours', 'elvs_pushups_1': 'all_fours',
+           'elvs_yoga_star_pose_1': 'lie_back', 'sohh_posing4': 'lie_back', 'elvs_yoga_cobra_pose_1': 'lie_front'}
+_REST_NEXT = {}
+
+
+def rest_pose(rig, kind, side=None, moment=None):
+    """Pose `rig` as a recorded person resting (humans/rest_poses.json). Moments are dealt out in a shuffled
+    order per kind, so the same recorded moment only comes back once all others of that kind are used."""
+    import mocap as MC_
+    if moment is None:
+        ms = MC_.rest_moments(kind)
+        if kind not in _REST_NEXT:
+            order = list(range(len(ms)))
+            random.Random(len(ms) * 7 + len(kind)).shuffle(order)
+            _REST_NEXT[kind] = [order, 0]
+        order, i = _REST_NEXT[kind]
+        moment = ms[order[i % len(order)]]
+        _REST_NEXT[kind][1] = i + 1
+    clip_, f = moment
+    MC_.apply_joints(rig, MC_.rest_joints(clip_, f, kind, side), keep_yaw=True)
+    rig['pose'] = '%s@%d' % (clip_, f)
+    rig['rest'] = kind
+    rig['rest_side'] = side or ''
+    bpy.context.view_layer.update()
+
+
 def pose(rig, name):
     rig['pose'] = name
+    if name in REST_OF:
+        rest_pose(rig, REST_OF[name])
+        return
     if name in ('standing01', 'standing02', 'standing03', 'standing04', 'standing05', 'standing06'):
-        # instead of a stiff photo pose: an ordinary moment of recorded movement (asymmetric, relaxed limbs)
+        # an ordinary moment of recorded movement (asymmetric, relaxed limbs)
         import mocap as MC_
         rg = random.Random(hash(rig.name) & 0xffff)
         clip_ = rg.choice(['60_04', '61_04', '60_05', '61_05', '49_10', '49_16', '05_18', '55_02'])
@@ -662,8 +696,7 @@ def pose(rig, name):
         MC_.apply(rig, clip_, f)
         bpy.context.view_layer.update()
         return
-    H.apply_pose(rig, name)
-    bpy.context.view_layer.update()
+    raise ValueError('no recorded pose for %r' % name)      # every pose in the crowd comes from recorded data
 
 
 # orientations ------------------------------------------------------------------------------------
@@ -674,11 +707,16 @@ def stand(rig, x, y, face):
     rig.location = (x, y, rig.location.z)
 
 
+LIE_KIND = {'back': 'lie_back', 'front': 'lie_front', 'side_r': 'lie_side', 'side_l': 'lie_side'}
+
+
 def lie(rig, x, y, head, how='back', tilt=0.0):
-    """Lying: how = back | front | side_r (faces head-90) | side_l (faces head+90); head = angle of head."""
-    rx, ry, rzz = {'back': (-90, 0, head - 90), 'front': (90, 0, head + 90),
-                   'side_r': (0, 90, head), 'side_l': (0, -90, head - 180)}[how]
-    rig.rotation_euler = Euler((rad(rx + tilt), rad(ry), rad(rzz)), 'XYZ')
+    """Lying: how = back | front | side_r (faces head-90) | side_l (faces head+90); head = angle of head.
+    The recorded moment already lies on the floor, so only the heading is set (re-posed if the kind differs)."""
+    side = how if how.startswith('side') else None
+    if rig.get('rest') != LIE_KIND[how] or (side and rig.get('rest_side') != side):
+        rest_pose(rig, LIE_KIND[how], side)
+    rig.rotation_euler = Euler((0, 0, rad(head + 90)), 'XYZ')
     rig.location = (x, y, rig.location.z)
 
 
@@ -789,16 +827,8 @@ def standing(pname, x, y, face, kind='flow', z0=0.0, **kw):
 
 
 def pose_lying(r, pname, how):
-    """A lying person: the recorded walking / swaying moments ('standing0x') would lie stiff as a plank,
-    so they get a resting posture instead (knee up, hand on the belly, curled on the side...)."""
-    if pname.startswith('standing'):
-        import mocap as MC_
-        kind_ = {'back': 'back', 'front': 'front'}.get(how, 'side')
-        MC_.apply_joints(r, MC_.resting_joints(kind_, random.Random(hash(r.name) & 0xffff)))
-        r['pose'] = 'resting_' + kind_
-        bpy.context.view_layer.update()
-    else:
-        pose(r, pname)
+    """A lying person: a recorded moment of someone lying that way (on the back / side / front)."""
+    rest_pose(r, LIE_KIND[how], how if how.startswith('side') else None)
 
 
 def lying(pname, x, y, head, how, z0, on=(), kind='flow', tilt=0.0, **kw):
@@ -1273,15 +1303,14 @@ def photo_pair(photo, x, y, face, z0=0.0):
 
 
 def floor_body(x, y, head, z0=0.0, on=(), kind='flow'):
+    """Someone on the floor: lying on the back / side / front, sitting or on all fours (recorded moments)."""
     rg_ = random.Random(int(x * 100 + y * 37))
-    if rg_.random() < 0.75:                  # most people on the floor: real poses from photos
-        return photo_person(rg_.choice(PH_LOW + PH_MID), x, y, head, z0, kind, on)
-    """Someone on the floor: rolling, curled, spread out, rising (static library poses, laid down)."""
-    choice = random.Random(int(x * 100 + y * 37)).choice(
-        [('callharvey3d_sittingnatural', 'side_r'), ('callharvey3d_sittingnatural', 'side_l'),
-         ('elvs_yoga_star_pose_1', 'back'), ('standing02', 'back'), ('elvs_yoga_cobra_pose_1', 'front'),
-         ('callharvey3d_sittingfloor2', 'side_r'), ('sohh_posing4', 'back')])
-    return lying(choice[0], x, y, head, choice[1], z0, on=on, kind=kind)
+    k = rg_.choices(['back', 'side_r', 'side_l', 'front', 'sit', 'fours'], [4, 3, 3, 1, 4, 1])[0]
+    if k == 'sit':
+        return standing('callharvey3d_sittingnatural', x, y, head, kind=kind, z0=z0)
+    if k == 'fours':
+        return standing('drednicolson_prostrate', x, y, head, kind=kind, z0=z0)
+    return lying('rest', x, y, head, k, z0, on=on, kind=kind)
 
 
 def roll_duet(x, y, head, z0=0.0, style=0):

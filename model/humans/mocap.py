@@ -360,69 +360,50 @@ def spin_frames(name, k=3, window=40, gap=200):
 
 
 # ---------------------------------------------------------------------------
-# resting postures for lying people (joint positions in the standing frame: z up, face -Y, x = own left);
-# lie() then turns the figure onto its back / side / front. Relaxed, asymmetric, a little random.
+# resting moments: recorded people lying, sitting on the floor / a chair, on all fours
+# (found by scripts/tools/find_rest_moments.py -> rest_poses.json; nothing here is posed by hand)
 # ---------------------------------------------------------------------------
-def _leg(j, s, hip, flex, knee, abd, rng):
-    """flex: hip flexion (deg, 0 = straight), knee: knee bend (deg), abd: sideways spread (deg)"""
-    sx = 1 if s == 'l' else -1
-    a, b = math.radians(flex), math.radians(knee)
-    th = Vector((sx * math.sin(math.radians(abd)), -math.sin(a), -math.cos(a))).normalized()
-    sh = Vector((sx * math.sin(math.radians(abd)) * 0.6, -math.sin(a - b), -math.cos(a - b))).normalized()
-    ft = Vector((sx * 0.15, -math.sin(a - b + math.radians(rng.uniform(70, 95))),
-                 -math.cos(a - b + math.radians(rng.uniform(70, 95))))).normalized()
-    j[s + 'hipjoint'] = hip
-    j[s + 'femur'] = hip + th * 0.44
-    j[s + 'tibia'] = j[s + 'femur'] + sh * 0.42
-    j[s + 'foot'] = j[s + 'tibia'] + ft * 0.15
+REST_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'rest_poses.json')
+_REST = {}
 
 
-def _arm(j, s, up_dir, fore_dir):
-    sx = 1 if s == 'l' else -1
-    cl = j['thorax'] + Vector((sx * 0.17, 0.0, 0.03))
-    j[s + 'clavicle'] = cl
-    j[s + 'humerus'] = cl + Vector(up_dir).normalized() * 0.29
-    j[s + 'radius'] = j[s + 'humerus'] + Vector(fore_dir).normalized() * 0.26
-    j[s + 'hand'] = j[s + 'radius'] + Vector(fore_dir).normalized() * 0.08
+def rest_moments(kind):
+    """kind: lie_back | lie_side | lie_front | sit_floor | sit_high | all_fours -> [(clip, frame), ...]"""
+    if not _REST:
+        import json
+        for m in json.load(open(REST_FILE)):
+            _REST.setdefault(m['kind'], []).append((m['clip'], m['f']))
+    return _REST.get(kind, [])
 
 
-def resting_joints(how, rng):
-    """how: back | side | front. Returns a joint dict for apply_joints()."""
-    curl = {'back': rng.uniform(0.0, 0.03), 'side': rng.uniform(0.06, 0.14), 'front': 0.0}[how]
-    turn = rng.uniform(-0.06, 0.06)
-    j = {'root': Vector((0, 0, 1.0)),
-         'lowerback': Vector((0, -curl * 0.3, 1.13)),
-         'upperback': Vector((0, -curl * 0.8 + 0.02, 1.31)),
-         'thorax': Vector((0, -curl * 1.3 + 0.02, 1.43)),
-         'lowerneck': Vector((0, -curl * 1.6 + 0.01, 1.51)),
-         'upperneck': Vector((turn * 0.5, -curl * 2.0 - 0.01, 1.59)),
-         'head': Vector((turn, -curl * 2.4 - 0.04, 1.70))}
-    hl, hr = Vector((0.09, 0, 0.95)), Vector((-0.09, 0, 0.95))
-    if how == 'back':
-        up = rng.choice('lr')                                      # one knee up, the other leg long
-        for s, hp in (('l', hl), ('r', hr)):
-            if s == up:
-                _leg(j, s, hp, rng.uniform(45, 70), rng.uniform(85, 115), rng.uniform(3, 12), rng)
-            else:
-                _leg(j, s, hp, rng.uniform(3, 12), rng.uniform(4, 14), rng.uniform(8, 18), rng)
-        belly = rng.choice('lr')                                   # a hand on the belly, the other arm loose
-        for s in 'lr':
-            sx = 1 if s == 'l' else -1
-            if s == belly:
-                _arm(j, s, (sx * 0.35, -0.35, -0.87), (-sx * 0.85, -0.45, 0.2))
-            elif rng.random() < 0.5:
-                _arm(j, s, (sx * 0.75, 0.15, -0.65), (sx * 0.4, 0.1, 0.9))      # out, forearm up by the head
-            else:
-                _arm(j, s, (sx * 0.45, 0.1, -0.88), (sx * 0.25, -0.15, -0.95))  # alongside, a little out
-    elif how == 'side':
-        top_fwd = rng.uniform(10, 25)                              # the upper leg a little further forward
-        _leg(j, 'l', hl, rng.uniform(35, 60) + top_fwd, rng.uniform(60, 95), 2, rng)
-        _leg(j, 'r', hr, rng.uniform(25, 50), rng.uniform(55, 90), 2, rng)
-        _arm(j, 'l', (0.15, -0.8, -0.55), (-0.2, -0.55, 0.8))              # both arms in front of the chest
-        _arm(j, 'r', (-0.1, -0.9, -0.2), (0.25, -0.35, 0.9))
-    else:                                                          # front: arms folded under the head
-        _leg(j, 'l', hl, rng.uniform(0, 8), rng.uniform(0, 10), rng.uniform(6, 14), rng)
-        _leg(j, 'r', hr, rng.uniform(20, 40), rng.uniform(40, 70), rng.uniform(25, 40), rng)
-        _arm(j, 'l', (0.8, -0.25, 0.55), (-0.9, -0.35, 0.1))
-        _arm(j, 'r', (-0.8, -0.25, 0.55), (0.9, -0.35, 0.05))
+def mirror(j):
+    """The same moment mirrored left <-> right (in a frame where x is sideways)."""
+    out = {}
+    for k, v in j.items():
+        k2 = ('r' + k[1:]) if k[0] == 'l' and k[1:] in _SIDED else ('l' + k[1:]) if k[0] == 'r' and k[1:] in _SIDED \
+            else k
+        out[k2] = Vector((-v.x, v.y, v.z))
+    return out
+
+
+_SIDED = {'clavicle', 'humerus', 'radius', 'wrist', 'hand', 'fingers', 'thumb', 'hipjoint', 'femur', 'tibia', 'foot',
+          'toes'}
+
+
+def rest_joints(clip, f, kind, side=None):
+    """Joints of a recorded resting moment, turned for apply_joints(keep_yaw=True):
+    sitting: facing -Y (like a standing figure); lying / all fours: the head towards -Y, so that stand(face=a)
+    points the head at angle a. side = side_r (front towards the figure's -X) or side_l (+X): mirrored if needed."""
+    j, _ = joints(clip, f)
+    if kind.startswith('sit'):
+        yaw = yaw_of(j)
+        R = Matrix.Rotation(-(yaw - math.pi / 2), 3, 'Z')
+    else:
+        h = j['head'] - j['root']
+        R = Matrix.Rotation(-math.pi / 2 - math.atan2(h.y, h.x), 3, 'Z')
+    j = {k: R @ v for k, v in j.items()}
+    if side in ('side_r', 'side_l'):
+        front = -pelvis_frame(j).col[1]
+        if (front.x > 0) != (side == 'side_l'):
+            j = mirror(j)
     return j
