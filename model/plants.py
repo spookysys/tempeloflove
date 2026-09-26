@@ -380,21 +380,24 @@ def build_forest(seed=11):
     print('forest:', n, 'scanned pines')
 
 
-def build_ground_plants(seed=13):
-    """Scanned shrubs and grass tufts around the building (meadow edge, beds by the walls)."""
-    rng = random.Random(seed)
-    col = coll('ground_plants')
-    lib = coll('forest_library')
-    protos = {}
-    for a in ('shrub_01', 'shrub_02', 'shrub_03', 'shrub_04', 'fern_02', 'grass_medium_01', 'grass_medium_02'):
+PROTO_CACHE = {}
+
+
+def load_protos(assets):
+    """Poly Haven glTF packs -> {asset: [collection per plant variant]}, each centred at its base, metres."""
+    out = {}
+    for a in assets:
+        if a in PROTO_CACHE:
+            out[a] = PROTO_CACHE[a]
+            continue
         path = os.path.join(PLANT_DIR, 'ph', a, a + '_1k.gltf')
         if not os.path.exists(path):
             continue
         before = set(bpy.data.objects)
         bpy.ops.import_scene.gltf(filepath=path)
         new = [o for o in bpy.data.objects if o not in before]
-        # a Poly Haven pack holds several variants side by side: one proto per plant, centred at its base
-        protos[a] = []
+        # a pack may hold several variants side by side: one proto per plant, centred at its base
+        cols = []
         for o in new:
             for uc in list(o.users_collection):
                 uc.objects.unlink(o)
@@ -411,9 +414,168 @@ def build_ground_plants(seed=13):
             o.matrix_world = Matrix.Identity(4)
             c = bpy.data.collections.new('proto_' + o.name)
             c.objects.link(o)
-            protos[a].append(c)
-        if not protos[a]:
-            del protos[a]
+            c['height'] = max(v.co.z for v in o.data.vertices)
+            c['radius'] = max(math.hypot(v.co.x, v.co.y) for v in o.data.vertices)
+            cols.append(c)
+        if cols:
+            out[a] = PROTO_CACHE[a] = cols
+    return out
+
+
+def place_proto(name, proto, loc, height=None, radius=None, rot=0.0, coll_name='plants'):
+    """Instance a proto at loc (its base), scaled to a target height and/or to fit within a radius."""
+    s = 1.0
+    if height:
+        s = height / proto['height']
+    if radius and proto['radius'] * s > radius:
+        s = radius / proto['radius']
+    inst = bpy.data.objects.new(name, None)
+    inst.instance_type = 'COLLECTION'
+    inst.instance_collection = proto
+    inst.location = loc
+    inst.rotation_euler = (0, 0, rot)
+    inst.scale = (s, s, s)
+    coll(coll_name).objects.link(inst)
+    return inst
+
+
+def _remove(names):
+    for n in names:
+        o = bpy.data.objects.get(n)
+        if o:
+            bpy.data.objects.remove(o)
+
+
+def _base_of(o):
+    bb = [o.matrix_world @ Vector(v) for v in o.bound_box]
+    return Vector((sum(v.x for v in bb) / 8, sum(v.y for v in bb) / 8, min(v.z for v in bb)))
+
+
+def build_indoor_plants(seed=17):
+    """The procedural stand-ins (disc-leaf pot plants, blob trees) replaced by scanned plants (Poly Haven, CC0):
+    rooms: potted plants; walkway / bathroom: calathea, anthurium; hall + stair: money trees (pachira)."""
+    rng = random.Random(seed)
+    pr = load_protos(('potted_plant_01', 'potted_plant_02', 'potted_plant_04', 'calathea_orbifolia_01',
+                      'anthurium_botany_01', 'pachira_aquatica_01'))
+    n = 0
+    for o in [o for o in bpy.data.objects if o.name.endswith('_leaves') and
+              o.name.startswith(('room_plant_', 'walk_plant_', 'bath_plant_'))]:
+        stem = o.name[:-7]
+        pot = bpy.data.objects.get(stem + '_pot')
+        base = _base_of(pot) if pot else _base_of(o)
+        if stem.startswith('room_plant_'):
+            kind, h, r = rng.choice(['potted_plant_01', 'potted_plant_02', 'potted_plant_04']), 1.25, 0.55
+        elif stem.startswith('walk_plant_'):
+            kind, h, r = rng.choice(['calathea_orbifolia_01', 'anthurium_botany_01']), 0.8, 0.4
+        else:
+            kind, h, r = 'calathea_orbifolia_01', 0.9, 0.5
+        if kind not in pr:
+            continue
+        _remove([o.name, stem + '_pot'])
+        place_proto('ip_' + stem, rng.choice(pr[kind]), base, h, r, rng.uniform(0, 6.283), 'furnishing')
+        n += 1
+    for o in [o for o in bpy.data.objects if o.name.endswith('_leaves') and
+              o.name.startswith(('hall_tree_', 'stair_tree'))]:
+        stem = o.name[:-7]
+        pot = bpy.data.objects.get(stem + '_pot')
+        base = _base_of(pot) if pot else _base_of(o)
+        h = max(v[2] for v in [o.matrix_world @ Vector(c) for c in o.bound_box]) - base.z
+        if 'pachira_aquatica_01' not in pr:
+            continue
+        _remove([o.name, stem + '_pot', stem + '_wood'])
+        place_proto('ip_' + stem, rng.choice(pr['pachira_aquatica_01']), base, min(2.6, max(2.0, h)), 0.75,
+                    rng.uniform(0, 6.283))
+        n += 1
+    print('indoor plants:', n, 'scanned')
+
+
+def build_roof_planters(seed=19):
+    """Roof terrace planters: scanned ornamental grasses and low shrubs instead of blob bushes."""
+    rng = random.Random(seed)
+    pr = load_protos(('grass_medium_01', 'grass_medium_02', 'shrub_03', 'fern_02'))
+    _remove(['terrace_grasses'])
+    n = 0
+    for k in (0, 2, 6, 7):
+        for t0, t1 in ((-3.6, -1.2), (1.2, 3.6)):
+            m = 6
+            for i in range(m):
+                t = t0 + 0.2 + (t1 - t0 - 0.4) * (i + rng.uniform(-0.2, 0.2)) / (m - 1)
+                nn = P.R_OUT - 0.40 + rng.uniform(-0.1, 0.1)
+                kind = rng.choice(['grass_medium_01', 'grass_medium_02', 'grass_medium_01', 'shrub_03'])
+                if kind not in pr:
+                    continue
+                h = rng.uniform(0.55, 0.8) if 'grass' in kind else rng.uniform(0.5, 0.65)
+                place_proto('rp_%d_%d_%d' % (k, int(t0), i), rng.choice(pr[kind]), FP(k, nn, t, P.TERRACE_Z + 0.51),
+                            h, 0.42, rng.uniform(0, 6.283), 'roof')
+                n += 1
+    print('roof planters:', n, 'scanned plants')
+
+
+def build_hanging_greens(seed=23):
+    """Trailing plants spilling from the dome-ring troughs: stems with photographic leaf cards
+    (replaces the sphere-leaf strands; same object names so the fly-through trim still works)."""
+    rng = random.Random(seed)
+    mat = leaf_material('LeafSet024', 'trailing_leaf', 0.8)
+    stem_m = simple_material('trailing_stem', '#4E5A2E', 0.6)
+    olds = [o for o in bpy.data.objects if o.name.startswith('dome_ring_greens_')]
+    atlas = 'LeafSet024'
+    for o in olds:
+        name = o.name
+        bb = [o.matrix_world @ Vector(c) for c in o.bound_box]
+        top = Vector((sum(v.x for v in bb) / 8, sum(v.y for v in bb) / 8, max(v.z for v in bb)))
+        length = top.z - min(v.z for v in bb)
+        cols = list(o.users_collection)
+        bpy.data.objects.remove(o)
+        bm = bmesh.new()
+        uvl = bm.loops.layers.uv.new('UVMap')
+        stems = bmesh.new()
+        for strand in range(6):
+            p = top + Vector((rng.uniform(-0.14, 0.14), rng.uniform(-0.14, 0.14), 0))
+            L = length * rng.uniform(0.45, 1.0)
+            z = 0.0
+            prev = p.copy()
+            while z < L:
+                z += rng.uniform(0.05, 0.08)
+                q = p + Vector((0.05 * math.sin(z * 4 + strand), 0.05 * math.cos(z * 3 + strand), -z))
+                d = q - prev
+                res = bmesh.ops.create_cone(stems, cap_ends=False, segments=4, radius1=0.003, radius2=0.003,
+                                            depth=d.length)
+                rot = Vector((0, 0, 1)).rotation_difference(d.normalized()).to_matrix().to_4x4()
+                bmesh.ops.transform(stems, verts=res['verts'], matrix=Matrix.Translation((q + prev) / 2) @ rot)
+                prev = q
+                for _ in range(2 if z < L * 0.8 else 1):
+                    sz = rng.uniform(0.045, 0.075) * (1.0 - 0.35 * z / L)
+                    x0, y0, x1, y1 = rng.choice(CROPS[atlas])
+                    M = (Matrix.Translation(q) @ Matrix.Rotation(rng.uniform(0, 6.283), 4, 'Z') @
+                         Matrix.Rotation(rad(rng.uniform(40, 80)), 4, 'X'))
+                    vs = [bm.verts.new(M @ Vector((cx * sz * 0.5, 0, cz * sz))) for cx, cz in
+                          ((-1, 0), (1, 0), (1, 1), (-1, 1))]
+                    f = bm.faces.new(vs)
+                    for loop, uv in zip(f.loops, ((x0, y0), (x1, y0), (x1, y1), (x0, y1))):
+                        loop[uvl].uv = uv
+        me = bpy.data.meshes.new(name)
+        bm.to_mesh(me)
+        bm.free()
+        me.materials.append(mat)
+        sm = bpy.data.meshes.new(name + '_stems')
+        stems.to_mesh(sm)
+        stems.free()
+        sm.materials.append(stem_m)
+        for nm, mesh in ((name, me), (name + '_stems', sm)):
+            ob = bpy.data.objects.new(nm, mesh)
+            for c in cols:
+                c.objects.link(ob)
+    print('hanging greens:', len(olds), 'rebuilt with leaf cards')
+
+
+
+def build_ground_plants(seed=13):
+    """Scanned shrubs and grass tufts around the building (meadow edge, beds by the walls)."""
+    rng = random.Random(seed)
+    col = coll('ground_plants')
+    lib = coll('forest_library')
+    protos = load_protos(('shrub_01', 'shrub_02', 'shrub_03', 'shrub_04', 'fern_02', 'grass_medium_01',
+                          'grass_medium_02'))
     placed = 0
     for i in range(420):
         a = rng.uniform(0, 360)
@@ -443,6 +605,9 @@ if __name__ == '__main__':
     build_roses()
     build_forest()
     build_ground_plants()
+    build_indoor_plants()
+    build_roof_planters()
+    build_hanging_greens()
     bpy.ops.file.pack_all() if os.environ.get('PACK') else None
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(HERE, 'tempel.blend'), compress=True)
     print('PLANTS saved')
