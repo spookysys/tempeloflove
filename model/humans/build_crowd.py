@@ -1399,7 +1399,7 @@ def next_group(pool):
 
 
 EMBRACES = ['lt_embrace_0', 'fest_embrace_0', 'fest_couple_0', 'zegg_dance_hall_2', 'zegg_dance_hall_3',
-            'zegg_dance_circle_0', 'zegg_dance_circle_1', 'lt_ci_pair_0', 'fest_dance_0']
+            'lt_ci_pair_0', 'fest_dance_0']
 TRIOS = ['zegg_arm_in_arm_0', 'zegg_dance_0', 'zegg_dance_hall_1']
 
 
@@ -1470,8 +1470,8 @@ def group(cx, cy, n_up, n_floor, spread, seed, clips=None, kinds=None, duet_clip
 
 
 # -- one large flowing group near the musicians (north-east): ecstatic, connected --
-big = group(*pol(6.3, 55).xy, 8, 1, 2.2, 11, duet_clip=('60_01', '61_01', 0),
-            kinds=['flow', 'crazy', 'naked', 'flow', 'lungi', 'undies', 'flow', 'crazy'])
+big = photo_group('zegg_dance_ring_0', *pol(6.0, 55).xy, 235,                 # dancing in a ring, as photographed
+                  kinds=['dance', 'flow', 'dance', 'crazy', 'dance', 'lungi', 'dance', 'undies', 'flow', 'dance'])
 # a couple dancing at the east side of it
 p = pol(6.8, 5)
 duet('60_03', '61_03', MC.contact_frames('60_03', '61_03', 3)[1], p.x, p.y, drift(5))

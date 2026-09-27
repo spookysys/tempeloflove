@@ -73,6 +73,51 @@ def run(model, size, path, fov=60, thresh=float(os.environ.get('DET_THRESH', '0.
     return out
 
 
+def run_tiled(model, size, path, grid=3, overlap=0.45, fov=60, thresh=float(os.environ.get('DET_THRESH', '0.3'))):
+    """Crowded photos (cuddle puddles): people are small, so run on overlapping tiles, each with the camera of
+    the WHOLE photo (focal length and principal point carried over into the tile), so that every detection lands
+    in one common camera frame; then drop duplicates found in several tiles (pelvis within 0.35 m)."""
+    im = Image.open(path).convert('RGB')
+    W, H = im.size
+    f_full = (max(W, H) / 2) / math.tan(math.radians(fov / 2))
+    cx, cy = W / 2, H / 2
+    tw, th = W / (grid - (grid - 1) * overlap), H / (grid - (grid - 1) * overlap)
+    found = []
+    for gy in range(grid):
+        for gx in range(grid):
+            x0, y0 = int(gx * tw * (1 - overlap)), int(gy * th * (1 - overlap))
+            tile = im.crop((x0, y0, int(x0 + tw), int(y0 + th)))
+            small = ImageOps.contain(tile, (size, size))
+            s = small.width / tile.width
+            px, py = (size - small.width) // 2, (size - small.height) // 2
+            pad = ImageOps.pad(small, size=(size, size))
+            x = torch.from_numpy(normalize_rgb(np.asarray(pad))).unsqueeze(0).to(DEV)
+            K = torch.eye(3)
+            K[0, 0] = K[1, 1] = f_full * s
+            K[0, 2], K[1, 2] = s * (cx - x0) + px, s * (cy - y0) + py
+            with torch.no_grad():
+                humans = model(x, is_training=False, nms_kernel_size=3, det_thresh=thresh, K=K.unsqueeze(0).to(DEV))
+            for h in humans:
+                j = h['j3d'].cpu().numpy()
+                # how central the person is in this tile (prefer detections away from tile borders)
+                u = f_full * j[0, 0] / j[0, 2] + cx
+                v = f_full * j[0, 1] / j[0, 2] + cy
+                cen = -max(abs(u - (x0 + tw / 2)) / tw, abs(v - (y0 + th / 2)) / th)
+                found.append((cen, {
+                    'score': float(h['scores']) if 'scores' in h else None,
+                    'transl': h['transl'].cpu().numpy().tolist(), 'rotvec': h['rotvec'].cpu().numpy().tolist(),
+                    'shape': h['shape'].cpu().numpy().tolist(), 'j3d': j.tolist(),
+                    'v3d': h['v3d'].cpu().numpy()[::8].tolist()}))
+            print('  tile', gx, gy, len(humans), 'people', flush=True)
+    found.sort(key=lambda t: -t[0])
+    keep = []
+    for _, p in found:
+        pj = np.array(p['j3d'])[0]
+        if all(np.linalg.norm(pj - np.array(q['j3d'])[0]) > 0.35 for q in keep):
+            keep.append(p)
+    return keep
+
+
 def contacts(people, d=0.04):
     """Pairs of people whose surfaces come within d metres (who touches whom)."""
     res = []
@@ -91,7 +136,9 @@ def main():
     os.makedirs(out_dir, exist_ok=True)
     model, size = load()
     for p in sys.argv[2:]:
-        people = run(model, size, os.path.abspath(p) if not os.path.isabs(p) else p)
+        grid = int(os.environ.get('TILES', '1'))
+        pa = os.path.abspath(p) if not os.path.isabs(p) else p
+        people = run_tiled(model, size, pa, grid) if grid > 1 else run(model, size, pa)
         c = contacts(people)
         name = os.path.splitext(os.path.basename(p))[0]
         json.dump({'photo': name, 'people': people, 'contacts': c}, open(os.path.join(out_dir, name + '.json'), 'w'))

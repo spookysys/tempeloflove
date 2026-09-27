@@ -142,7 +142,12 @@ def main():
         if dup > 1:
             print('skip (duplicate detections)', name)
             continue
-        for ci, members in enumerate(clusters(len(ppl), d['contacts'])):
+        comps = clusters(len(ppl), d['contacts'])
+        if mode == 'whole':                                    # the whole scene as one group (e.g. a dance ring),
+            pel_ = np.array([to_world(np.array(p['j3d'])[0]) for p in ppl])          # minus far-off bystanders
+            med = np.median(pel_, 0)
+            comps = [[i for i in range(len(ppl)) if np.linalg.norm((pel_[i] - med)[[0, 1]]) < 2.8]]
+        for ci, members in enumerate(comps):
             if len(members) > 16:
                 continue
             sub = [ppl[i] for i in members]
