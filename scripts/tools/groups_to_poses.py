@@ -2,7 +2,9 @@
 
 For every photo: drop duplicate detections, find the clusters of people who touch (contacts), level the floor
 (up = the torsos of people standing; else the plane through everyone's lowest points), put the cluster's
-centre at the origin with the floor at z = 0, and store each person's joints under the mocap names used by
+centre at the origin with the floor at z = 0,
+(single-photo depth is reliable for compact groups - couples, trios, a hug of four - but not across a wide
+ring or a top-down puddle: those get squashed flat; check a side view before using a group) and store each person's joints under the mocap names used by
 humans/mocap.py (metres; x right, y away from the camera, z up). Only these joint positions are stored.
 
     python3 scripts/tools/groups_to_poses.py GROUPS_DIR LABELS.json

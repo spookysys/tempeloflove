@@ -1107,9 +1107,9 @@ if _TEST == 'groups':                                  # every photo group side 
     import mocap as MC  # noqa: F811
     _src = open(os.path.abspath(__file__)).read()
     exec(compile(_src[_src.index('\nimport json as _json') + 1:_src.index('\ndef floor_body(')], 'groups', 'exec'))
-    _ids = sorted(PGROUPS)
+    _ids = [os.environ['GROUP_ONLY']] if os.environ.get('GROUP_ONLY') else sorted(PGROUPS)
     for i_, gid_ in enumerate(_ids):
-        photo_group(gid_, -6.0 + (i_ % 5) * 3.0, -5.0 + (i_ // 5) * 3.2, 90)
+        photo_group(gid_, *((0.0, 0.0) if len(_ids) == 1 else (-6.0 + (i_ % 5) * 3.0, -5.0 + (i_ // 5) * 3.2)), 90)
         print('placed', gid_, flush=True)
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(os.environ.get('TEMPEL_TMP', '/tmp/tempel'), 'groups_test.blend'),
                                 compress=True)
@@ -1500,7 +1500,7 @@ def hand_circle(cx, cy, n, radius, clips, lean_out=9, seed=0):
     return ring
 
 
-photo_group('zegg_group_hug_0', *pol(5.4, 95).xy, 275)                  # the big group hug at ZEGG (14 people)
+photo_group('lt_heart_group_0', *pol(6.2, 95).xy, 275)                  # four people, hands on hearts (Liebe Tanzen)
 
 # -- weight structure: one low on all fours, another propped on one hand with a foot on their back,
 #    beside them two leaning into each other and a third leaning into both --
@@ -1529,8 +1529,9 @@ reach_to(t3, 'R', bone_w(t2, 'wrist.L'))
 # pairs and trios exactly as photographed at contact jams
 from collections import Counter as _C  # noqa: E402
 _multi = [ph for ph, n in _C(p['photo'] for p in PHOTO).items() if n > 1]
-for ph, (rr, ang) in zip(_multi, ((7.0, 128), (5.6, 172), (8.0, 112), (4.9, 208), (7.9, 188))):
-    photo_pair(ph, *pol(rr, ang).xy, ang + 90)
+for gid_, (rr, ang) in zip(('lt_ci_pair_0', 'zegg_dance_1', 'fest_dance_0', 'zegg_dance_hall_0', 'zegg_dance_0'),
+                           ((7.0, 128), (5.6, 172), (8.0, 112), (4.9, 208), (7.9, 188))):
+    photo_group(gid_, *pol(rr, ang).xy, ang + 90)                          # as photographed, in 3D
 # rolling with each other on the floor
 roll_duet(*pol(8.0, 200).xy, 110, 0.0, style=0)
 roll_duet(*pol(5.2, 200).xy, 20, 0.0, style=1)
