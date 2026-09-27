@@ -30,7 +30,7 @@ Linux or macOS, Python 3.11, about 8 GB of downloads. All scripts are in `script
 |---|---|
 | `fetch_assets.sh` | Installs Blender 5.0.1 as a Python module (`bpy`) and downloads every asset into `.assets/`. Safe to re-run. |
 | `build_scene.sh` | Builds the building, plants, crowd, fixes, checks and drawings, producing `model/tempel.blend` and `model/tempel_event.blend`. |
-| `render_lq.sh` | Renders the preview films (480×270) `renders/flythrough_empty.mp4` and `flythrough_people.mp4`, plus quick stills. |
+| `render_lq.sh` | Renders the preview films (480×270): the building without people along the extended flyby (`renders/flythrough_ext_empty.mp4`, with a small room, the bathing room and the annex) and the event with people along the basic flyby (`renders/flythrough_people.mp4`), plus quick stills. |
 | `render_hq.sh` | Renders the 1920×1080 films (`*_hq.mp4`) and full stills. |
 | `run_all.sh [lq\|hq]` | Runs all of the above in order. |
 

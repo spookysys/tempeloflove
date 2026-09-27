@@ -9,8 +9,9 @@
 #       stills: renders/*.jpg at 1920 px, 256 samples
 # Frame renders resume: frames already on disk (and newer than the scene) are skipped, so an interrupted run can simply be restarted.
 # Override with FLY_RES=WxH FLY_SAMPLES=n FLY_STEP=n.
-# FLY_PATH=extended renders the extended flyby (adds a small room, the bathing room and the annex):
-#   renders/flythrough_ext_{empty,people}[_hq].mp4; default FLY_PATH=basic.
+# Paths: the empty film follows the EXTENDED flyby (adds a small room, the bathing room and the annex),
+#   the people film the BASIC one: renders/flythrough_ext_empty[_hq].mp4, renders/flythrough_people[_hq].mp4.
+#   Override with FLY_PATH_EMPTY / FLY_PATH_PEOPLE = basic | extended.
 set -e
 Q=${1:-lq}; shift || true
 WHAT=${*:-empty people stills}
@@ -24,13 +25,15 @@ case $Q in
   hq) export FLY_RES=${FLY_RES:-1920x1080} FLY_SAMPLES=${FLY_SAMPLES:-64} FLY_HQ=1; STEP=${FLY_STEP:-1}; SUF=_hq; STILLS= ;;
   *) echo "usage: $0 lq|hq [empty|people|stills ...]"; exit 2 ;;
 esac
-export FLY_PATH=${FLY_PATH:-basic}
-[ "$FLY_PATH" = extended ] && SUF=_ext$SUF
+Q_SUF=$SUF
 cd "$REPO/model"
 [ -f tempel_event.blend ] || { echo "no scene - run scripts/build_scene.sh"; exit 1; }
 
 film() {  # film empty|people
   k=$1
+  if [ "$k" = empty ]; then FLY_PATH=${FLY_PATH_EMPTY:-extended}; else FLY_PATH=${FLY_PATH_PEOPLE:-basic}; fi
+  export FLY_PATH
+  SUF=$Q_SUF; [ "$FLY_PATH" = extended ] && SUF=_ext$Q_SUF
   fr=fly_frames_$k$SUF
   # frames from an older scene build are thrown away (the rest resume)
   src=tempel_event.blend; [ "$k" = empty ] && src=tempel.blend       # empty: the building on its own
@@ -51,7 +54,7 @@ for w in $WHAT; do
     empty|people) film "$w" ;;
     stills)
       echo "== stills ($Q) $(date -u +%H:%M:%S)"
-      python3 render.py $STILLS > "$L/stills$SUF.log" 2>&1 || { echo "FAILED: see $L/stills$SUF.log"; exit 1; }
+      python3 render.py $STILLS > "$L/stills$Q_SUF.log" 2>&1 || { echo "FAILED: see $L/stills$Q_SUF.log"; exit 1; }
       echo "   -> renders/*.jpg" ;;
     *) echo "unknown: $w"; exit 2 ;;
   esac
