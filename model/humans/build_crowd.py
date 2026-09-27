@@ -875,16 +875,7 @@ def lying(pname, x, y, head, how, z0, on=(), kind='flow', tilt=0.0, **kw):
 def embrace_standing(x, y, face, z0=0.0, a_pose='standing02', b_pose='standing05', kinds=('flow', 'flow'),
                      kiss=False):
     """Close dance / embrace: A faces `face`, B faces A; heads pass each other (or meet: kiss)."""
-    c = Vector((x, y, 0))
-    f = Rz(face) @ Vector((1, 0, 0))
-    s = Rz(face) @ Vector((0, 1, 0))
-    d, l = 0.55, 0.1                       # no reference for embracing yet: dancing near each other
-    a = swayer(*(c - f * d + s * l).xy, face, kinds[0], z0)
-    b = swayer(*(c + f * d - s * l).xy, face + 180, kinds[1], z0)
-    reach_to(a, 'L', on_back(b, 'spine02', 0.1))
-    reach_to(a, 'R', on_back(b, 'spine04', -0.1, 0.12))
-    reach_to(b, 'L', on_back(a, 'spine01', 0.12, 0.1))
-    reach_to(b, 'R', on_back(a, 'spine01', -0.12, 0.1))
+    a, b = photo_group(next_group(EMBRACES), x, y, face, z0, kinds=list(kinds))[:2]   # a photographed couple
     return a, b
 
 
@@ -1045,6 +1036,8 @@ def separate_people(rigs, rounds=4, tol_person=0.05, tol_static=0.04):
             for rb, (pb, tb, lb, hb, cb) in items[i + 1:]:
                 if any(ha[k] < lb[k] or hb[k] < la[k] for k in range(3)):
                     continue
+                if ra.get('group') and ra.get('group') == rb.get('group'):
+                    continue                                    # touching as in their photo: leave them be
                 d = max(_depth_into(pa, tb)[0], _depth_into(pb, ta)[0])
                 if d > tol_person:
                     v = Vector((ca.x - cb.x, ca.y - cb.y, 0))
@@ -1063,6 +1056,14 @@ def separate_people(rigs, rounds=4, tol_person=0.05, tol_static=0.04):
                 nrm = sum((x[1] for x in deep), Vector()).normalized()
                 moves[r] += nrm * min(dist + 0.01, 0.4)
                 count += 1
+        grp = {}
+        for r in moves:                                     # people of one photo group move together, rigidly
+            if r.get('group'):
+                grp.setdefault(r['group'], []).append(r)
+        for g in grp.values():
+            m = sum((moves[r] for r in g), Vector()) / len(g)
+            for r in g:
+                moves[r] = m
         for r, m in moves.items():
             if m.length > 1e-4:
                 _shift(r, m)
@@ -1101,6 +1102,18 @@ if _TEST == 'cloth':                                   # three dancers in flowin
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(os.environ.get('TEMPEL_TMP', '/tmp/tempel'), 'cloth_test.blend'),
                                 compress=True)
     print('ZONE TEST saved cloth', [(r.name, [c.name for c in r.children][:6]) for r in DANCERS], flush=True)
+    sys.exit(0)
+if _TEST == 'groups':                                  # every photo group side by side on the hall floor
+    import mocap as MC  # noqa: F811
+    _src = open(os.path.abspath(__file__)).read()
+    exec(compile(_src[_src.index('\nimport json as _json') + 1:_src.index('\ndef floor_body(')], 'groups', 'exec'))
+    _ids = sorted(PGROUPS)
+    for i_, gid_ in enumerate(_ids):
+        photo_group(gid_, -6.0 + (i_ % 5) * 3.0, -5.0 + (i_ // 5) * 3.2, 90)
+        print('placed', gid_, flush=True)
+    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(os.environ.get('TEMPEL_TMP', '/tmp/tempel'), 'groups_test.blend'),
+                                compress=True)
+    print('ZONE TEST saved groups', flush=True)
     sys.exit(0)
 if _TEST in ('blind', 'field'):
     _src = open(os.path.abspath(__file__)).read()
@@ -1340,6 +1353,56 @@ def photo_pair(photo, x, y, face, z0=0.0):
     return out
 
 
+PGROUPS = {g['id']: g for g in _json.load(open(os.path.join(HUM, 'photo_groups.json')))}
+N_GROUP = [0]
+
+
+def photo_group(gid, x, y, face, z0=0.0, kinds=None):
+    """People who touch, exactly as they were together in one photo: every person's pose AND where they are
+    relative to each other come from the 3D reconstruction of that photo (scripts/tools/photo_groups_3d.py,
+    groups_to_poses.py -> humans/photo_groups.json). The group is only placed (x, y), turned (face) and set
+    down on the floor (z0) as a whole. Its members move together in the separation pass."""
+    g = PGROUPS[gid]
+    N_GROUP[0] += 1
+    tag = '%s@%d' % (gid, N_GROUP[0])
+    Rf = Rz(face)
+    rigs = []
+    for i, pj in enumerate(g['people']):
+        r = new_person((kinds or ['flow'])[i % len(kinds or ['flow'])])
+        jr = {k: Rf @ Vector(v) for k, v in pj.items()}
+        pel = jr['root']
+        MC.apply_joints(r, {k: v - pel for k, v in jr.items()}, keep_yaw=True)
+        r.rotation_euler = Euler((0, 0, 0), 'XYZ')
+        bpy.context.view_layer.update()
+        h = r.pose.bones['root'].head
+        r.location = Vector((x, y, z0)) + pel - Vector(h)
+        r['pose'] = 'photo3d:%s#%d' % (gid, i)
+        r['group'] = tag
+        rigs.append(r)
+    bpy.context.view_layer.update()
+    low = min(min(v.z for v in eval_verts(r)) for r in rigs)   # set the whole group down on the floor
+    for r in rigs:
+        r.location.z += z0 - low
+    bpy.context.view_layer.update()
+    return rigs
+
+
+_POOL = {}
+
+
+def next_group(pool):
+    """Deal photo groups of one kind in turn (no group twice until all were used)."""
+    ids = [gid for gid in pool if gid in PGROUPS]
+    k = tuple(ids)
+    _POOL[k] = _POOL.get(k, -1) + 1
+    return ids[_POOL[k] % len(ids)]
+
+
+EMBRACES = ['lt_embrace_0', 'fest_embrace_0', 'fest_couple_0', 'zegg_dance_hall_2', 'zegg_dance_hall_3',
+            'zegg_dance_circle_0', 'zegg_dance_circle_1', 'lt_ci_pair_0', 'fest_dance_0']
+TRIOS = ['zegg_arm_in_arm_0', 'zegg_dance_0', 'zegg_dance_hall_1']
+
+
 def floor_body(x, y, head, z0=0.0, on=(), kind='flow'):
     """Someone on the floor: lying on the back / side / front, sitting or on all fours (recorded moments)."""
     rg_ = random.Random(int(x * 100 + y * 37))
@@ -1437,7 +1500,7 @@ def hand_circle(cx, cy, n, radius, clips, lean_out=9, seed=0):
     return ring
 
 
-hand_circle(*pol(7.7, 95).xy, 5, 0.85, ['49_10', '05_12', '49_16', '05_18', '55_02', '49_22'], seed=5)
+photo_group('zegg_group_hug_0', *pol(5.4, 95).xy, 275)                  # the big group hug at ZEGG (14 people)
 
 # -- weight structure: one low on all fours, another propped on one hand with a foot on their back,
 #    beside them two leaning into each other and a third leaning into both --
@@ -1481,13 +1544,7 @@ p = pol(4.3, 272)
 duet('22_03', '23_03', 110, p.x, p.y, 272 + 90, z0=0.0)                 # sinking to the knees together
 # a standing trio making out, arms around each other
 c = pol(5.0, 330)
-tri = []
-for i, pn in enumerate(('standing02', 'standing05', 'standing01')):
-    q = c + Rz(120 * i + 30) @ Vector((0.6, 0, 0))
-    tri.append(swayer(q.x, q.y, 120 * i + 30 + 180))
-for i in range(3):
-    reach_to(tri[i], 'L', on_back(tri[(i + 1) % 3], 'spine03', 0.0, 0.12))
-    reach_to(tri[i], 'R', on_back(tri[(i + 2) % 3], 'spine01', 0.0, 0.1))
+tri = photo_group(next_group(TRIOS), c.x, c.y, 30)                     # a trio as photographed
 # getting up again from a cuddle: one already dancing, one rising, one still lying
 c = pol(2.6, 5)                                  # on the east end of the mattress field
 lying('standing02', c.x, c.y, 200, 'back', MF_Z)
@@ -1661,22 +1718,10 @@ walker(p.x, p.y, 115 + 90, z0=TZ)
 p = pol(6.7, 165)
 embrace_standing(p.x, p.y, 40, z0=TZ, kiss=True)
 c = pol(7.4, 188)
-tri2 = []
-for i in range(3):
-    q = c + Rz(120 * i + 10) @ Vector((0.6, 0, 0))
-    tri2.append(swayer(q.x, q.y, 120 * i + 10 + 180, z0=TZ))
-for i in range(3):
-    reach_to(tri2[i], 'L', on_back(tri2[(i + 1) % 3], 'spine03', 0.0, 0.12))
-    reach_to(tri2[i], 'R', on_back(tri2[(i + 2) % 3], 'spine01', 0.0, 0.1))
+tri2 = photo_group(next_group(TRIOS), c.x, c.y, 10, z0=TZ)
 # a group hug of four
 c = pol(7.0, 350)
-hug = []
-for i in range(4):
-    q = c + Rz(90 * i) @ Vector((0.7, 0, 0))
-    hug.append(swayer(q.x, q.y, 90 * i + 180, z0=TZ))
-for i in range(4):
-    reach_to(hug[i], 'L', on_back(hug[(i + 1) % 4], 'spine02', 0.0, 0.12))
-    reach_to(hug[i], 'R', on_back(hug[(i + 3) % 4], 'spine02', 0.0, 0.12))
+hug = photo_group('zegg_group_hug4_0', c.x, c.y, 0, z0=TZ)             # the group hug of four (ZEGG)
 # cuddling on the daybeds (south faces): couples, and three together on one
 DB = TZ + 0.51
 for j, (k, t) in enumerate(((3, P.DAYBED_T[0]), (4, P.DAYBED_T[1]), (5, P.DAYBED_T[0]))):

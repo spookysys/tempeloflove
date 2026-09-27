@@ -56,4 +56,28 @@ echo "cmu: $(ls "$A/cmu" | wc -l) files"
 echo "== light twig-card pine"
 [ -f "$A/ph/pine_tree_01_lod.blend" ] || python3 "$HERE/tools/twigtree.py" "$A"
 
+echo "== SMPL-X body model + Multi-HMR (3D reconstruction of groups in photos; non-commercial licences)"
+if [ -n "$TEMPEL_SMPLX_USER" ] && [ -n "$TEMPEL_SMPLX_PASS" ]; then
+  mkdir -p "$A/smplx"
+  if [ ! -f "$A/smplx/models/smplx/SMPLX_NEUTRAL.npz" ]; then
+    curl -sSL -m 1800 --data-urlencode "username=$TEMPEL_SMPLX_USER" --data-urlencode "password=$TEMPEL_SMPLX_PASS" \
+      -o "$A/downloads/models_smplx_v1_1.zip" "https://download.is.tue.mpg.de/download.php?domain=smplx&sfile=models_smplx_v1_1.zip"
+    python3 -c "import zipfile,sys; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])" \
+      "$A/downloads/models_smplx_v1_1.zip" "$A/smplx"
+  fi
+  python3 -m pip install -q torch --index-url https://download.pytorch.org/whl/cpu
+  python3 -m pip install -q smplx roma einops trimesh
+  M="$A/multi-hmr"
+  [ -d "$M" ] || git clone -q --depth 1 https://github.com/naver/multi-hmr.git "$M"
+  [ -d "$A/dinov2" ] || git clone -q --depth 1 https://github.com/facebookresearch/dinov2.git "$A/dinov2"
+  mkdir -p "$M/models/smplx" "$M/models/multiHMR"
+  ln -sf "$A/smplx/models/smplx/SMPLX_NEUTRAL.npz" "$M/models/smplx/SMPLX_NEUTRAL.npz"
+  [ -f "$M/models/smpl_mean_params.npz" ] || curl -sSfL -m 300 -o "$M/models/smpl_mean_params.npz" \
+    https://huggingface.co/spaces/brjathu/HMR2.0/resolve/main/data/smpl_mean_params.npz
+  [ -f "$M/models/multiHMR/multiHMR_896_L.pt" ] || curl -sSfL -m 3600 -o "$M/models/multiHMR/multiHMR_896_L.pt" \
+    https://download.europe.naverlabs.com/ComputerVision/MultiHMR/multiHMR_896_L.pt
+else
+  echo "   skipped: set TEMPEL_SMPLX_USER / TEMPEL_SMPLX_PASS (your smpl-x.is.tue.mpg.de login) to enable"
+fi
+
 echo "assets ready"
